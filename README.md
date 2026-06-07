@@ -15,148 +15,28 @@ Rust core performance + Python friendly interface + full Agent capabilities
 
 ---
 
-## Product Positioning
+## Two Products
 
-Continuum is two equally important products:
+Continuum consists of two related but independent products:
 
-| Product | Description | Analogy |
-|---------|-------------|---------|
-| **CLI** | Terminal Agent product | Claude Code + Aider + OpenClaw CLI |
-| **Python SDK** | AI application development framework | LangChain + LangGraph + SmolAgents |
+| Product | Purpose | Documentation |
+|---------|---------|---------------|
+| **Python SDK** | Build AI applications with agents, sessions, tools, memory, and workflows | [python/README.md](python/README.md) |
+| **CLI/TUI** | Run agents from terminal with interactive TUI, session management, and toolchain | [cli/README.md](cli/README.md) |
 
----
-
-## Core Features
-
-### Security First
-- Layer 0 Security Gateway: All external inputs must be validated
-- PII data scrubbing, access control, rate limiting
-
-### Performance Core
-- Rust core engine (70% modules)
-- Concurrent-safe session management
-- Efficient checkpoint system
-
-### Developer Friendly
-- Python thin-layer interface, simple and intuitive
-- Complete type hints
-- Comprehensive documentation
-
-### Observability
-- Built-in cost tracking
-- Real-time Token statistics
-- Execution process replay
+Both products share the same Rust core engine for performance and reliability.
 
 ---
 
-## Quick Start
+## Quick Links
 
-### Environment Setup (Recommended)
-
-```bash
-# Create conda environment (reproducible)
-conda env create -f environment.yml
-conda activate continuum
-
-# Or use pip directly
-pip install -e ./python[dev]
-```
-
-### API Key Configuration
-
-**Method 1: Environment Variables (Recommended)**
-
-```bash
-# Unified key (works for any provider)
-export CONTINUUM_API_KEY=your-api-key
-export CONTINUUM_PROVIDER=anthropic  # or openai, google
-
-# Or provider-specific keys
-export ANTHROPIC_API_KEY=your-anthropic-key
-export OPENAI_API_KEY=your-openai-key
-export GOOGLE_API_KEY=your-google-key
-
-# Custom API URL (optional, for proxies or private deployments)
-export CONTINUUM_BASE_URL=https://your-proxy.example.com
-# Or provider-specific
-export OPENAI_BASE_URL=https://api.openai.com/v1
-```
-
-**Method 2: Configuration File**
-
-```bash
-# Copy example config
-cp python/continuum_sdk/config/config.example.toml ~/.continuum/config.toml
-
-# Edit the file
-# Note: Use ${ENV_VAR} to reference environment variables (safer)
-api_key = "${ANTHROPIC_API_KEY}"
-```
-
-| Provider | Env Key | Default URL | API Format |
-|----------|---------|-------------|------------|
-| Anthropic | `ANTHROPIC_API_KEY` | `https://api.anthropic.com` | Anthropic |
-| OpenAI | `OPENAI_API_KEY` | `https://api.openai.com/v1` | OpenAI |
-| Google/Gemini | `GOOGLE_API_KEY` | `https://generativelanguage.googleapis.com/v1beta` | Google |
-| Together | `TOGETHER_API_KEY` | `https://api.together.xyz/v1` | OpenAI |
-| Groq | `GROQ_API_KEY` | `https://api.groq.com/openai/v1` | OpenAI |
-| DeepSeek | `DEEPSEEK_API_KEY` | `https://api.deepseek.com/v1` | OpenAI |
-| Moonshot | `MOONSHOT_API_KEY` | `https://api.moonshot.cn/v1` | OpenAI |
-| Custom | Any | User-defined | OpenAI or Anthropic |
-
-### CLI Usage
-
-```bash
-# Install from source
-cargo install --path cli
-
-# Or after publishing to crates.io
-cargo install continuum-agent-sdk
-
-# Run a task (uses current directory as workspace)
-continuum run "Analyze this project structure"
-
-# Start TUI mode (default when no command specified)
-continuum
-# or
-continuum tui
-
-# Manage sessions
-continuum session list
-continuum session resume <session_id>
-
-# Configure
-continuum config init
-continuum config set provider anthropic
-continuum config show
-```
-
-### Python SDK Usage
-
-```python
-from continuum_sdk import Agent, Session
-
-# Create Agent (auto-configures from environment)
-agent = Agent()
-
-# Run a task
-result = agent.run("Help me refactor this function")
-
-# With explicit configuration
-agent = Agent(model="claude-sonnet-4-6", provider="anthropic")
-
-# Session management
-session = Session()
-session.add_user_message("Hello")
-session.save("my_session")
-session = Session.load("my_session")
-```
+- **SDK Documentation**: [python/README.md](python/README.md) — API reference, examples, security configuration
+- **CLI Documentation**: [cli/README.md](cli/README.md) — commands, TUI, keyboard shortcuts, provider setup
+- **Architecture**: [docs/ARCHITECTURE_V4.md](docs/ARCHITECTURE_V4.md) — six-layer design (internal design doc)
 
 ---
 
-## Architecture
-
-### Six-Layer Architecture
+## Architecture Overview
 
 ```
 Layer 5: Interface     → CLI + Python SDK
@@ -167,125 +47,9 @@ Layer 1: Foundation    → LLM Client, Storage, Cost Tracker
 Layer 0: Security      → Input Validator, PII Scrubber, Access Control
 ```
 
-### Dependency Rules
-
-- Layer N can only depend on Layer N-1
-- No circular dependencies
-- Security gateway is the entry point for all external inputs
-
-See [ARCHITECTURE_V4.md](docs/ARCHITECTURE_V4.md) for details.
-
----
-
-## Project Structure
-
-```
-continuum/
-├── rust/              # Rust core code
-│   ├── layer0/       # Security Gateway
-│   ├── layer1/       # Foundation
-│   ├── layer2/       # Core Engine
-│   ├── layer3/       # Capabilities
-│   ├── layer4/       # Integration
-│   ├── sh-core/      # Core crate (pure Rust)
-│   └── sh-python/    # Python bindings
-├── cli/              # CLI product
-├── python/           # Python SDK
-├── docs/             # Documentation
-└── tests/            # Tests
-```
-
-See [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) for details.
-
----
-
-## Development
-
-### Build
-
-```bash
-# Activate environment
-conda activate continuum
-
-# Build Rust core
-cargo build --release
-
-# Build Python package
-maturin develop
-
-# Run tests
-cargo test
-pytest
-```
-
-### Code Standards
-
-See [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)
-
-Core principles:
-- Single file, single responsibility
-- No genesis files
-- Reuse reusable interfaces
-
----
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE_V4.md](docs/ARCHITECTURE_V4.md) | Complete architecture design |
-| [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) | Project directory structure |
-| [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) | Design philosophy and code standards |
-| [SUPER_PROJECT_VISION.md](docs/SUPER_PROJECT_VISION.md) | Project vision |
-| [DIFFERENTIATION_STRATEGY.md](docs/DIFFERENTIATION_STRATEGY.md) | Differentiation strategy |
-
----
-
-## Competitive Benchmark
-
-### Claude Code
-- ✅ 40+ built-in tools
-- ✅ Query Engine
-- ✅ LSP Client
-- ✅ Worktree Manager
-- ✅ Cost Tracking
-- ✅ Streaming output
-- ✅ Session persistence
-
-### OpenClaw
-- ✅ Plugin SDK
-- ✅ Channel Gateway
-- ✅ Process Management
-- ✅ Sandbox Runtime
-- ✅ Audit Logger
-
-### LangChain/LangGraph
-- ✅ Workflow Engine
-- ✅ Memory System
-- ✅ Tool Registry
-- ✅ Retrieval Engine
-- ✅ Output Parsers
-
----
-
-## Package Registration
-
-Package names have been reserved to prevent squatting:
-
-| Platform | Package Name | Version | Status |
-|----------|--------------|---------|--------|
-| crates.io | [`continuum`](https://crates.io/crates/continuum) | v0.1.0 | ✅ Reserved |
-| PyPI | [`continuum-agent-sdk`](https://pypi.org/project/continuum-agent-sdk/) | v1.0.0 | ✅ Reserved |
-
-```bash
-# Install Python SDK
-pip install continuum-agent-sdk
-
-# Add Rust dependency
-cargo add continuum
-```
-
-> Note: These are placeholder packages. Full implementation will be released soon.
+- **Rust core**: Layers 0-4 implemented in Rust for performance and safety
+- **Python API**: Thin wrapper providing Pythonic interface
+- **CLI/TUI**: Terminal interface built on Rust core
 
 ---
 
@@ -293,21 +57,47 @@ cargo add continuum
 
 🚧 **In Development**
 
-Current progress:
-- [x] Architecture design
-- [x] Layer 0 Security Gateway
-- [x] Layer 1 Foundation modules
-- [ ] Layer 2 Core Engine
-- [ ] Layer 3 Capabilities
-- [ ] Layer 4 Integration
-- [ ] CLI product
-- [ ] Python SDK
+| Component | Status |
+|-----------|--------|
+| Rust Core (Layers 0-4) | In progress |
+| Python SDK | Stable API, Rust bindings + Python fallback |
+| CLI/TUI | Functional, documentation in progress |
+
+See project issues for detailed roadmap.
+
+---
+
+## Installation
+
+### CLI/TUI
+
+```bash
+# From crates.io
+cargo install continuum
+
+# Or from source
+cargo install --path cli
+```
+
+### Python SDK
+
+```bash
+# From PyPI
+pip install continuum-agent-sdk
+
+# Or from source
+pip install -e ./python
+```
 
 ---
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Contact
+
+Email: 1281676337@qq.com
 
 ---
 
@@ -322,112 +112,28 @@ Rust 核心性能 + Python 友好接口 + 完整 Agent 能力
 
 ---
 
-## 产品定位
+## 两个产品
 
-Continuum 是两个同等重要的产品：
+Continuum 由两个相关但独立的产品组成：
 
-| 产品 | 描述 | 类比 |
+| 产品 | 用途 | 文档 |
 |------|------|------|
-| **CLI** | 终端 Agent 产品 | Claude Code + Aider + OpenClaw CLI |
-| **Python SDK** | AI 应用开发框架 | LangChain + LangGraph + SmolAgents |
+| **Python SDK** | 构建包含 Agent、会话、工具、记忆和工作流的 AI 应用 | [python/README.md](python/README.md) |
+| **CLI/TUI** | 通过终端运行 Agent，支持交互式 TUI、会话管理和工具链 | [cli/README.md](cli/README.md) |
+
+两个产品共享同一个 Rust 核心引擎，提供性能和可靠性保证。
 
 ---
 
-## 核心特性
+## 快速链接
 
-### 安全优先
-- Layer 0 安全网关：所有外部输入必须经过验证
-- PII 数据清洗、访问控制、速率限制
-
-### 性能核心
-- Rust 实现核心引擎（70% 模块）
-- 并发安全的会话管理
-- 高效的检查点系统
-
-### 开发友好
-- Python 薄层接口，简洁易用
-- 完整的类型提示
-- 详尽的文档
-
-### 可观测性
-- 内置成本追踪
-- 实时 Token 统计
-- 执行过程回放
+- **SDK 文档**: [python/README.md](python/README.md) — API 参考、示例、安全配置
+- **CLI 文档**: [cli/README.md](cli/README.md) — 命令、TUI、快捷键、提供商配置
+- **架构设计**: [docs/ARCHITECTURE_V4.md](docs/ARCHITECTURE_V4.md) — 六层架构（内部设计文档）
 
 ---
 
-## 快速开始
-
-### API Key 配置
-
-**方式 1：环境变量（推荐）**
-
-```bash
-# 统一密钥（适用于任何提供商）
-export CONTINUUM_API_KEY=your-api-key
-export CONTINUUM_PROVIDER=anthropic  # 或 openai, google
-
-# 或使用提供商特定密钥
-export ANTHROPIC_API_KEY=your-anthropic-key
-export OPENAI_API_KEY=your-openai-key
-export GOOGLE_API_KEY=your-google-key
-
-# 自定义 API URL（可选，用于代理或私有部署）
-export CONTINUUM_BASE_URL=https://your-proxy.example.com
-```
-
-**方式 2：配置文件**
-
-```bash
-# 复制示例配置
-cp python/continuum_sdk/config/config.example.toml ~/.continuum/config.toml
-```
-
-### CLI 使用
-
-```bash
-# 从源码安装
-cargo install --path cli
-
-# 运行任务（以当前目录为工作区）
-continuum run "分析这个项目结构"
-
-# 启动 TUI 模式（默认行为）
-continuum
-# 或显式指定
-continuum tui
-
-# 管理会话
-continuum session list
-continuum session resume <session_id>
-```
-
-### Python SDK 使用
-
-```python
-from continuum_sdk import Agent, Session
-
-# 创建 Agent (自动从环境配置)
-agent = Agent()
-
-# 运行任务
-result = agent.run("帮我重构这个函数")
-
-# 指定配置
-agent = Agent(model="claude-sonnet-4-6", provider="anthropic")
-
-# 会话管理
-session = Session()
-session.add_user_message("你好")
-session.save("my_session")
-session = Session.load("my_session")
-```
-
----
-
-## 架构
-
-### 六层架构
+## 架构概览
 
 ```
 Layer 5: Interface     → CLI + Python SDK
@@ -438,122 +144,9 @@ Layer 1: Foundation    → LLM Client, Storage, Cost Tracker
 Layer 0: Security      → Input Validator, PII Scrubber, Access Control
 ```
 
-### 依赖规则
-
-- Layer N 只能依赖 Layer N-1
-- 无循环依赖
-- 安全网关是所有外部输入的入口
-
-详细架构请参阅 [ARCHITECTURE_V4.md](docs/ARCHITECTURE_V4.md)
-
----
-
-## 项目结构
-
-```
-continuum/
-├── rust/              # Rust 核心代码
-│   ├── layer0/       # Security Gateway
-│   ├── layer1/       # Foundation
-│   ├── layer2/       # Core Engine
-│   ├── layer3/       # Capabilities
-│   ├── layer4/       # Integration
-│   ├── sh-core/      # 核心 crate (纯 Rust)
-│   └── sh-python/    # Python 绑定
-├── cli/              # CLI 产品
-├── python/           # Python SDK
-├── docs/             # 文档
-└── tests/            # 测试
-```
-
-详细结构请参阅 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
-
----
-
-## 开发
-
-### 构建
-
-```bash
-# 构建 Rust 核心
-cargo build --release
-
-# 构建 Python 包
-maturin develop
-
-# 运行测试
-cargo test
-pytest
-```
-
-### 代码规范
-
-请参阅 [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md)
-
-核心原则：
-- 单文件单职责
-- 无创世文件
-- 复用可复用接口
-
----
-
-## 文档
-
-| 文档 | 描述 |
-|------|------|
-| [ARCHITECTURE_V4.md](docs/ARCHITECTURE_V4.md) | 完整架构设计 |
-| [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) | 项目目录结构 |
-| [DESIGN_PHILOSOPHY.md](docs/DESIGN_PHILOSOPHY.md) | 设计理念与代码规范 |
-| [SUPER_PROJECT_VISION.md](docs/SUPER_PROJECT_VISION.md) | 项目愿景 |
-| [DIFFERENTIATION_STRATEGY.md](docs/DIFFERENTIATION_STRATEGY.md) | 差异化竞争策略 |
-
----
-
-## 包名注册
-
-包名已预留，防止被抢注：
-
-| 平台 | 包名 | 版本 | 状态 |
-|------|------|------|------|
-| crates.io | [`continuum`](https://crates.io/crates/continuum) | v0.1.0 | ✅ 已注册 |
-| PyPI | [`continuum-agent-sdk`](https://pypi.org/project/continuum-agent-sdk/) | v1.0.0 | ✅ 已注册 |
-
-```bash
-# 安装 Python SDK
-pip install continuum-agent-sdk
-
-# 添加 Rust 依赖
-cargo add continuum
-```
-
-> 注：当前为占位包，完整实现将在后续版本发布。
-
----
-
-## 竞品能力对标
-
-### Claude Code
-- ✅ 40+ 内置工具
-- ✅ Query Engine
-- ✅ LSP Client
-- ✅ Worktree Manager
-- ✅ Cost Tracking
-- ✅ 流式输出
-- ✅ 会话持久化
-
-### OpenClaw
-- ✅ Plugin SDK
-- ✅ Channel Gateway
-- ✅ Process Management
-- ✅ Sandbox Runtime
-- ✅ Audit Logger
-
-### LangChain/LangGraph
-- ✅ Workflow Engine
-- ✅ Memory System
-- ✅ Tool Registry
-- ✅ Retrieval Engine
-- ✅ Output Parsers
+- **Rust 核心**: Layers 0-4 使用 Rust 实现，确保性能和安全
+- **Python API**: 薄封装层，提供 Pythonic 接口
+- **CLI/TUI**: 基于 Rust 核心构建的终端界面
 
 ---
 
@@ -561,15 +154,37 @@ cargo add continuum
 
 🚧 **正在开发中**
 
-当前进度：
-- [x] 架构设计
-- [x] Layer 0 安全网关
-- [x] Layer 1 基础模块
-- [ ] Layer 2 核心引擎
-- [ ] Layer 3 能力扩展
-- [ ] Layer 4 集成模块
-- [ ] CLI 产品
-- [ ] Python SDK
+| 组件 | 状态 |
+|------|------|
+| Rust 核心 (Layers 0-4) | 开发中 |
+| Python SDK | API 稳定，Rust 绑定 + Python 降级 |
+| CLI/TUI | 功能可用，文档完善中 |
+
+详细路线图请参见项目 issues。
+
+---
+
+## 安装
+
+### CLI/TUI
+
+```bash
+# 从 crates.io 安装
+cargo install continuum
+
+# 或从源码安装
+cargo install --path cli
+```
+
+### Python SDK
+
+```bash
+# 从 PyPI 安装
+pip install continuum-agent-sdk
+
+# 或从源码安装
+pip install -e ./python
+```
 
 ---
 
