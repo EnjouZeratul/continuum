@@ -39,9 +39,9 @@ futures.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-continuum = { path = "../../cli" }
-sh-layer1 = { path = "../layer1" }
-sh-layer2 = { path = "../layer2" }
+continuum = { version = "1.0.0", path = "../../cli" }
+sh-layer1 = { version = "1.0.0", path = "../layer1" }
+sh-layer2 = { version = "1.0.0", path = "../layer2" }
 
 [[test]]
 name = "integration_llm"

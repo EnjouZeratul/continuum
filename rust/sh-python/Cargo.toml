@@ -13,12 +13,12 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-sh-core = { path = "../sh-core" }
-sh-layer0 = { path = "../layer0" }
-sh-layer1 = { path = "../layer1", features = ["mock"] }
-sh-layer2 = { path = "../layer2" }
-sh-layer3 = { path = "../layer3" }
-sh-layer4 = { path = "../layer4" }
+sh-core = { version = "1.0.0", path = "../sh-core" }
+sh-layer0 = { version = "1.0.0", path = "../layer0" }
+sh-layer1 = { version = "1.0.0", path = "../layer1", features = ["mock"] }
+sh-layer2 = { version = "1.0.0", path = "../layer2" }
+sh-layer3 = { version = "1.0.0", path = "../layer3" }
+sh-layer4 = { version = "1.0.0", path = "../layer4" }
 
 pyo3.workspace = true
 pyo3-async-runtimes.workspace = true
