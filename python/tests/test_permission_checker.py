@@ -581,17 +581,21 @@ class TestPermissionCheckerParentDirectory:
         """Test checking parent when there is no parent (root path)."""
         checker = PermissionChecker()
 
-        # Create a mock path where parent equals itself
-        with patch("pathlib.Path") as mock_path_class:
-            mock_path = MagicMock(spec=Path)
-            mock_path.parent = mock_path  # Parent equals itself
-            mock_path.__str__ = lambda self: "/"
-            mock_path_class.return_value = mock_path
+        # Test with a root path where parent equals itself
+        # On Unix, "/" parent is "/" itself
+        # On Windows, "C:\" parent is "C:\" itself
+        # Both should return "No parent directory"
 
-            # Direct call to check_parent
+        if os.name == "nt":
+            # Windows: use the root of current drive
+            root_path = str(Path(os.getcwd()).anchor)
+            result = checker.check_parent(root_path, Permission.WRITE)
+        else:
+            # Unix: use root path
             result = checker.check_parent("/", Permission.WRITE)
-            assert result.has_permission is False
-            assert "No parent directory" in result.reason
+
+        assert result.has_permission is False
+        assert "No parent directory" in result.reason
 
     def test_check_parent_existing_directory(self, temp_dir):
         """Test checking existing parent directory permission."""
@@ -993,37 +997,46 @@ class TestPermissionCheckerCrossPlatformMocked:
                 assert result.has_permission is False
                 assert "No write permission in parent directory" in result.reason
 
+    @pytest.mark.skipif(
+        os.name != "nt",
+        reason="WindowsPath cannot be instantiated on non-Windows systems",
+    )
     def test_windows_delete_file_mocked(self, temp_dir):
         """Test Windows delete permission for file (mocked)."""
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch("os.name", "nt"):
-            with patch("os.access", return_value=True):
-                result = checker._check_delete(Path(file_path))
-                assert result.has_permission is True
-                assert "Can delete file" in result.reason
+        with patch("os.access", return_value=True):
+            result = checker._check_delete(Path(file_path))
+            assert result.has_permission is True
+            assert "Can delete file" in result.reason
 
+    @pytest.mark.skipif(
+        os.name != "nt",
+        reason="WindowsPath cannot be instantiated on non-Windows systems",
+    )
     def test_windows_delete_directory_mocked(self, temp_dir):
         """Test Windows delete permission for directory (mocked)."""
         checker = PermissionChecker()
 
-        with patch("os.name", "nt"):
-            with patch("os.access", return_value=True):
-                with patch.object(Path, "is_file", return_value=False):
-                    result = checker._check_delete(Path(temp_dir))
-                    assert result.has_permission is True
+        with patch("os.access", return_value=True):
+            with patch.object(Path, "is_file", return_value=False):
+                result = checker._check_delete(Path(temp_dir))
+                assert result.has_permission is True
 
+    @pytest.mark.skipif(
+        os.name != "nt",
+        reason="WindowsPath cannot be instantiated on non-Windows systems",
+    )
     def test_windows_delete_error_mocked(self, temp_dir):
         """Test Windows delete permission error handling (mocked)."""
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch("os.name", "nt"):
-            with patch("os.access", side_effect=OSError("Error")):
-                result = checker._check_delete(Path(file_path))
-                assert result.has_permission is False
-                assert "No delete permission" in result.reason
+        with patch("os.access", side_effect=OSError("Error")):
+            result = checker._check_delete(Path(file_path))
+            assert result.has_permission is False
+            assert "No delete permission" in result.reason
 
 
 class TestPermissionCheckerMockedFilesystem:

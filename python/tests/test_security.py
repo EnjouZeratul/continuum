@@ -764,6 +764,10 @@ class TestPathValidator:
         result2 = validator.validate(str(subdir))
         assert result2.is_valid
 
+    @pytest.mark.skipif(
+        os.name != "nt",
+        reason="WindowsPath cannot be instantiated on non-Windows systems",
+    )
     def test_path_contains_exception(self, temp_dir):
         """Test _path_contains exception handling (lines 368-369)"""
         import unittest.mock as mock
@@ -1205,6 +1209,10 @@ class TestPathValidatorMissingCoverage:
         result = validator.validate(temp_dir)
         assert result.is_valid
 
+    @pytest.mark.skipif(
+        os.name != "nt",
+        reason="WindowsPath cannot be instantiated on non-Windows systems",
+    )
     def test_path_contains_exception_handling(self, temp_dir):
         """Test _path_contains exception handling (lines 368-369)."""
         import unittest.mock as mock
