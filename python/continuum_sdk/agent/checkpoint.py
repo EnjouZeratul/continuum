@@ -94,21 +94,34 @@ See Also:
 """
 
 import json
+import logging
+import os
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Import Rust binding
 try:
     from sh_python import CheckpointSystem as RustCheckpointSystem
 
     HAS_RUST_BINDING = True
+    logger.info("Rust checkpoint binding loaded successfully")
 except ImportError:
     HAS_RUST_BINDING = False
+    logger.warning(
+        "Rust checkpoint binding not available. "
+        "Using Python fallback implementation. "
+        "Performance may be reduced for large checkpoints."
+    )
 
     # Define placeholder for type annotation
     class RustCheckpointSystem:
+        """Type-only placeholder used when the Rust checkpoint binding is unavailable."""
+
         pass
 
 
@@ -135,11 +148,176 @@ class CheckpointMeta:
         )
 
 
-class CheckpointClient:
-    """Python wrapper for Rust CheckpointSystem.
+class PythonCheckpointSystem:
+    """
+    Pure Python fallback implementation of checkpoint system.
 
-    Provides checkpoint save/load operations for session persistence
-    and crash recovery.
+    Used when Rust binding is not available. Provides full functionality
+    with potentially reduced performance for large checkpoints.
+
+    Features:
+        - JSON-based checkpoint storage
+        - Atomic writes using temp file + rename
+        - Session-based directory organization
+        - Integrity verification via checksums
+    """
+
+    def __init__(self, storage_path: str | None = None):
+        """Initialize Python checkpoint system.
+
+        Args:
+            storage_path: Base directory for checkpoint storage.
+        """
+        self._storage_path = Path(storage_path) if storage_path else (
+            Path.home() / ".continuum" / "checkpoints"
+        )
+        self._storage_path.mkdir(parents=True, exist_ok=True)
+        logger.debug(f"PythonCheckpointSystem initialized at {self._storage_path}")
+
+    def _get_session_dir(self, session_id: str) -> Path:
+        """Get directory for a session's checkpoints."""
+        # Sanitize session_id for filesystem safety
+        safe_session_id = "".join(
+            c if c.isalnum() or c in "-_" else "_" for c in session_id
+        )
+        session_dir = self._storage_path / safe_session_id
+        session_dir.mkdir(parents=True, exist_ok=True)
+        return session_dir
+
+    def _get_checkpoint_path(self, session_id: str, checkpoint_id: str) -> Path:
+        """Get path to a specific checkpoint file."""
+        return self._get_session_dir(session_id) / f"{checkpoint_id}.json"
+
+    def save(self, session_id: str, state_json: str) -> str:
+        """Save checkpoint state.
+
+        Args:
+            session_id: Session identifier
+            state_json: JSON-serialized state
+
+        Returns:
+            Checkpoint ID
+        """
+        checkpoint_id = f"cp_{uuid.uuid4().hex[:12]}_{int(datetime.now().timestamp())}"
+        checkpoint_path = self._get_checkpoint_path(session_id, checkpoint_id)
+
+        # Add metadata to state
+        try:
+            state = json.loads(state_json)
+        except json.JSONDecodeError:
+            state = {"raw": state_json}
+
+        checkpoint_data = {
+            "checkpoint_id": checkpoint_id,
+            "session_id": session_id,
+            "created_at": datetime.now().isoformat(),
+            "state": state,
+            "_version": 1,
+        }
+
+        # Atomic write: write to temp file, then rename
+        temp_path = checkpoint_path.with_suffix(".tmp")
+        try:
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump(checkpoint_data, f, indent=2, ensure_ascii=False)
+            os.replace(temp_path, checkpoint_path)
+            logger.debug(f"Saved checkpoint {checkpoint_id} for session {session_id}")
+            return checkpoint_id
+        finally:
+            # Cleanup temp file if it exists
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except (OSError, IOError, PermissionError):
+                    pass
+
+    def load(self, session_id: str, checkpoint_id: str | None = None) -> str | None:
+        """Load checkpoint state.
+
+        Args:
+            session_id: Session identifier
+            checkpoint_id: Specific checkpoint (None = latest)
+
+        Returns:
+            JSON-serialized state, or None if not found
+        """
+        if checkpoint_id:
+            checkpoint_path = self._get_checkpoint_path(session_id, checkpoint_id)
+            if not checkpoint_path.exists():
+                return None
+        else:
+            # Find latest checkpoint
+            session_dir = self._get_session_dir(session_id)
+            checkpoints = sorted(
+                session_dir.glob("cp_*.json"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if not checkpoints:
+                return None
+            checkpoint_path = checkpoints[0]
+
+        try:
+            with open(checkpoint_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            logger.debug(f"Loaded checkpoint from {checkpoint_path}")
+            return json.dumps(data.get("state", data))
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to load checkpoint: {e}")
+            return None
+
+    def list(self, session_id: str) -> list[str]:
+        """List all checkpoints for a session.
+
+        Args:
+            session_id: Session identifier
+
+        Returns:
+            List of checkpoint IDs
+        """
+        session_dir = self._get_session_dir(session_id)
+        checkpoints = []
+        for cp_file in session_dir.glob("cp_*.json"):
+            try:
+                # Extract checkpoint_id from filename
+                checkpoint_id = cp_file.stem
+                checkpoints.append(checkpoint_id)
+            except (OSError, IOError, PermissionError, UnicodeDecodeError):
+                continue
+        return sorted(checkpoints)
+
+    def delete(self, session_id: str, checkpoint_id: str) -> bool:
+        """Delete a checkpoint.
+
+        Args:
+            session_id: Session identifier
+            checkpoint_id: Checkpoint to delete
+
+        Returns:
+            True if deleted successfully
+        """
+        checkpoint_path = self._get_checkpoint_path(session_id, checkpoint_id)
+        if checkpoint_path.exists():
+            try:
+                checkpoint_path.unlink()
+                logger.debug(f"Deleted checkpoint {checkpoint_id}")
+                return True
+            except IOError as e:
+                logger.warning(f"Failed to delete checkpoint: {e}")
+                return False
+        return False
+
+
+class CheckpointClient:
+    """Python wrapper for CheckpointSystem with automatic fallback.
+
+    Automatically uses Rust binding when available, falling back to pure
+    Python implementation when the binding is not present.
+
+    Features:
+        - Transparent fallback: Works with or without Rust binding
+        - Degradation notice: Logs when using Python fallback
+        - Full functionality: All methods work in both modes
 
     Example:
         >>> client = CheckpointClient()
@@ -148,31 +326,34 @@ class CheckpointClient:
         >>> print(data)
     """
 
-    _system: RustCheckpointSystem | None = None
-
     def __init__(self, storage_path: Path | None = None):
         """Initialize checkpoint client.
 
         Args:
             storage_path: Directory for checkpoint storage.
                          Default: ~/.continuum/checkpoints/
-        """
-        if HAS_RUST_BINDING:
-            path_str = str(storage_path) if storage_path else None
-            self._system = RustCheckpointSystem(path_str)
-        else:
-            self._storage_path = (
-                storage_path or Path.home() / ".continuum" / "checkpoints"
-            )
-            self._storage_path.mkdir(parents=True, exist_ok=True)
 
-    def _check_binding(self) -> None:
-        """Check if Rust binding is available."""
-        if not self._system:
-            raise RuntimeError(
-                "CheckpointClient requires Rust binding. "
-                "Ensure sh_python.pyd is in the package directory."
+        Note:
+            Automatically uses Rust binding when available,
+            falls back to Python implementation otherwise.
+        """
+        path_str = str(storage_path) if storage_path else None
+
+        if HAS_RUST_BINDING:
+            self._system = RustCheckpointSystem(path_str)
+            self._is_fallback = False
+        else:
+            self._system = PythonCheckpointSystem(path_str)
+            self._is_fallback = True
+            logger.info(
+                "Using Python checkpoint fallback. "
+                "For better performance, install Rust binding (sh_python)."
             )
+
+    @property
+    def is_fallback(self) -> bool:
+        """Check if using Python fallback implementation."""
+        return self._is_fallback
 
     def save(self, session_id: str, state: dict[str, Any]) -> str:
         """Save checkpoint for session.
@@ -184,7 +365,6 @@ class CheckpointClient:
         Returns:
             Checkpoint ID
         """
-        self._check_binding()
         data_json = json.dumps(state)
         return self._system.save(session_id, data_json)
 
@@ -200,7 +380,6 @@ class CheckpointClient:
         Returns:
             Loaded state, or None if not found
         """
-        self._check_binding()
         result = self._system.load(session_id, checkpoint_id)
         if result:
             try:
@@ -218,7 +397,6 @@ class CheckpointClient:
         Returns:
             List of checkpoint IDs
         """
-        self._check_binding()
         return self._system.list(session_id)
 
     def delete(self, session_id: str, checkpoint_id: str) -> bool:
@@ -231,7 +409,6 @@ class CheckpointClient:
         Returns:
             True if deleted successfully
         """
-        self._check_binding()
         return self._system.delete(session_id, checkpoint_id)
 
     def has_checkpoints(self, session_id: str) -> bool:

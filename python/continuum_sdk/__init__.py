@@ -5,7 +5,6 @@ Python SDK for Continuum - A terminal agent framework with real LLM calls.
 
 Features:
     - Real LLM API calls (Anthropic, OpenAI, Gemini)
-    - Streaming response support
     - Tool registration and function calling
     - Session persistence and recovery
     - Multi-provider configuration
@@ -20,10 +19,6 @@ With explicit configuration:
     >>> config = Config.from_env()
     >>> agent = Agent(config=config)
 
-Streaming:
-    >>> async for chunk in agent.run_stream("hello"):
-    ...     print(chunk.content)
-
 Tools:
     >>> import ast
     >>> agent.register_tool(
@@ -36,8 +31,11 @@ Tools:
 
 __version__ = "1.0.0"
 
-# Core classes
-from .agent import Agent, Session
+# Unified API (recommended)
+from .api import Agent, Session, BuiltinTools, HAS_RUST_BINDING, get_implementation_preference
+
+# Core classes (legacy, same as api.Agent)
+from .agent import Agent as LegacyAgent, Session as LegacySession
 from .config import (
     Config,
     ConfigLoader,
@@ -60,10 +58,30 @@ from .llm import (
     TokenUsage,
 )
 
+# Unified errors (recommended)
+from .errors import (
+    ContinuumError,
+    ErrorContext,
+    ConfigError,
+    ToolExecutionError,
+    LLMError as UnifiedLLMError,
+    AuthenticationError,
+    RateLimitError,
+    SecurityError,
+    ValidationError,
+    config_error,
+    tool_error,
+    validation_error,
+    security_error,
+)
+
 __all__ = [
-    # Core
+    # Unified API (recommended)
     "Agent",
     "Session",
+    "BuiltinTools",
+    "HAS_RUST_BINDING",
+    "get_implementation_preference",
     # Config
     "Config",
     "ConfigLoader",
@@ -81,4 +99,17 @@ __all__ = [
     "StreamChunk",
     "TokenUsage",
     "LlmError",
+    # Unified errors (recommended)
+    "ContinuumError",
+    "ErrorContext",
+    "ConfigError",
+    "ToolExecutionError",
+    "AuthenticationError",
+    "RateLimitError",
+    "SecurityError",
+    "ValidationError",
+    "config_error",
+    "tool_error",
+    "validation_error",
+    "security_error",
 ]

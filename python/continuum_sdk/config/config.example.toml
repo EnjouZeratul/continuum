@@ -1,88 +1,114 @@
+# Continuum Agent SDK Configuration Example
 # Continuum Agent SDK 配置示例
+# Copy this file to ~/.continuum/config.toml or .continuum/config.toml in project root
 # 复制此文件到 ~/.continuum/config.toml 或项目根目录的 .continuum/config.toml
 
+# ==================== Provider Configuration ====================
 # ==================== 提供商配置 ====================
 
+# Current provider (anthropic, openai, google, or custom)
 # 当前使用的提供商 (anthropic, openai, google, 或自定义)
 provider = "anthropic"
 
+# API Key (recommended to use environment variables, not recommended to write directly in config)
 # API Key（推荐使用环境变量，不建议直接写入配置文件）
 # api_key = "your-api-key-here"
 
+# Custom API URL (optional, for proxy or private deployment)
 # 自定义 API URL（可选，用于代理或私有部署）
 # base_url = "https://your-proxy.example.com"
 
+# ==================== Model Configuration ====================
 # ==================== 模型配置 ====================
+# Note: Model is not hardcoded, any model name can be specified, SDK will send request to URL
 # 注意：模型不硬编码，可指定任意模型名称，SDK 会向 URL 发送请求
 
+# Default model (choose appropriate model based on provider)
 # 默认模型（根据 provider 选择合适的模型）
 model = "claude-sonnet-4-6"
 
+# Small model (for simple tasks, saves cost)
 # 小模型（用于简单任务，节省成本）
 small_model = "claude-haiku-4-5"
 
+# ==================== Execution Parameters ====================
 # ==================== 执行参数 ====================
 
+# Maximum token count
 # 最大 token 数
 max_tokens = 4096
 
+# Temperature parameter (0.0-1.0)
 # 温度参数 (0.0-1.0)
 temperature = 0.7
 
+# Budget limit (USD)
 # 预算上限 (USD)
 # budget = 10.0
 
+# ==================== Working Directory Configuration ====================
 # ==================== 工作目录配置 ====================
 
+# Git worktrees directory
 # Git worktrees 目录
 # worktrees_dir = "~/.continuum/worktrees"
 
+# Plugins directory
 # 插件目录
 # plugins_dir = "~/.continuum/plugins"
 
+# ==================== Logging and Audit ====================
 # ==================== 日志与审计 ====================
 
+# Log level: trace, debug, info, warn, error
 # 日志级别: trace, debug, info, warn, error
 log_level = "info"
 
+# Whether to enable audit log
 # 是否启用审计日志
 audit_enabled = true
 
+# Audit log retention days
 # 审计日志保留天数
 audit_retention_days = 90
 
+# ==================== Multi-Provider Configuration Example ====================
 # ==================== 多提供商配置示例 ====================
 
 [providers.anthropic]
 api_key = "${ANTHROPIC_API_KEY}"
 base_url = "https://api.anthropic.com"
-model = "claude-sonnet-4-6"  # 可改为任意模型名称
+model = "claude-sonnet-4-6"  # Can be changed to any model name / 可改为任意模型名称
 
 [providers.openai]
 api_key = "${OPENAI_API_KEY}"
 base_url = "https://api.openai.com/v1"
-model = "gpt-4.1"  # 支持任意 OpenAI 模型
+model = "gpt-4.1"  # Supports any OpenAI model / 支持任意 OpenAI 模型
 
 [providers.google]
 api_key = "${GOOGLE_API_KEY}"
 base_url = "https://generativelanguage.googleapis.com/v1beta"
-model = "gemini-2.5-pro"  # 支持任意 Gemini 模型
+model = "gemini-2.5-pro"  # Supports any Gemini model / 支持任意 Gemini 模型
 
+# ==================== Custom Provider ====================
 # ==================== 自定义提供商 ====================
+# Supports two API formats: anthropic (Anthropic format) and openai (OpenAI compatible format)
 # 支持两种 API 格式：anthropic（A社格式）和 openai（OpenAI 兼容格式）
+# Most third-party providers use OpenAI compatible format
 # 大多数第三方提供商使用 OpenAI 兼容格式
 
+# OpenAI compatible format example (Together, Groq, DeepSeek, Moonshot, etc.)
 # OpenAI 兼容格式示例（Together, Groq, DeepSeek, 月之暗面 等）
 # [providers.my-openai-provider]
-# api_format = "openai"           # openai 或 anthropic
+# api_format = "openai"           # openai or anthropic
 # api_key = "${CUSTOM_API_KEY}"
 # base_url = "https://api.custom.com/v1"
-# model = "custom-model-1"        # 任意模型名称
+# model = "custom-model-1"        # Any model name / 任意模型名称
 
+# Anthropic format example (self-hosted Anthropic proxy, etc.)
 # Anthropic 格式示例（自建 Anthropic 代理等）
 # [providers.my-anthropic-proxy]
 # api_format = "anthropic"
 # api_key = "${ANTHROPIC_API_KEY}"
 # base_url = "https://my-proxy.example.com"
 # model = "claude-sonnet-4-6"
-

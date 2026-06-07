@@ -207,20 +207,22 @@ class TestFallbackMechanism:
 class TestEnvSafety:
     """测试 env.py 安全访问"""
 
-    def test_whitelist_enforced(self):
-        """验证白名单强制执行"""
-        from continuum_sdk.env import get_str, ALLOWED_ENV_BASE_NAMES
+    def test_soft_constraint_warning(self, caplog):
+        """验证软约束行为 - 非白名单变量记录警告但不抛出异常"""
+        import logging
+        from continuum_sdk.env import get_str, DOCUMENTED_ENV_VARS
 
-        # 尝试访问不在白名单中的变量应该抛出 ValueError
-        with pytest.raises(ValueError) as exc_info:
-            get_str("NOT_IN_WHITELIST_VAR")
+        # 尝试访问不在白名单中的变量应该记录警告但不抛出异常
+        with caplog.at_level(logging.WARNING):
+            result = get_str("NOT_IN_WHITELIST_VAR")
 
-        assert "not in the allowed list" in str(exc_info.value)
-        print("[PASS] 白名单强制执行正确")
+        assert result is None  # 但不抛出异常
+        assert "non-documented env var" in caplog.text
+        print("[PASS] 软约束行为正确")
 
     def test_whitelist_reasonable(self):
         """验证白名单合理性 - 包含核心配置"""
-        from continuum_sdk.env import ALLOWED_ENV_BASE_NAMES
+        from continuum_sdk.env import DOCUMENTED_ENV_VARS
 
         # 核心配置应该在白名单中
         essential_vars = {
@@ -234,7 +236,7 @@ class TestEnvSafety:
         }
 
         for var in essential_vars:
-            assert var in ALLOWED_ENV_BASE_NAMES, \
+            assert var in DOCUMENTED_ENV_VARS, \
                 f"{var} should be in whitelist"
 
         print("[PASS] 白名单包含核心配置")

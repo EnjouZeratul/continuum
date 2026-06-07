@@ -18,6 +18,15 @@ from .checkpoint import (
     CheckpointClient,
     CheckpointMeta,
 )
+from .history import (
+    HistoryBrowser,
+    HistoryFilter,
+    HistoryStatistics,
+    SearchResult,
+    SortOrder,
+    browse_session,
+    browse_session_file,
+)
 from .intelligent import AgentMode, ExecutionResult, IntelligentAgent
 from .planner import (
     Plan,
@@ -56,6 +65,14 @@ __all__ = [
     "Session",
     "Message",
     "MessageRole",
+    # History Browser
+    "HistoryBrowser",
+    "HistoryFilter",
+    "HistoryStatistics",
+    "SearchResult",
+    "SortOrder",
+    "browse_session",
+    "browse_session_file",
     # Intelligent Agent
     "IntelligentAgent",
     "AgentMode",

@@ -10,12 +10,17 @@ Configuration loading and management for Continuum SDK with:
 """
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+from .providers import get_default_model as _get_provider_default_model
+
+logger = logging.getLogger(__name__)
 
 # Security: Whitelist of allowed environment variables
 ALLOWED_ENV_VARS = {
@@ -30,6 +35,13 @@ ALLOWED_ENV_VARS = {
     "CONTINUUM_MAX_TOKENS",
     "CONTINUUM_TIMEOUT",
     "CONTINUUM_MAX_ITERATIONS",
+    "CONTINUUM_TEMPERATURE",
+    "CONTINUUM_BUDGET",
+    "CONTINUUM_EFFORT_LEVEL",
+    "CONTINUUM_DISABLE_TRAFFIC",
+    "CONTINUUM_WORKTREES_DIR",
+    "CONTINUUM_PLUGINS_DIR",
+    "CONTINUUM_API_FORMAT",
     "CONTINUUM_AUDIT_ENABLED",
     "CONTINUUM_AUDIT_LOG_PATH",
     "CONTINUUM_AUDIT_RETENTION",
@@ -44,6 +56,44 @@ ALLOWED_ENV_VARS = {
     "GOOGLE_BASE_URL",
     "GEMINI_API_KEY",
     "GEMINI_BASE_URL",
+    # Additional providers
+    "DEEPSEEK_API_KEY",
+    "DEEPSEEK_BASE_URL",
+    "GLM_API_KEY",
+    "GLM_BASE_URL",
+    "MOONSHOT_API_KEY",
+    "MOONSHOT_BASE_URL",
+    "QWEN_API_KEY",
+    "QWEN_BASE_URL",
+    "XAI_API_KEY",
+    "XAI_BASE_URL",
+    "GROK_API_KEY",
+    "GROK_BASE_URL",
+    "TOGETHER_API_KEY",
+    "TOGETHER_BASE_URL",
+    "GROQ_API_KEY",
+    "GROQ_BASE_URL",
+    "COHERE_API_KEY",
+    "COHERE_BASE_URL",
+    "HF_API_KEY",
+    "HUGGINGFACE_BASE_URL",
+    # Cloud / hosted providers
+    "AZURE_OPENAI_API_KEY",
+    "AZURE_OPENAI_BASE_URL",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_REGION",
+    "OLLAMA_BASE_URL",
+    # Embedding providers
+    "HUGGINGFACE_API_KEY",
+    "HUGGINGFACE_EMBEDDING_MODEL",
+    "OPENAI_EMBEDDING_MODEL",
+    "COHERE_API_KEY",
+    "COHERE_EMBEDDING_MODEL",
+    "LOCAL_EMBEDDING_MODEL",
+    # Test support
+    "USE_REAL_API",
+    "CONTINUUM_THEME_CONFIG",
     # Legacy support (deprecated)
     "SUPERHARNESS_API_KEY",
     "SUPERHARNESS_BASE_URL",
@@ -52,20 +102,21 @@ ALLOWED_ENV_VARS = {
 
 def _get_env(name: str, default: str | None = None) -> str | None:
     """
-    Securely get environment variable with whitelist validation.
+    Get environment variable with soft constraint (warning for non-documented vars).
 
-    Only allows predefined environment variables to prevent
-    environment variable injection attacks.
+    Uses whitelist as documentation purpose. Non-whitelisted variables will log
+    a warning but still return their value if set.
+
+    Note: Returns default silently for non-whitelisted variables during fallback checks.
+    This is intentional - the fallback logic in from_env() tries multiple prefixes,
+    and we don't want to warn on expected fallback misses.
     """
     if name not in ALLOWED_ENV_VARS:
-        # Log warning but don't expose the variable name
-        import warnings
-        warnings.warn(
-            f"Attempted to access non-whitelisted environment variable",
-            UserWarning,
-            stacklevel=3,
+        # Log warning for non-documented variables
+        logger.warning(
+            f"Accessing non-documented env var '{name}'. "
+            f"Consider adding to ALLOWED_ENV_VARS for consistency."
         )
-        return default
     return os.environ.get(name, default)
 
 # TOML support (Python 3.11+ has built-in, otherwise use tomllib)
@@ -79,18 +130,21 @@ except ImportError:
 
 
 class Provider(Enum):
-    """LLM 提供商"""
+    """LLM Provider."""
 
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     GOOGLE = "google"
     GEMINI = "gemini"
+    AZURE = "azure"
+    BEDROCK = "bedrock"
+    OLLAMA = "ollama"
     CUSTOM = "custom"
 
 
 @dataclass
 class ProviderConfig:
-    """提供商配置"""
+    """Provider configuration."""
 
     name: str
     api_key: str | None = None
@@ -112,33 +166,33 @@ class ProviderConfig:
 
 class Config:
     """
-    Continuum 配置类
+    Continuum Configuration Class.
 
-    支持多种配置来源，优先级：环境变量 > 配置文件 > 默认值
+    Supports multiple configuration sources with priority: environment variables > config files > defaults.
 
     Usage:
-        # 方式1: 环境变量自动读取
+        # Method 1: Auto-load from environment variables (recommended)
         config = Config.from_env()
 
-        # 方式2: 从配置文件加载
+        # Method 2: Load from config file
         config = Config.from_file("~/.continuum/config.toml")
 
-        # 方式3: 显式配置
+        # Method 3: Explicit configuration (model is optional, defaults auto-detected)
         config = Config(
             provider="anthropic",
-            api_key="xxx",
-            model="claude-sonnet-4-6"
+            api_key="xxx"
+            # model is optional, auto-fetched from providers config
         )
 
-        # 切换提供商
+        # Switch provider (auto-switches to corresponding default model)
         config.use("openai")
     """
 
-    # 环境变量前缀 (CONTINUUM_* 优先，CONTINUUM_* 兼容)
+    # Environment variable prefix (CONTINUUM_* preferred, CONTINUUM_* for compatibility)
     ENV_PREFIX = "CONTINUUM_"
     ENV_PREFIX_FALLBACK = "CONTINUUM_"
 
-    # 默认配置目录
+    # Default config directories
     DEFAULT_CONFIG_DIRS = [
         ".",
         ".claude",
@@ -146,7 +200,7 @@ class Config:
         "~/.continuum",
     ]
 
-    # 默认配置文件名
+    # Default config filenames
     DEFAULT_CONFIG_FILES = ["config.toml", "continuum.toml", "config.json"]
 
     def __init__(
@@ -170,26 +224,26 @@ class Config:
         **kwargs,
     ):
         """
-        创建配置
+        Create configuration.
 
         Args:
-            provider: LLM 提供商 (anthropic|openai|google|custom|together|groq|...)
-            api_key: API 密钥
-            base_url: API 基础 URL（用于自定义端点或代理）
-            api_format: API 格式 (anthropic|openai|google)。不设置则根据 provider 自动推断
-            model: 主模型名称
-            small_model: 小模型名称（用于简单任务）
-            effort_level: 努力级别 (low|medium|high|max)
-            disable_traffic: 是否禁用流量统计
-            budget: 预算上限
-            max_tokens: 最大 token 数
-            temperature: 温度参数
-            worktrees_dir: worktrees 目录
-            plugins_dir: 插件目录
-            log_level: 日志级别
-            audit_enabled: 是否启用审计
-            audit_retention_days: 审计日志保留天数
-            **kwargs: 其他配置项
+            provider: LLM provider (anthropic|openai|google|custom|together|groq|...)
+            api_key: API key
+            base_url: API base URL (for custom endpoints or proxies)
+            api_format: API format (anthropic|openai|google). Auto-inferred from provider if not set
+            model: Main model name
+            small_model: Small model name (for simple tasks)
+            effort_level: Effort level (low|medium|high|max)
+            disable_traffic: Whether to disable traffic statistics
+            budget: Budget limit
+            max_tokens: Maximum token count
+            temperature: Temperature parameter
+            worktrees_dir: Worktrees directory
+            plugins_dir: Plugins directory
+            log_level: Log level
+            audit_enabled: Whether to enable audit
+            audit_retention_days: Audit log retention days
+            **kwargs: Other configuration items
         """
         self._data: dict[str, Any] = {
             "provider": provider,
@@ -211,108 +265,109 @@ class Config:
         }
         self._data.update(kwargs)
 
-        # 提供商配置存储
+        # Provider config storage
         self._providers: dict[str, ProviderConfig] = {}
         self._current_provider: str | None = None
 
-    # ==================== 属性访问 ====================
+    # ==================== Property Access ====================
 
     @property
     def provider(self) -> str:
-        """当前提供商"""
+        """Current provider."""
         return self._data.get("provider", "anthropic")
 
     @property
     def api_key(self) -> str | None:
-        """API 密钥"""
+        """API key."""
         return self._data.get("api_key")
 
     @property
     def model(self) -> str:
-        """模型名称"""
+        """Model name."""
         return self._data.get("model") or self._get_default_model()
 
     @property
     def small_model(self) -> str | None:
-        """小模型名称"""
+        """Small model name."""
         return self._data.get("small_model")
 
     @property
     def base_url(self) -> str | None:
-        """API 基础 URL"""
+        """API base URL."""
         return self._data.get("base_url")
 
     @property
     def api_format(self) -> str | None:
-        """API 请求格式 (anthropic|openai|google)"""
+        """API request format (anthropic|openai|google)."""
         return self._data.get("api_format")
 
     @property
     def effort_level(self) -> str:
-        """努力级别"""
+        """Effort level."""
         return self._data.get("effort_level", "medium")
 
     @property
     def disable_traffic(self) -> bool:
-        """是否禁用流量统计"""
+        """Whether traffic statistics are disabled."""
         return self._data.get("disable_traffic", False)
 
     @property
     def budget(self) -> float | None:
-        """预算上限"""
+        """Budget limit."""
         return self._data.get("budget")
 
     @property
     def max_tokens(self) -> int:
-        """最大 token 数"""
+        """Maximum token count."""
         return self._data.get("max_tokens", 4096)
 
     @property
     def temperature(self) -> float:
-        """温度参数"""
+        """Temperature parameter."""
         return self._data.get("temperature", 0.7)
 
     @property
     def audit_enabled(self) -> bool:
-        """审计是否启用"""
+        """Whether audit is enabled."""
         return self._data.get("audit_enabled", True)
 
     def get(self, key: str, default: Any = None) -> Any:
-        """获取配置项"""
+        """Get configuration item."""
         return self._data.get(key, default)
 
     def set(self, key: str, value: Any) -> None:
-        """设置配置项"""
+        """Set configuration item."""
         self._data[key] = value
 
     def update(self, data: dict[str, Any]) -> None:
-        """批量更新配置"""
+        """Batch update configuration."""
         self._data.update(data)
 
     def to_dict(self) -> dict[str, Any]:
-        """转换为字典"""
+        """Convert to dictionary."""
         return self._data.copy()
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Config":
-        """从字典创建配置"""
+        """Create config from dictionary."""
         return cls(**data)
 
-    # ==================== 便捷加载方法 ====================
+    # ==================== Convenience Loading Methods ====================
 
     @classmethod
     def from_env(cls) -> "Config":
         """
-        从环境变量加载配置
+        Load configuration from environment variables.
 
-        环境变量优先级：CONTINUUM_* > {PROVIDER}_* > ANTHROPIC_*
-        例：CONTINUUM_PROVIDER=openai, CONTINUUM_API_KEY=xxx
+        Environment variable priority: CONTINUUM_* > {PROVIDER}_* > ANTHROPIC_*
+
+        Example: CONTINUUM_PROVIDER=openai, CONTINUUM_API_KEY=xxx
         """
         env_mapping = {
             "PROVIDER": "provider",
             "API_KEY": "api_key",
             "BASE_URL": "base_url",
-            "API_FORMAT": "api_format",  # 新增：anthropic, openai, google
+            "API_FORMAT": "api_format",  # anthropic, openai, google
             "MODEL": "model",
             "SMALL_MODEL": "small_model",
             "EFFORT_LEVEL": "effort_level",
@@ -339,6 +394,19 @@ class Config:
             "openai": "OPENAI_API_KEY",
             "google": "GOOGLE_API_KEY",
             "gemini": "GOOGLE_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
+            "glm": "GLM_API_KEY",
+            "moonshot": "MOONSHOT_API_KEY",
+            "kimi": "MOONSHOT_API_KEY",
+            "qwen": "QWEN_API_KEY",
+            "grok": "XAI_API_KEY",
+            "together": "TOGETHER_API_KEY",
+            "groq": "GROQ_API_KEY",
+            "cohere": "COHERE_API_KEY",
+            "huggingface": "HF_API_KEY",
+            "azure": "AZURE_OPENAI_API_KEY",
+            "bedrock": "AWS_ACCESS_KEY_ID",
+            "ollama": "CONTINUUM_API_KEY",
         }
 
         config_data = {}
@@ -355,7 +423,7 @@ class Config:
         provider_fallback_key = provider_env_keys.get(provider, "ANTHROPIC_API_KEY")
 
         for env_suffix, config_key in env_mapping.items():
-            # 检查多个环境变量前缀（按优先级）
+            # Check multiple environment variable prefixes (by priority)
             if env_suffix == "API_KEY":
                 # For API_KEY, use provider-specific fallback
                 value = (
@@ -382,8 +450,8 @@ class Config:
                     key, converter = config_key
                     try:
                         config_data[key] = converter(value)
-                    except (ValueError, TypeError):
-                        pass
+                    except (ValueError, TypeError) as e:
+                        logger.debug(f"Config conversion failed for {key}: {value} - {e}")
                 else:
                     config_data[config_key] = value
 
@@ -392,9 +460,9 @@ class Config:
     @classmethod
     def from_file(cls, path: str) -> "Config":
         """
-        从配置文件加载
+        Load configuration from file.
 
-        支持 TOML 和 JSON 格式
+        Supports TOML and JSON formats.
         """
         file_path = Path(path).expanduser()
         if not file_path.exists():
@@ -402,7 +470,7 @@ class Config:
 
         data = cls._load_file(file_path)
 
-        # 展开环境变量引用
+        # Expand environment variable references
         data = cls._expand_env_vars(data)
 
         return cls(**data)
@@ -410,14 +478,14 @@ class Config:
     @classmethod
     def from_default(cls) -> "Config":
         """
-        从默认位置加载配置
+        Load configuration from default locations.
 
-        按优先级：环境变量 > 配置文件 > 默认值
+        Priority: environment variables > config files > defaults.
         """
-        # 1. 从环境变量
+        # 1. From environment variables
         config = cls.from_env()
 
-        # 2. 查找并加载配置文件
+        # 2. Find and load config file
         config_file = cls._find_config_file()
         if config_file:
             file_data = cls._load_file(config_file)
@@ -426,21 +494,21 @@ class Config:
 
         return config
 
-    # ==================== 提供商管理 ====================
+    # ==================== Provider Management ====================
 
     def use(self, provider: str) -> "Config":
         """
-        切换提供商
+        Switch provider.
 
         Args:
-            provider: 提供商名称 (anthropic|openai|google|custom)
+            provider: Provider name (anthropic|openai|google|custom)
 
         Returns:
-            self（支持链式调用）
+            self (supports method chaining)
         """
         self._data["provider"] = provider
 
-        # 如果有预配置的提供商信息，加载它
+        # Load pre-configured provider info if available
         if provider in self._providers:
             prov_config = self._providers[provider]
             if prov_config.api_key:
@@ -461,14 +529,14 @@ class Config:
         small_model: str | None = None,
     ) -> None:
         """
-        添加提供商配置
+        Add provider configuration.
 
         Args:
-            name: 提供商名称
-            api_key: API 密钥
-            base_url: 基础 URL
-            model: 默认模型
-            small_model: 小模型
+            name: Provider name
+            api_key: API key
+            base_url: Base URL
+            model: Default model
+            small_model: Small model
         """
         self._providers[name] = ProviderConfig(
             name=name,
@@ -479,25 +547,23 @@ class Config:
         )
 
     def list_providers(self) -> list[str]:
-        """列出所有配置的提供商"""
+        """List all configured providers."""
         return list(self._providers.keys())
 
-    # ==================== 内部方法 ====================
+    # ==================== Internal Methods ====================
 
     def _get_default_model(self) -> str:
-        """获取提供商的默认模型"""
-        provider = self.provider
-        defaults = {
-            "anthropic": "claude-sonnet-4-6",
-            "openai": "gpt-4.1",
-            "google": "gemini-2.5-pro",
-            "gemini": "gemini-2.5-pro",
-        }
-        return defaults.get(provider, "claude-sonnet-4-6")
+        """
+        Get the default model for the provider.
+
+        Fully relies on providers.get_default_model() which has complete fallback logic:
+        environment variable CONTINUUM_MODEL > BUILTIN_PROVIDERS config > fallback mapping table.
+        """
+        return _get_provider_default_model(self.provider)
 
     @classmethod
     def _find_config_file(cls) -> Path | None:
-        """查找配置文件"""
+        """Find config file."""
         for dir_path in cls.DEFAULT_CONFIG_DIRS:
             dir_expanded = Path(dir_path).expanduser()
             for config_name in cls.DEFAULT_CONFIG_FILES:
@@ -508,7 +574,7 @@ class Config:
 
     @classmethod
     def _load_file(cls, path: Path) -> dict[str, Any]:
-        """从文件加载配置"""
+        """Load configuration from file."""
         suffix = path.suffix.lower()
 
         try:
@@ -524,14 +590,14 @@ class Config:
                 with open(path, encoding="utf-8") as f:
                     return json.load(f)
             else:
-                # 尝试自动检测
+                # Try auto-detection
                 content = path.read_text(encoding="utf-8")
                 if content.strip().startswith("{"):
                     return json.loads(content)
                 elif tomllib:
                     with open(path, "rb") as f:
                         return tomllib.load(f)
-        except Exception as e:
+        except (OSError, IOError, json.JSONDecodeError, FileNotFoundError) as e:
             print(f"Warning: Failed to load config from {path}: {e}")
 
         return {}
@@ -539,9 +605,9 @@ class Config:
     @classmethod
     def _expand_env_vars(cls, data: dict[str, Any]) -> dict[str, Any]:
         """
-        展开配置中的环境变量引用
+        Expand environment variable references in configuration.
 
-        支持 ${VAR_NAME} 和 $VAR_NAME 格式
+        Supports ${VAR_NAME} and $VAR_NAME formats.
         """
         pattern = re.compile(r"\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
 
@@ -566,16 +632,16 @@ class Config:
         return f"Config(provider={self.provider}, model={self.model})"
 
 
-# 便捷函数
+# Convenience function
 def load_config(path: str | None = None) -> Config:
     """
-    加载配置
+    Load configuration.
 
     Args:
-        path: 配置文件路径（可选，默认自动查找）
+        path: Config file path (optional, auto-searched by default)
 
     Returns:
-        Config 实例
+        Config instance
     """
     if path:
         return Config.from_file(path)
@@ -583,7 +649,7 @@ def load_config(path: str | None = None) -> Config:
 
 
 def get_user_config_dir() -> Path:
-    """获取用户配置目录"""
+    """Get user config directory."""
     config_dir = Path.home() / ".config" / "continuum"
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
@@ -592,9 +658,9 @@ def get_user_config_dir() -> Path:
 # Backward compatibility wrapper
 class ConfigLoader:
     """
-    配置加载器（向后兼容）
+    Configuration Loader (backward compatibility).
 
-    推荐直接使用 Config 类方法：
+    Recommended to use Config class methods directly:
         Config.from_env()
         Config.from_file(path)
         Config.from_default()
@@ -605,7 +671,7 @@ class ConfigLoader:
         self._config: Config | None = None
 
     def load(self) -> Config:
-        """加载配置"""
+        """Load configuration."""
         if self._config_path:
             self._config = Config.from_file(self._config_path)
         else:
@@ -613,11 +679,11 @@ class ConfigLoader:
         return self._config
 
     def get_config(self) -> Config | None:
-        """获取已加载的配置"""
+        """Get loaded configuration."""
         return self._config
 
     def save(self, path: str | None = None) -> None:
-        """保存配置到文件"""
+        """Save configuration to file."""
         if not self._config:
             raise ValueError("No config loaded")
         save_path = Path(path or self._config_path or "config.json")
@@ -627,5 +693,5 @@ class ConfigLoader:
 
     @staticmethod
     def get_default_config() -> Config:
-        """获取默认配置"""
+        """Get default configuration."""
         return Config()

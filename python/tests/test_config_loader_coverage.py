@@ -5,6 +5,7 @@ Tests for config/loader.py to improve coverage from 85% to 95%+.
 """
 
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -33,12 +34,14 @@ class TestGetEnv:
         result = _get_env("CONTINUUM_API_KEY")
         assert result == "test-key"
 
-    def test_blocked_env_var(self, monkeypatch):
-        """Test that blocked env vars return None"""
+    def test_non_whitelisted_env_var_logs_warning(self, caplog, monkeypatch):
+        """Test that non-whitelisted env vars log warning but still return value"""
         # PATH is not in the whitelist
         monkeypatch.setenv("PATH", "/usr/bin")
-        result = _get_env("PATH")
-        assert result is None
+        with caplog.at_level(logging.WARNING):
+            result = _get_env("PATH")
+        assert result == "/usr/bin"  # Value is returned (soft constraint)
+        assert "non-documented env var 'PATH'" in caplog.text
 
     def test_default_value(self):
         """Test default value for non-existent var"""
@@ -682,13 +685,15 @@ class TestEnvVarExpansionAdvanced:
         result = Config._expand_env_vars(data)
         assert result["models"][0] == "gpt-4"
 
-    def test_expand_env_vars_not_allowed(self, monkeypatch):
-        """Test that non-whitelisted vars are not expanded"""
+    def test_expand_env_vars_not_allowed(self, caplog, monkeypatch):
+        """Test that non-whitelisted vars are expanded with warning (soft constraint)"""
         monkeypatch.setenv("NON_WHITELISTED_VAR", "secret")
         data = {"key": "${NON_WHITELISTED_VAR}"}
-        result = Config._expand_env_vars(data)
-        # Should not expand, keep original
-        assert result["key"] == "${NON_WHITELISTED_VAR}"
+        with caplog.at_level(logging.WARNING):
+            result = Config._expand_env_vars(data)
+        # Soft constraint: expands but logs warning
+        assert result["key"] == "secret"
+        assert "non-documented env var 'NON_WHITELISTED_VAR'" in caplog.text
 
     def test_expand_env_vars_dollar_without_braces(self, monkeypatch):
         """Test expansion with $VAR format"""

@@ -258,16 +258,19 @@ class TestEnvVarSecurity:
         assert "GOOGLE_API_KEY" in ALLOWED_ENV_VARS
         assert "DEEPSEEK_API_KEY" in ALLOWED_ENV_VARS
 
-    def test_get_env_returns_none_for_non_whitelisted(self):
+    def test_get_env_returns_value_with_warning_for_non_whitelisted(self, caplog):
         """
-        Verify _get_env returns None for non-whitelisted variables.
+        Verify _get_env returns value with warning for non-whitelisted variables (soft constraint).
 
-        验证 _get_env 对非白名单变量返回 None。
+        验证 _get_env 对非白名单变量返回值并记录警告（软约束）。
         """
+        import logging
         # Set a non-whitelisted env var
-        with patch.dict(os.environ, {"SECRET_EVIL_VAR": "should-not-be-accessible"}):
-            result = _get_env("SECRET_EVIL_VAR")
-            assert result is None
+        with patch.dict(os.environ, {"SECRET_EVIL_VAR": "should-be-accessible"}):
+            with caplog.at_level(logging.WARNING):
+                result = _get_env("SECRET_EVIL_VAR")
+            assert result == "should-be-accessible"  # Value is returned (soft constraint)
+            assert "non-documented env var" in caplog.text
 
     def test_get_env_returns_whitelisted_value(self):
         """

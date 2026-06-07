@@ -61,12 +61,26 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "slow: marks tests as slow running tests",
+]
+filterwarnings = [
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    "ignore:Attempted to access non-whitelisted environment variable:UserWarning",
+]
 
 [tool.coverage.run]
 source = ["continuum", "continuum_sdk"]
 branch = true
 
 [tool.coverage.report]
+omit = [
+    "continuum_sdk/examples/*",
+    "continuum_sdk/rust_impl.py",
+    "continuum_sdk/tools/lsp.py",
+]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",

@@ -75,7 +75,7 @@ Tool Categories:
     - FILE_OPS: read_file, write_file, edit_file, list_directory
     - SEARCH: grep, glob
     - SHELL: bash
-    - CODE_ANALYSIS: definition, reference, hover (LSP tools)
+    - CODE_ANALYSIS: go_to_definition, find_references, get_hover, symbol_search (LSP tools)
     - MEMORY: session memory operations
     - WORKFLOW: checkpoint operations
 
@@ -85,6 +85,7 @@ Fallback Mode:
     - file_ops.read_file, file_ops.write_file, file_ops.edit_file
     - search.grep, search.glob
     - bash.bash_execute_sync
+    - lsp.go_to_definition, lsp.find_references, lsp.get_hover, lsp.symbol_search
 
 Requirements:
     Rust binding (sh_python.pyd) recommended for best performance.
@@ -101,17 +102,19 @@ try:
     from sh_python import ToolExecutor as RustToolExecutor
 
     HAS_RUST_BINDING = True
-except ImportError:
+except ImportError:  # pragma: no cover - tested with Rust binding available
     HAS_RUST_BINDING = False
 
     # Define placeholder for type annotation
-    class RustToolExecutor:
+    class RustToolExecutor:  # pragma: no cover
         pass
 
 # Import Python fallback implementations
 from .file_ops import read_file, write_file, edit_file
 from .search import grep, glob
 from .bash import bash_execute_sync
+from .lsp import go_to_definition, find_references, get_hover, symbol_search
+from .types import ToolNotAvailableError
 
 
 class ToolCategory(Enum):
@@ -137,9 +140,9 @@ class ToolMeta:
     category: ToolCategory
     requires_confirmation: bool = False
     is_dangerous: bool = False
-    parameters: dict[str, Any] = None
+    parameters: dict[str, Any] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.parameters is None:
             self.parameters = {}
 
@@ -166,12 +169,13 @@ class BuiltinTools:
         >>> print(content[:100])
     """
 
-    _tools_cache: dict[str, ToolMeta] = None
-    _executor: RustToolExecutor | None = None
+    _tools_cache: dict[str, ToolMeta]
+    _executor: RustToolExecutor | None
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize built-in tools."""
         self._tools_cache = {}
+        self._executor = None
         if HAS_RUST_BINDING:
             self._executor = RustToolExecutor()
         self._load_tools()
@@ -224,15 +228,32 @@ class BuiltinTools:
     def _check_binding(self, name: str) -> None:
         """Check if tool is available (Rust binding or Python fallback)."""
         if not self._executor and name not in self._fallback_tools:
-            raise NotImplementedError(
-                f"Tool '{name}' requires Rust binding. "
-                "Ensure sh_python.pyd is in the package directory."
+            # Build user-friendly error message
+            available_tools = sorted(self._fallback_tools)
+            raise ToolNotAvailableError(
+                f"Tool '{name}' is not available.\n"
+                f"\n"
+                f"Possible causes:\n"
+                f"  1. This tool requires the Rust binding (sh_python.pyd)\n"
+                f"  2. The tool name may be misspelled\n"
+                f"\n"
+                f"Available Python fallback tools ({len(available_tools)}):\n"
+                f"  {', '.join(available_tools)}\n"
+                f"\n"
+                f"Solutions:\n"
+                f"  - Use one of the available tools listed above\n"
+                f"  - Build the Rust binding: cd rust/sh-python && maturin develop\n"
+                f"  - Check the tool name for typos"
             )
 
     @property
     def _fallback_tools(self) -> set[str]:
         """Tools available via Python fallback."""
-        return {"read_file", "write_file", "edit_file", "list_directory", "grep", "glob", "bash"}
+        return {
+            "read_file", "write_file", "edit_file", "list_directory",
+            "grep", "glob", "bash",
+            "go_to_definition", "find_references", "get_hover", "symbol_search",
+        }
 
     # ==================== File Operations ====================
 
@@ -389,6 +410,130 @@ class BuiltinTools:
         result = bash_execute_sync(command, timeout=timeout_sec, working_dir=working_dir)
         return result.content
 
+    # ==================== LSP Tools ====================
+
+    def go_to_definition(
+        self,
+        file_path: str,
+        line: int,
+        column: int,
+        symbol: str | None = None,
+        search_dir: str | None = None,
+    ) -> str:
+        """Find symbol definition.
+
+        Args:
+            file_path: File path
+            line: Line number (1-based)
+            column: Column number (1-based)
+            symbol: Optional symbol name
+            search_dir: Optional search directory
+
+        Returns:
+            Definition location
+        """
+        if self._executor:
+            args = json.dumps({
+                "file": file_path,
+                "line": line,
+                "column": column,
+                "symbol": symbol,
+                "search_dir": search_dir,
+            })
+            return self._executor.execute("go_to_definition", args)
+
+        # Python fallback
+        result = go_to_definition(file_path, line, column, symbol, search_dir)
+        return result.content
+
+    def find_references(
+        self,
+        file_path: str,
+        line: int,
+        column: int,
+        symbol: str | None = None,
+        search_dir: str | None = None,
+        include_declaration: bool = True,
+    ) -> str:
+        """Find all references to a symbol.
+
+        Args:
+            file_path: File path
+            line: Line number (1-based)
+            column: Column number (1-based)
+            symbol: Optional symbol name
+            search_dir: Optional search directory
+            include_declaration: Include declaration in results
+
+        Returns:
+            List of reference locations
+        """
+        if self._executor:
+            args = json.dumps({
+                "file": file_path,
+                "line": line,
+                "column": column,
+                "symbol": symbol,
+                "search_dir": search_dir,
+                "include_declaration": include_declaration,
+            })
+            return self._executor.execute("find_references", args)
+
+        # Python fallback
+        result = find_references(file_path, line, column, symbol, search_dir, include_declaration)
+        return result.content
+
+    def get_hover(self, file_path: str, line: int, column: int) -> str:
+        """Get hover/type information for a symbol.
+
+        Args:
+            file_path: File path
+            line: Line number (1-based)
+            column: Column number (1-based)
+
+        Returns:
+            Hover information
+        """
+        if self._executor:
+            args = json.dumps({
+                "file": file_path,
+                "line": line,
+                "column": column,
+            })
+            return self._executor.execute("get_hover", args)
+
+        # Python fallback
+        result = get_hover(file_path, line, column)
+        return result.content
+
+    def symbol_search(
+        self,
+        pattern: str,
+        search_dir: str | None = None,
+        file_pattern: str | None = None,
+    ) -> str:
+        """Search for symbols matching a pattern.
+
+        Args:
+            pattern: Symbol pattern (regex supported)
+            search_dir: Directory to search
+            file_pattern: File pattern filter
+
+        Returns:
+            Matching symbols
+        """
+        if self._executor:
+            args = json.dumps({
+                "pattern": pattern,
+                "search_dir": search_dir,
+                "file_pattern": file_pattern,
+            })
+            return self._executor.execute("symbol_search", args)
+
+        # Python fallback
+        result = symbol_search(pattern, search_dir, file_pattern)
+        return result.content
+
     # ==================== Tool Discovery ====================
 
     def list_tools(self) -> list[ToolMeta]:
@@ -423,7 +568,22 @@ class BuiltinTools:
             Tool result
         """
         if self._executor:
-            return self._executor.execute(name, json.dumps(args))
+            try:
+                return self._executor.execute(name, json.dumps(args))
+            except (KeyError, RuntimeError) as exc:
+                if isinstance(exc, RuntimeError) and "Tool not found" not in str(exc):
+                    raise
+                available = sorted(self._tools_cache)
+                raise ToolNotAvailableError(
+                    f"Tool '{name}' is not available.\n"
+                    f"\n"
+                    f"Available tools ({len(available)}):\n"
+                    f"  {', '.join(available)}\n"
+                    f"\n"
+                    f"Suggestions:\n"
+                    f"  - Check if the tool name is spelled correctly\n"
+                    f"  - Use tools.execute() with one of the available tools above"
+                ) from exc
 
         # Python fallback routing
         if name == "read_file":
@@ -431,7 +591,10 @@ class BuiltinTools:
         elif name == "write_file":
             return self.write_file(args.get("path"), args.get("content"))
         elif name == "edit_file":
-            return self.edit_file(args.get("path"), args.get("old"), args.get("new"))
+            # Accept both 'old'/'new' and 'old_string'/'new_string' parameter names
+            old_val = args.get("old") or args.get("old_string")
+            new_val = args.get("new") or args.get("new_string")
+            return self.edit_file(args.get("path"), old_val, new_val)
         elif name == "list_directory":
             result = self.list_directory(args.get("path"))
             return json.dumps(result)
@@ -441,8 +604,49 @@ class BuiltinTools:
             return self.glob(args.get("pattern"), args.get("path"))
         elif name == "bash":
             return self.bash(args.get("command"), args.get("timeout_ms"), args.get("working_dir"))
+        elif name == "go_to_definition":
+            result = go_to_definition(
+                args.get("file"),
+                args.get("line", 1),
+                args.get("column", 1),
+                args.get("symbol"),
+                args.get("search_dir"),
+            )
+            return result.content
+        elif name == "find_references":
+            result = find_references(
+                args.get("file"),
+                args.get("line", 1),
+                args.get("column", 1),
+                args.get("symbol"),
+                args.get("search_dir"),
+                args.get("include_declaration", True),
+            )
+            return result.content
+        elif name == "get_hover":
+            result = get_hover(args.get("file"), args.get("line", 1), args.get("column", 1))
+            return result.content
+        elif name == "symbol_search":
+            result = symbol_search(
+                args.get("pattern"),
+                args.get("search_dir"),
+                args.get("file_pattern"),
+            )
+            return result.content
         else:
-            raise NotImplementedError(f"Tool '{name}' not available in Python fallback mode")
+            # User-friendly error for unknown tool
+            available = sorted(self._fallback_tools)
+            raise ToolNotAvailableError(
+                f"Tool '{name}' is not available in Python fallback mode.\n"
+                f"\n"
+                f"Available tools ({len(available)}):\n"
+                f"  {', '.join(available)}\n"
+                f"\n"
+                f"Suggestions:\n"
+                f"  - Check if the tool name is spelled correctly\n"
+                f"  - Use tools.execute() with one of the available tools above\n"
+                f"  - For Rust binding tools, ensure sh_python.pyd is built"
+            )
 
 
 # Module-level singleton for convenience

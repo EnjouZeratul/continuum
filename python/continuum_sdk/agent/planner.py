@@ -60,11 +60,14 @@ See Also:
 """
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..llm import BaseLlmClient
@@ -298,9 +301,9 @@ class Planner:
         Returns:
             Plan with decomposed steps
         """
-        import uuid
+        from ..utils import generate_short_id
 
-        plan_id = str(uuid.uuid4())[:8]
+        plan_id = generate_short_id()
         plan = Plan(id=plan_id, task=task)
 
         # Try LLM-based planning first
@@ -310,8 +313,8 @@ class Planner:
                 if steps:
                     plan.steps = steps
                     return plan
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("LLM planning failed, falling back to patterns: %s", e)
 
         # Fallback to pattern-based planning
         steps = self._plan_with_patterns(task, context)
@@ -366,8 +369,8 @@ Example output:
                 steps_data = json.loads(json_match.group())
                 return self._parse_steps(steps_data)
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to parse LLM planning response: %s", e)
 
         return []
 

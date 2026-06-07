@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import json
 import threading
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch, mock_open
@@ -20,10 +21,266 @@ from continuum_sdk.security.audit_logger import (
     AuditOperation,
     AuditResult,
     AuditRecord,
+    RateLimiter,
+    sanitize_metadata,
+    sanitize_string,
+    MAX_LOG_SIZE_MB,
+    MAX_BACKUP_COUNT,
 )
 
 
-class TestAuditOperation:
+class TestRateLimiter:
+    """Test RateLimiter functionality."""
+
+    def test_allows_within_limit(self):
+        """Test records are allowed within the limit."""
+        limiter = RateLimiter(max_records=5, window_seconds=1.0)
+        for _ in range(5):
+            assert limiter.allow() is True
+        assert limiter.dropped_count == 0
+
+    def test_blocks_over_limit(self):
+        """Test records are blocked over the limit."""
+        limiter = RateLimiter(max_records=3, window_seconds=1.0)
+        for _ in range(3):
+            limiter.allow()
+        assert limiter.allow() is False
+        assert limiter.dropped_count == 1
+
+    def test_counts_dropped(self):
+        """Test dropped count increments."""
+        limiter = RateLimiter(max_records=2, window_seconds=1.0)
+        limiter.allow()
+        limiter.allow()
+        assert limiter.allow() is False
+        assert limiter.allow() is False
+        assert limiter.dropped_count == 2
+
+    def test_window_slides(self):
+        """Test sliding window allows after time passes."""
+        limiter = RateLimiter(max_records=2, window_seconds=0.1)
+        limiter.allow()
+        limiter.allow()
+        assert limiter.allow() is False
+        # Wait for window to pass
+        time.sleep(0.15)
+        assert limiter.allow() is True
+
+
+class TestSanitizeString:
+    """Test sanitize_string functionality."""
+
+    def test_redacts_api_key(self):
+        """Test API key redaction."""
+        text = 'api_key="sk-1234567890abcdef12345678"'
+        result = sanitize_string(text)
+        assert "[REDACTED]" in result
+        assert "sk-1234567890abcdef" not in result
+
+    def test_redacts_token(self):
+        """Test token redaction."""
+        text = 'token: "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"'
+        result = sanitize_string(text)
+        assert "[REDACTED]" in result
+
+    def test_redacts_password(self):
+        """Test password redaction."""
+        text = 'password="mysecretpass123"'
+        result = sanitize_string(text)
+        assert "[REDACTED]" in result
+        assert "mysecretpass123" not in result
+
+    def test_redacts_aws_key(self):
+        """Test AWS access key redaction."""
+        text = "AKIAIOSFODNN7EXAMPLE"
+        result = sanitize_string(text)
+        assert "AKIA[REDACTED]" in result
+
+    def test_redacts_bearer_token(self):
+        """Test bearer token redaction."""
+        text = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5"
+        result = sanitize_string(text)
+        assert "[REDACTED]" in result
+        assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in result
+
+    def test_redacts_private_key(self):
+        """Test private key header redaction."""
+        text = "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA"
+        result = sanitize_string(text)
+        assert "[REDACTED]" in result
+
+    def test_preserves_normal_text(self):
+        """Test normal text is preserved."""
+        text = "user read file /path/to/data.json"
+        result = sanitize_string(text)
+        assert result == text
+
+
+class TestSanitizeMetadata:
+    """Test sanitize_metadata functionality."""
+
+    def test_redacts_api_key_in_metadata(self):
+        """Test API key redaction in metadata."""
+        meta = {"key": "api_key=sk-1234567890abcdef12345678"}
+        result = sanitize_metadata(meta)
+        assert "[REDACTED]" in result["key"]
+
+    def test_redacts_nested_dict(self):
+        """Test nested dictionary sanitization."""
+        meta = {
+            "config": {
+                "api_key": "api_key=sk-1234567890abcdef12345678",
+                "normal": "value"
+            }
+        }
+        result = sanitize_metadata(meta)
+        assert "[REDACTED]" in result["config"]["api_key"]
+        assert result["config"]["normal"] == "value"
+
+    def test_redacts_list_items(self):
+        """Test list item sanitization."""
+        meta = {
+            "tokens": [
+                "token=ghp_1234567890abcdefghijklmnop",
+                "normal_value"
+            ]
+        }
+        result = sanitize_metadata(meta)
+        assert "[REDACTED]" in result["tokens"][0]
+        assert result["tokens"][1] == "normal_value"
+
+    def test_preserves_non_string_values(self):
+        """Test non-string values are preserved."""
+        meta = {
+            "count": 42,
+            "ratio": 3.14,
+            "enabled": True,
+            "none_val": None
+        }
+        result = sanitize_metadata(meta)
+        assert result["count"] == 42
+        assert result["ratio"] == 3.14
+        assert result["enabled"] is True
+        assert result["none_val"] is None
+
+    def test_handles_empty_dict(self):
+        """Test empty dictionary handling."""
+        result = sanitize_metadata({})
+        assert result == {}
+
+
+class TestAuditLoggerRateLimiting:
+    """Test AuditLogger rate limiting."""
+
+    def test_rate_limiting_blocks_excess(self):
+        """Test that rate limiting blocks excess records."""
+        audit = AuditLogger(rate_limit=5, rate_window=1.0)
+        records = []
+        for i in range(10):
+            record = audit.log(
+                operation=AuditOperation.READ,
+                path=f"/file{i}.py",
+                result=AuditResult.SUCCESS,
+            )
+            if record:
+                records.append(record)
+
+        assert len(records) == 5
+        assert audit.dropped_records == 5
+
+    def test_rate_limiting_returns_none(self):
+        """Test that rate limited logs return None."""
+        audit = AuditLogger(rate_limit=2, rate_window=1.0)
+        audit.log(AuditOperation.READ, "/f1.py", AuditResult.SUCCESS)
+        audit.log(AuditOperation.READ, "/f2.py", AuditResult.SUCCESS)
+        # Third should be rate limited
+        result = audit.log(AuditOperation.READ, "/f3.py", AuditResult.SUCCESS)
+        assert result is None
+
+    def test_rate_limiting_preserves_record_count(self):
+        """Test that only non-rate-limited records are stored."""
+        audit = AuditLogger(rate_limit=3, rate_window=1.0)
+        for i in range(10):
+            audit.log(AuditOperation.READ, f"/file{i}.py", AuditResult.SUCCESS)
+
+        assert len(audit) == 3
+
+
+class TestAuditLoggerSanitization:
+    """Test AuditLogger data sanitization."""
+
+    def test_sanitizes_path_with_api_key(self):
+        """Test path sanitization."""
+        audit = AuditLogger()
+        record = audit.log(
+            operation=AuditOperation.READ,
+            path="/file?api_key=secret-key-123456789012345",
+            result=AuditResult.SUCCESS,
+        )
+        assert "[REDACTED]" in record.path
+        assert "secret-key" not in record.path
+
+    def test_sanitizes_details(self):
+        """Test details sanitization."""
+        audit = AuditLogger()
+        record = audit.log(
+            operation=AuditOperation.WRITE,
+            path="/file.py",
+            result=AuditResult.SUCCESS,
+            details="Password: mypassword123 for user admin",
+        )
+        assert "[REDACTED]" in record.details
+        assert "mypassword123" not in record.details
+
+    def test_sanitizes_metadata(self):
+        """Test metadata sanitization."""
+        audit = AuditLogger()
+        record = audit.log(
+            operation=AuditOperation.ACCESS,
+            path="/config.json",
+            result=AuditResult.SUCCESS,
+            metadata={
+                "aws_key": "AKIAIOSFODNN7EXAMPLE",
+                "normal": "data"
+            },
+        )
+        assert "[REDACTED]" in record.metadata["aws_key"]
+        assert record.metadata["normal"] == "data"
+
+
+class TestLogRotation:
+    """Test log file rotation."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        """Create temp directory."""
+        dir_path = tempfile.mkdtemp()
+        yield dir_path
+        shutil.rmtree(dir_path)
+
+    def test_rotation_on_size_limit(self, temp_dir):
+        """Test that log rotates when size limit exceeded."""
+        # This test would need mocking of MAX_LOG_SIZE_MB or creating large files
+        # For now, test that _rotate_if_needed doesn't error on non-existent file
+        from continuum_sdk.security.audit_logger import _rotate_if_needed
+        _rotate_if_needed(Path(temp_dir) / "nonexistent.log")
+
+    def test_rotation_preserves_backup(self, temp_dir):
+        """Test that rotation creates backup file."""
+        from continuum_sdk.security.audit_logger import _rotate_if_needed
+        log_file = Path(temp_dir) / "test.log"
+        # Create file exceeding limit (mock)
+        with patch('continuum_sdk.security.audit_logger.MAX_LOG_SIZE_MB', 0.00001):
+            log_file.write_text("x" * 100)
+            _rotate_if_needed(log_file)
+            # Original should be moved to backup
+            assert not log_file.exists()
+            # Backup should exist
+            backups = list(Path(temp_dir).glob("test.*.log"))
+            assert len(backups) == 1
+
+
+
     """Test AuditOperation enum"""
 
     def test_operation_values(self):
@@ -343,7 +600,8 @@ class TestAuditLoggerLog:
 
     def test_log_thread_safety(self):
         """Test thread safety of logging"""
-        logger = AuditLogger()
+        # Use higher rate limit for thread safety test
+        logger = AuditLogger(rate_limit=2000, rate_window=1.0)
         num_threads = 10
         records_per_thread = 100
 
@@ -369,7 +627,7 @@ class TestAuditLoggerLog:
 
     def test_generate_id_uniqueness(self):
         """Test ID generation is unique"""
-        logger = AuditLogger()
+        logger = AuditLogger(rate_limit=200)
         ids = set()
 
         for _ in range(100):

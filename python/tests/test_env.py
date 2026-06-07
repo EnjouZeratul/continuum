@@ -3,23 +3,78 @@ Tests for environment variable access module.
 环境变量访问模块测试
 
 This module tests the type-safe environment variable access functions with
-CONTINUUM_ prefix support and whitelist security.
+CONTINUUM_ prefix support and soft constraint (warning instead of error).
 
-本模块测试类型安全的环境变量访问函数，包括 CONTINUUM_ 前缀支持和白名单安全机制。
+本模块测试类型安全的环境变量访问函数，包括 CONTINUUM_ 前缀支持和软约束机制（警告而非错误）。
 """
 
+import logging
 import os
 
 import pytest
 
 from continuum_sdk.env import (
-    ALLOWED_ENV_BASE_NAMES,
+    DOCUMENTED_ENV_VARS,
     ENV_PREFIX,
     get_bool,
     get_int,
     get_list,
     get_str,
 )
+
+
+class TestSoftConstraint:
+    """Tests for soft constraint behavior.
+    软约束行为测试。"""
+
+    def test_non_documented_var_logs_warning(self, caplog):
+        """Non-whitelisted variable should log warning.
+        非白名单变量应记录警告。"""
+        with caplog.at_level(logging.WARNING):
+            result = get_str("NON_DOCUMENTED_VAR")
+        assert "non-documented env var" in caplog.text
+        assert result is None  # But does not raise exception
+
+    def test_documented_var_no_warning(self, caplog, monkeypatch):
+        """Whitelisted variable should not log warning.
+        白名单变量不应警告。"""
+        monkeypatch.setenv("API_KEY", "test")
+        with caplog.at_level(logging.WARNING):
+            result = get_str("API_KEY")
+        assert "non-documented" not in caplog.text
+        assert result == "test"
+
+    def test_non_documented_with_value_logs_warning(self, caplog, monkeypatch):
+        """Non-whitelisted variable with value should still log warning.
+        有值的非白名单变量仍应记录警告。"""
+        monkeypatch.setenv("CUSTOM_VAR", "custom_value")
+        with caplog.at_level(logging.WARNING):
+            result = get_str("CUSTOM_VAR")
+        assert "non-documented env var 'CUSTOM_VAR'" in caplog.text
+        assert result == "custom_value"  # But value is still returned
+
+    def test_all_get_functions_use_soft_constraint(self, caplog, monkeypatch):
+        """All get_* functions should use soft constraint.
+        所有 get_* 函数都应使用软约束。"""
+        with caplog.at_level(logging.WARNING):
+            # get_str
+            get_str("UNKNOWN_VAR")
+            assert "non-documented env var 'UNKNOWN_VAR'" in caplog.text
+
+            # get_int
+            caplog.clear()
+            get_int("UNKNOWN_INT")
+            assert "non-documented env var 'UNKNOWN_INT'" in caplog.text
+
+            # get_bool
+            caplog.clear()
+            get_bool("UNKNOWN_BOOL")
+            assert "non-documented env var 'UNKNOWN_BOOL'" in caplog.text
+
+            # get_list
+            caplog.clear()
+            get_list("UNKNOWN_LIST")
+            assert "non-documented env var 'UNKNOWN_LIST'" in caplog.text
 
 
 class TestGetStr:
@@ -77,14 +132,6 @@ class TestGetStr:
         result = get_str("API_KEY")
         assert result == "base-value"
 
-    def test_get_str_rejects_non_whitelisted_name(self):
-        """Test that get_str raises ValueError for non-whitelisted variable name.
-        测试 get_str 对非白名单变量名抛出 ValueError。"""
-        with pytest.raises(ValueError) as exc_info:
-            get_str("MALICIOUS_VAR")
-        assert "MALICIOUS_VAR" in str(exc_info.value)
-        assert "not in the allowed list" in str(exc_info.value)
-
 
 class TestGetInt:
     """Tests for get_int function.
@@ -112,19 +159,23 @@ class TestGetInt:
         result = get_int("TIMEOUT")
         assert result is None
 
-    def test_get_int_invalid_value_returns_default(self, monkeypatch):
+    def test_get_int_invalid_value_returns_default(self, caplog, monkeypatch):
         """Test that get_int returns default when value cannot be converted to int.
-        测试值无法转换为整数时 get_int 返回默认值。"""
+        测试值无法转换为整数时 get_int 返回默认值并记录警告。"""
         monkeypatch.setenv("TIMEOUT", "not-a-number")
-        result = get_int("TIMEOUT", default=30)
+        with caplog.at_level(logging.WARNING):
+            result = get_int("TIMEOUT", default=30)
         assert result == 30
+        assert "Cannot convert" in caplog.text
 
-    def test_get_int_invalid_value_returns_none_without_default(self, monkeypatch):
+    def test_get_int_invalid_value_returns_none_without_default(self, caplog, monkeypatch):
         """Test that get_int returns None for invalid value without default.
         测试无效值且无默认值时 get_int 返回 None。"""
         monkeypatch.setenv("TIMEOUT", "invalid")
-        result = get_int("TIMEOUT")
+        with caplog.at_level(logging.WARNING):
+            result = get_int("TIMEOUT")
         assert result is None
+        assert "Cannot convert" in caplog.text
 
     def test_get_int_negative_value(self, monkeypatch):
         """Test that get_int handles negative integers.
@@ -147,12 +198,14 @@ class TestGetInt:
         result = get_int("TIMEOUT")
         assert result == 999999999
 
-    def test_get_int_float_value_returns_default(self, monkeypatch):
+    def test_get_int_float_value_returns_default(self, caplog, monkeypatch):
         """Test that get_int returns default for float-like string.
         测试类浮点数字符串时 get_int 返回默认值。"""
         monkeypatch.setenv("TIMEOUT", "3.14")
-        result = get_int("TIMEOUT", default=30)
+        with caplog.at_level(logging.WARNING):
+            result = get_int("TIMEOUT", default=30)
         assert result == 30
+        assert "Cannot convert" in caplog.text
 
     def test_get_int_continuum_prefix_priority(self, monkeypatch):
         """Test that CONTINUUM_ prefix takes priority for integers.
@@ -161,13 +214,6 @@ class TestGetInt:
         monkeypatch.setenv("CONTINUUM_TIMEOUT", "20")
         result = get_int("TIMEOUT")
         assert result == 20
-
-    def test_get_int_rejects_non_whitelisted_name(self):
-        """Test that get_int raises ValueError for non-whitelisted variable name.
-        测试 get_int 对非白名单变量名抛出 ValueError。"""
-        with pytest.raises(ValueError) as exc_info:
-            get_int("MALICIOUS_VAR")
-        assert "MALICIOUS_VAR" in str(exc_info.value)
 
 
 class TestGetBool:
@@ -255,13 +301,6 @@ class TestGetBool:
         result = get_bool("DEBUG")
         assert result is True
 
-    def test_get_bool_rejects_non_whitelisted_name(self):
-        """Test that get_bool raises ValueError for non-whitelisted variable name.
-        测试 get_bool 对非白名单变量名抛出 ValueError。"""
-        with pytest.raises(ValueError) as exc_info:
-            get_bool("MALICIOUS_VAR")
-        assert "MALICIOUS_VAR" in str(exc_info.value)
-
 
 class TestGetList:
     """Tests for get_list function.
@@ -338,13 +377,6 @@ class TestGetList:
         result = get_list("MODELS")
         assert result == ["model-x", "model-y"]
 
-    def test_get_list_rejects_non_whitelisted_name(self):
-        """Test that get_list raises ValueError for non-whitelisted variable name.
-        测试 get_list 对非白名单变量名抛出 ValueError。"""
-        with pytest.raises(ValueError) as exc_info:
-            get_list("MALICIOUS_VAR")
-        assert "MALICIOUS_VAR" in str(exc_info.value)
-
 
 class TestContinuumPrefixPriority:
     """Tests for CONTINUUM_ prefix priority behavior.
@@ -391,13 +423,13 @@ class TestContinuumPrefixPriority:
         assert get_bool("DEBUG") is True
 
 
-class TestWhitelistSecurity:
-    """Tests for whitelist security mechanism.
-    白名单安全机制测试。"""
+class TestDocumentedVars:
+    """Tests for documented variables whitelist.
+    文档化变量白名单测试。"""
 
-    def test_allowed_names_are_accessible(self, monkeypatch):
-        """Test that all whitelisted names can be accessed.
-        测试所有白名单名称都可访问。"""
+    def test_documented_names_are_accessible(self, monkeypatch):
+        """Test that all documented names can be accessed.
+        测试所有文档化名称都可访问。"""
         # Test a few representative names from the whitelist
         test_names = ["API_KEY", "BASE_URL", "TIMEOUT", "DEBUG", "MODELS"]
         for name in test_names:
@@ -406,51 +438,17 @@ class TestWhitelistSecurity:
             result = get_str(name)
             assert result == "test-value"
 
-    def test_non_whitelisted_name_raises_error(self):
-        """Test that non-whitelisted names raise ValueError.
-        测试非白名单名称抛出 ValueError。"""
-        with pytest.raises(ValueError) as exc_info:
-            get_str("INJECTED_VAR")
-        assert "INJECTED_VAR" in str(exc_info.value)
-        assert "not in the allowed list" in str(exc_info.value)
+    def test_documented_vars_is_frozenset(self):
+        """Test that DOCUMENTED_ENV_VARS is a frozenset for immutability.
+        测试 DOCUMENTED_ENV_VARS 是 frozenset 以保证不可变性。"""
+        assert isinstance(DOCUMENTED_ENV_VARS, frozenset)
 
-    def test_error_message_lists_allowed_variables(self):
-        """Test that error message includes the list of allowed variables.
-        测试错误消息包含允许的变量列表。"""
-        with pytest.raises(ValueError) as exc_info:
-            get_str("UNKNOWN_VAR")
-        error_msg = str(exc_info.value)
-        # Check that some allowed variables are mentioned in the error
-        assert "API_KEY" in error_msg or "Allowed" in error_msg
+    def test_documented_vars_not_empty(self):
+        """Test that whitelist is not empty.
+        测试白名单不为空。"""
+        assert len(DOCUMENTED_ENV_VARS) > 0
 
-    def test_all_get_functions_enforce_whitelist(self):
-        """Test that all get_* functions enforce the whitelist.
-        测试所有 get_* 函数都强制执行白名单。"""
-        # get_str
-        with pytest.raises(ValueError):
-            get_str("MALICIOUS")
-
-        # get_int
-        with pytest.raises(ValueError):
-            get_int("MALICIOUS")
-
-        # get_bool
-        with pytest.raises(ValueError):
-            get_bool("MALICIOUS")
-
-        # get_list
-        with pytest.raises(ValueError):
-            get_list("MALICIOUS")
-
-    def test_prefix_bypass_not_allowed(self, monkeypatch):
-        """Test that CONTINUUM_ prefix cannot bypass whitelist.
-        测试 CONTINUUM_ 前缀无法绕过白名单。"""
-        # Even with CONTINUUM_ prefix, non-whitelisted names should be rejected
-        monkeypatch.setenv("CONTINUUM_MALICIOUS", "evil-value")
-        with pytest.raises(ValueError):
-            get_str("MALICIOUS")
-
-    def test_whitelist_contains_expected_variables(self):
+    def test_documented_vars_contains_expected_variables(self):
         """Test that whitelist contains all expected variables.
         测试白名单包含所有预期的变量。"""
         expected_vars = {
@@ -489,7 +487,7 @@ class TestWhitelistSecurity:
             # Test support
             "USE_REAL_API",
         }
-        assert expected_vars.issubset(ALLOWED_ENV_BASE_NAMES)
+        assert expected_vars.issubset(DOCUMENTED_ENV_VARS)
 
 
 class TestConstants:
@@ -501,16 +499,6 @@ class TestConstants:
         测试 ENV_PREFIX 具有正确的值。"""
         assert ENV_PREFIX == "CONTINUUM_"
 
-    def test_allowed_names_is_frozenset(self):
-        """Test that ALLOWED_ENV_BASE_NAMES is a frozenset for immutability.
-        测试 ALLOWED_ENV_BASE_NAMES 是 frozenset 以保证不可变性。"""
-        assert isinstance(ALLOWED_ENV_BASE_NAMES, frozenset)
-
-    def test_allowed_names_not_empty(self):
-        """Test that whitelist is not empty.
-        测试白名单不为空。"""
-        assert len(ALLOWED_ENV_BASE_NAMES) > 0
-
 
 class TestDefensiveCodePaths:
     """Tests for defensive code paths that require mocking.
@@ -519,8 +507,6 @@ class TestDefensiveCodePaths:
     def test_get_int_defensive_none_after_resolve(self, monkeypatch):
         """Test get_int handles None from os.environ.get after successful resolve.
         测试 get_int 在解析成功后处理 os.environ.get 返回 None 的情况。"""
-        import continuum_sdk.env as env_module
-
         # Set the environment variable
         monkeypatch.setenv("TIMEOUT", "42")
 

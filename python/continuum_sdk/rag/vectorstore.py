@@ -1,12 +1,12 @@
 """Vector Store Implementation
 
-向量存储：持久化向量索引。
+Vector storage: persistent vector indexing.
 
 Features:
-    - 内存向量存储（适合测试和开发）
-    - 多种距离度量支持（Cosine, Euclidean, DotProduct, Manhattan）
-    - 批量操作优化
-    - 元数据过滤支持
+    - In-memory vector store (suitable for testing and development)
+    - Multiple distance metric support (Cosine, Euclidean, DotProduct, Manhattan)
+    - Batch operation optimization
+    - Metadata filtering support
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any
 
 
 class DistanceMetric(Enum):
-    """距离度量类型"""
+    """Distance metric type"""
 
     COSINE = "cosine"
     EUCLIDEAN = "euclidean"
@@ -30,7 +30,7 @@ class DistanceMetric(Enum):
 
 @dataclass
 class VectorItem:
-    """向量项"""
+    """Vector item"""
 
     id: str
     vector: list[float]
@@ -40,7 +40,7 @@ class VectorItem:
 
 @dataclass
 class SearchResult:
-    """搜索结果"""
+    """Search result"""
 
     id: str
     score: float
@@ -50,25 +50,25 @@ class SearchResult:
 
 @dataclass
 class MetadataFilter:
-    """元数据过滤条件"""
+    """Metadata filter conditions"""
 
     must: dict[str, Any] = field(default_factory=dict)
     should: dict[str, Any] = field(default_factory=dict)
     must_not: dict[str, Any] = field(default_factory=dict)
 
     def matches(self, metadata: dict[str, Any]) -> bool:
-        """检查元数据是否匹配过滤条件"""
-        # 检查 must 条件（全部匹配）
+        """Check if metadata matches filter conditions"""
+        # Check must conditions (all must match)
         for key, value in self.must.items():
             if key not in metadata or metadata[key] != value:
                 return False
 
-        # 检查 must_not 条件（全部不匹配）
+        # Check must_not conditions (none must match)
         for key, value in self.must_not.items():
             if key in metadata and metadata[key] == value:
                 return False
 
-        # 检查 should 条件（至少一个匹配，如果为空则通过）
+        # Check should conditions (at least one must match, pass if empty)
         if self.should:
             matched = False
             for key, value in self.should.items():
@@ -82,19 +82,19 @@ class MetadataFilter:
 
 
 class VectorStore(ABC):
-    """向量存储抽象类"""
+    """Vector store abstract class"""
 
     @abstractmethod
     def upsert(self, id: str, vector: list[float], metadata: dict[str, Any] | None = None) -> bool:
-        """插入或更新向量
+        """Insert or update vector
 
         Args:
-            id: 向量唯一标识
-            vector: 向量数据
-            metadata: 元数据
+            id: Vector unique identifier
+            vector: Vector data
+            metadata: Metadata
 
         Returns:
-            是否成功
+            Whether successful
         """
         pass
 
@@ -105,55 +105,55 @@ class VectorStore(ABC):
         top_k: int = 10,
         filter: MetadataFilter | None = None,
     ) -> list[SearchResult]:
-        """搜索相似向量
+        """Search for similar vectors
 
         Args:
-            vector: 查询向量
-            top_k: 返回数量
-            filter: 元数据过滤条件
+            vector: Query vector
+            top_k: Number of results to return
+            filter: Metadata filter conditions
 
         Returns:
-            搜索结果列表
+            List of search results
         """
         pass
 
     @abstractmethod
     def delete(self, id: str) -> bool:
-        """删除向量
+        """Delete vector
 
         Args:
-            id: 向量唯一标识
+            id: Vector unique identifier
 
         Returns:
-            是否成功
+            Whether successful
         """
         pass
 
     @abstractmethod
     def get(self, id: str) -> VectorItem | None:
-        """获取向量
+        """Get vector
 
         Args:
-            id: 向量唯一标识
+            id: Vector unique identifier
 
         Returns:
-            向量项或 None
+            Vector item or None
         """
         pass
 
     @abstractmethod
     def count(self) -> int:
-        """获取向量数量"""
+        """Get vector count"""
         pass
 
     @abstractmethod
     def clear(self) -> bool:
-        """清空存储"""
+        """Clear store"""
         pass
 
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
-    """计算余弦相似度"""
+    """Calculate cosine similarity"""
     if len(a) != len(b):
         return 0.0
 
@@ -168,7 +168,7 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 def euclidean_similarity(a: list[float], b: list[float]) -> float:
-    """计算欧几里得相似度（距离转换为相似度）"""
+    """Calculate Euclidean similarity (distance converted to similarity)"""
     if len(a) != len(b):
         return 0.0
 
@@ -177,7 +177,7 @@ def euclidean_similarity(a: list[float], b: list[float]) -> float:
 
 
 def dot_product_similarity(a: list[float], b: list[float]) -> float:
-    """计算点积相似度"""
+    """Calculate dot product similarity"""
     if len(a) != len(b):
         return 0.0
 
@@ -185,7 +185,7 @@ def dot_product_similarity(a: list[float], b: list[float]) -> float:
 
 
 def manhattan_similarity(a: list[float], b: list[float]) -> float:
-    """计算曼哈顿相似度（距离转换为相似度）"""
+    """Calculate Manhattan similarity (distance converted to similarity)"""
     if len(a) != len(b):
         return 0.0
 
@@ -194,23 +194,23 @@ def manhattan_similarity(a: list[float], b: list[float]) -> float:
 
 
 class InMemoryVectorStore(VectorStore):
-    """内存向量存储实现
+    """In-memory vector store implementation
 
-    使用内存存储向量，支持基本的相似度搜索。
-    适用于测试和开发环境，不适合大规模生产使用。
+    Uses in-memory storage for vectors, supports basic similarity search.
+    Suitable for testing and development environments, not for large-scale production use.
     """
 
     def __init__(self, metric: DistanceMetric = DistanceMetric.COSINE):
-        """初始化内存向量存储
+        """Initialize in-memory vector store
 
         Args:
-            metric: 距离度量类型
+            metric: Distance metric type
         """
         self._data: dict[str, VectorItem] = {}
         self._metric = metric
         self._lock = threading.RLock()
 
-        # 选择相似度计算函数
+        # Select similarity calculation function
         self._similarity_funcs = {
             DistanceMetric.COSINE: cosine_similarity,
             DistanceMetric.EUCLIDEAN: euclidean_similarity,
@@ -219,11 +219,11 @@ class InMemoryVectorStore(VectorStore):
         }
 
     def _compute_similarity(self, a: list[float], b: list[float]) -> float:
-        """计算向量相似度"""
+        """Calculate vector similarity"""
         return self._similarity_funcs[self._metric](a, b)
 
     def upsert(self, id: str, vector: list[float], metadata: dict[str, Any] | None = None) -> bool:
-        """插入或更新向量"""
+        """Insert or update vector"""
         with self._lock:
             self._data[id] = VectorItem(
                 id=id,
@@ -238,24 +238,24 @@ class InMemoryVectorStore(VectorStore):
         top_k: int = 10,
         filter: MetadataFilter | None = None,
     ) -> list[SearchResult]:
-        """搜索相似向量"""
+        """Search for similar vectors"""
         with self._lock:
-            # 先过滤
+            # Filter first
             candidates: list[VectorItem] = []
             for item in self._data.values():
                 if filter is None or filter.matches(item.metadata):
                     candidates.append(item)
 
-            # 计算相似度
+            # Calculate similarity
             scores: list[tuple[VectorItem, float]] = []
             for item in candidates:
                 score = self._compute_similarity(vector, item.vector)
                 scores.append((item, score))
 
-            # 按相似度降序排序
+            # Sort by similarity descending
             scores.sort(key=lambda x: x[1], reverse=True)
 
-            # 取 top_k
+            # Take top_k
             results: list[SearchResult] = []
             for item, score in scores[:top_k]:
                 results.append(SearchResult(
@@ -268,7 +268,7 @@ class InMemoryVectorStore(VectorStore):
             return results
 
     def delete(self, id: str) -> bool:
-        """删除向量"""
+        """Delete vector"""
         with self._lock:
             if id in self._data:
                 del self._data[id]
@@ -276,30 +276,30 @@ class InMemoryVectorStore(VectorStore):
             return False
 
     def get(self, id: str) -> VectorItem | None:
-        """获取向量"""
+        """Get vector"""
         with self._lock:
             return self._data.get(id)
 
     def count(self) -> int:
-        """获取向量数量"""
+        """Get vector count"""
         with self._lock:
             return len(self._data)
 
     def clear(self) -> bool:
-        """清空存储"""
+        """Clear store"""
         with self._lock:
             self._data.clear()
             return True
 
-    # 批量操作
+    # Batch operations
     def upsert_batch(self, items: list[tuple[str, list[float], dict[str, Any] | None]]) -> list[bool]:
-        """批量插入或更新向量
+        """Batch insert or update vectors
 
         Args:
-            items: (id, vector, metadata) 元组列表
+            items: List of (id, vector, metadata) tuples
 
         Returns:
-            每个操作的结果列表
+            List of operation results
         """
         results = []
         with self._lock:
@@ -313,13 +313,13 @@ class InMemoryVectorStore(VectorStore):
         return results
 
     def delete_batch(self, ids: list[str]) -> int:
-        """批量删除向量
+        """Batch delete vectors
 
         Args:
-            ids: 向量 ID 列表
+            ids: List of vector IDs
 
         Returns:
-            删除的数量
+            Number of deletions
         """
         count = 0
         with self._lock:

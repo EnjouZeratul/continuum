@@ -80,12 +80,15 @@ See Also:
 
 import asyncio
 import json
+import logging
 import re
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..llm import BaseLlmClient
@@ -333,8 +336,8 @@ class SelfCorrection:
                 correction = asyncio.run(self._llm_based_correction(error_ctx, context))
                 if correction:
                     return correction
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("LLM-based correction failed: %s", e)
 
         # Fallback to retry with modifications
         return self._default_correction(error_ctx)
@@ -404,8 +407,8 @@ Context: {json.dumps(context, indent=2) if context else 'None'}"""
                     confidence=data.get("confidence", 0.5),
                 )
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to parse LLM correction response: %s", e)
 
         return None
 

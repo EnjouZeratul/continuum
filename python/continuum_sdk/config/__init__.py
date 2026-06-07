@@ -8,6 +8,7 @@ Provides flexible configuration options:
     - TOML/JSON configuration files
     - Multi-provider support (Anthropic, OpenAI, Google)
     - Automatic environment variable expansion
+    - Theme system with presets and customization
 
 Configuration Priority (highest to lowest):
     1. Environment variables (CONTINUUM_* > CONTINUUM_* > ANTHROPIC_*)
@@ -20,17 +21,25 @@ Environment Variables:
     - CONTINUUM_PROVIDER / CONTINUUM_PROVIDER: Active provider name
     - CONTINUUM_MODEL / CONTINUUM_MODEL: Model name
     - CONTINUUM_BASE_URL / CONTINUUM_BASE_URL: API base URL (optional)
+    - CONTINUUM_THEME_CONFIG: Custom theme config path
 
 Quick Usage:
     >>> from continuum import Config
     >>> config = Config.from_default()  # Auto-load
     >>> config.use("openai")  # Switch provider
 
+Theme Usage:
+    >>> from continuum_sdk.config import ThemeManager
+    >>> theme = ThemeManager()
+    >>> theme.apply("monokai")
+    >>> theme.save()
+
 Config File Format (TOML):
     [providers.anthropic]
     api_key = "${ANTHROPIC_API_KEY}"
     base_url = "https://api.anthropic.com/v1"
-    model = "claude-sonnet-4-6"
+    # model is optional, auto-fetched from BUILTIN_PROVIDERS if not specified
+    # model = "claude-sonnet-4-6"  # Example, replace with any supported model
 
     [settings]
     session_auto_save = true
@@ -55,6 +64,11 @@ from .providers import (
     list_models,
     list_providers,
 )
+from .theme import (
+    ColorScheme,
+    PresetTheme,
+    ThemeManager,
+)
 
 __all__ = [
     # Core
@@ -74,4 +88,8 @@ __all__ = [
     "get_default_small_model",
     "get_env_key_name",
     "list_models",
+    # Theme
+    "ThemeManager",
+    "ColorScheme",
+    "PresetTheme",
 ]

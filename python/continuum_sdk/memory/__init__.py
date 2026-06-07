@@ -19,7 +19,7 @@ Tier Levels:
 Storage Backends:
     - MemoryStorage: In-memory storage (default, no persistence)
     - FileStorage: JSON file-based persistence
-    - SQLiteStorage: SQLite database persistence
+    - SQLiteStorage: SQLite database persistence (recommended for production)
 
 Quick Start:
     >>> from continuum_sdk.memory import Memory, MemoryTier
@@ -30,6 +30,9 @@ Quick Start:
     >>> # File-based persistence
     >>> memory = Memory.create_with_file_storage("session-123")
     >>>
+    >>> # SQLite persistence (recommended)
+    >>> memory = Memory.create_with_sqlite_storage("session-123")
+    >>>
     >>> # Add entry
     >>> memory.remember("User prefers Python", tier=MemoryTier.LONG_TERM)
     >>>
@@ -38,27 +41,29 @@ Quick Start:
     >>> print(context[0].content)  # "User prefers Python"
 """
 
-# 先导入 storage 中的基础类型
+# First import base types from storage
 from .storage import (
     StorageBackend,
     MemoryStorage,
     FileStorage,
+    SQLiteStorage,
     MemoryEntry,
     MemoryTier,
 )
 
-# 再导入 layers 中的高级 API
+# Then import high-level API from layers
 from .layers import Memory, TierProxy, MemoryQuery
 
 __all__ = [
-    # 核心 API
+    # Core API
     "Memory",
     "MemoryTier",
     "MemoryEntry",
     "MemoryQuery",
     "TierProxy",
-    # 存储后端
+    # Storage backends
     "StorageBackend",
     "MemoryStorage",
     "FileStorage",
+    "SQLiteStorage",
 ]

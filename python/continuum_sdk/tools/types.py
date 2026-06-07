@@ -66,6 +66,14 @@ class ToolError(Exception):
         self.message = message
 
 
+class ToolNotAvailableError(Exception):
+    """Raised when a tool is unavailable in the current mode."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
 @dataclass
 class ToolMeta:
     """

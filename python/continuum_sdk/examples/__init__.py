@@ -1,1 +1,1 @@
-"""Continuum SDK 示例代码"""
+"""Continuum SDK Example Code"""

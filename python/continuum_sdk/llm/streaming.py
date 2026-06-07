@@ -1,14 +1,14 @@
 """SSE Parser
 
-Server-Sent Events 解析器，支持跨 chunk 的帧边界处理。
+Server-Sent Events parser with cross-chunk frame boundary handling.
 
-参考 Rust 实现: layer1/src/streaming.rs
+Reference Rust implementation: layer1/src/streaming.rs
 
 Features:
-    - SSE 帧解析（跨 chunk）
-    - Anthropic/OpenAI 流式格式支持
-    - on_chunk 回调机制
-    - abort 中断支持
+    - SSE frame parsing (cross-chunk)
+    - Anthropic/OpenAI streaming format support
+    - on_chunk callback mechanism
+    - abort interruption support
 """
 
 from __future__ import annotations
@@ -22,38 +22,38 @@ from typing import Any, Callable
 
 @dataclass
 class SseEvent:
-    """SSE 事件"""
+    """SSE event"""
 
     event: str | None = None
     data: str = ""
 
 
 class SseParser:
-    """SSE 解析器
+    """SSE Parser
 
-    解析 Server-Sent Events 格式的流式数据。
-    支持跨 chunk 的帧边界处理。
+    Parses Server-Sent Events format streaming data.
+    Supports cross-chunk frame boundary handling.
     """
 
     def __init__(self, provider: str | None = None, model: str | None = None):
-        """初始化 SSE 解析器
+        """Initialize SSE parser
 
         Args:
-            provider: 提供商名称（用于错误报告）
-            model: 模型名称（用于错误报告）
+            provider: Provider name (for error reporting)
+            model: Model name (for error reporting)
         """
         self._buffer = ""
         self._provider = provider
         self._model = model
 
     def push(self, chunk: str) -> list[SseEvent]:
-        """推送数据块并解析出完整的事件
+        """Push data chunk and parse complete events
 
         Args:
-            chunk: 数据块字符串
+            chunk: Data chunk string
 
         Returns:
-            解析出的 SSE 事件列表
+            List of parsed SSE events
         """
         self._buffer += chunk
         events: list[SseEvent] = []
@@ -70,10 +70,10 @@ class SseParser:
         return events
 
     def finish(self) -> list[SseEvent]:
-        """完成解析，处理缓冲区中剩余的数据
+        """Finish parsing, process remaining data in buffer
 
         Returns:
-            剩余的 SSE 事件列表
+            List of remaining SSE events
         """
         if not self._buffer:
             return []
@@ -87,17 +87,17 @@ class SseParser:
         return []
 
     def _next_frame(self) -> str | None:
-        """提取下一个帧"""
-        # 查找 \n\n 或 \r\n\r\n 分隔符
+        """Extract the next frame"""
+        # Find \n\n or \r\n\r\n separator
         separator_pos = None
         separator_len = 0
 
-        # 先查找 \n\n
+        # First find \n\n
         if "\n\n" in self._buffer:
             pos = self._buffer.index("\n\n")
             separator_pos = pos
             separator_len = 2
-        # 再查找 \r\n\r\n
+        # Then find \r\n\r\n
         elif "\r\n\r\n" in self._buffer:
             pos = self._buffer.index("\r\n\r\n")
             separator_pos = pos
@@ -111,7 +111,7 @@ class SseParser:
         return frame
 
     def _parse_frame(self, frame: str) -> SseEvent | None:
-        """解析帧"""
+        """Parse frame"""
         trimmed = frame.strip()
         if not trimmed:
             return None
@@ -120,20 +120,20 @@ class SseParser:
         event_name: str | None = None
 
         for line in trimmed.split("\n"):
-            # 跳过注释行
+            # Skip comment lines
             if line.startswith(":"):
                 continue
 
-            # 解析 event 字段
+            # Parse event field
             if line.startswith("event:"):
                 event_name = line[6:].strip()
                 continue
 
-            # 解析 data 字段
-            if line.startswith("data:"):
+            # Parse data field
+            if line.startswith("data:"):  # pragma: no branch
                 data_lines.append(line[5:].lstrip())
 
-        # 跳过 ping 事件
+        # Skip ping events
         if event_name == "ping":
             return None
 
@@ -142,7 +142,7 @@ class SseParser:
 
         payload = "\n".join(data_lines)
 
-        # 处理 [DONE] 标记（OpenAI 格式）
+        # Handle [DONE] marker (OpenAI format)
         if payload == "[DONE]":
             return None
 
@@ -150,7 +150,7 @@ class SseParser:
 
 
 class ContentBlockType(Enum):
-    """内容块类型"""
+    """Content block type"""
 
     TEXT = "text"
     THINKING = "thinking"
@@ -159,7 +159,7 @@ class ContentBlockType(Enum):
 
 @dataclass
 class ContentBlockStart:
-    """内容块开始"""
+    """Content block start"""
 
     index: int
     block_type: ContentBlockType
@@ -169,7 +169,7 @@ class ContentBlockStart:
 
 @dataclass
 class ContentBlockDelta:
-    """内容块增量"""
+    """Content block delta"""
 
     index: int
     delta_type: str  # "text", "thinking", "tool_input"
@@ -178,14 +178,14 @@ class ContentBlockDelta:
 
 @dataclass
 class ContentBlockStop:
-    """内容块结束"""
+    """Content block stop"""
 
     index: int
 
 
 @dataclass
 class StreamUsage:
-    """流式用量"""
+    """Stream usage"""
 
     input_tokens: int = 0
     output_tokens: int = 0
@@ -193,23 +193,23 @@ class StreamUsage:
 
 @dataclass
 class StreamEvent:
-    """统一的流式事件"""
+    """Unified stream event"""
 
     event_type: str  # message_start, content_block_start, content_block_delta, content_block_stop, message_delta, message_stop
     data: dict[str, Any] = field(default_factory=dict)
 
 
 class StreamState:
-    """流式响应状态
+    """Stream response state
 
-    处理 Anthropic 和 OpenAI 的流式事件，转换为统一格式。
+    Processes Anthropic and OpenAI stream events, converts to unified format.
     """
 
     def __init__(self, model: str):
-        """初始化流状态
+        """Initialize stream state
 
         Args:
-            model: 模型名称
+            model: Model name
         """
         self.model = model
         self.message_started = False
@@ -223,7 +223,7 @@ class StreamState:
         self.tool_index_offset = 0
 
     def ingest_anthropic(self, event_data: dict[str, Any]) -> list[StreamEvent]:
-        """处理 Anthropic 事件"""
+        """Process Anthropic event"""
         events: list[StreamEvent] = []
         event_type = event_data.get("type", "")
 
@@ -305,7 +305,7 @@ class StreamState:
         return events
 
     def ingest_openai(self, chunk_data: dict[str, Any]) -> list[StreamEvent]:
-        """处理 OpenAI 事件"""
+        """Process OpenAI event"""
         events: list[StreamEvent] = []
 
         if not self.message_started:
@@ -315,7 +315,7 @@ class StreamState:
                 data={"id": chunk_data.get("id", ""), "model": chunk_data.get("model", self.model)}
             ))
 
-        # 处理 usage
+        # Handle usage
         usage_data = chunk_data.get("usage")
         if usage_data:
             self.usage = StreamUsage(
@@ -327,7 +327,7 @@ class StreamState:
         for choice in choices:
             delta = choice.get("delta", {})
 
-            # 处理 reasoning_content（思考内容）
+            # Handle reasoning_content (thinking content)
             reasoning = delta.get("reasoning_content")
             if reasoning:
                 if not self.thinking_started:
@@ -341,10 +341,10 @@ class StreamState:
                     data={"index": 0, "delta_type": "thinking_delta", "content": reasoning}
                 ))
 
-            # 处理常规内容
+            # Handle regular content
             content = delta.get("content")
             if content:
-                # 如果之前有思考块，先关闭它
+                # If there was a previous thinking block, close it first
                 if self.thinking_started and not self.thinking_finished:
                     self.thinking_finished = True
                     events.append(StreamEvent(
@@ -364,7 +364,7 @@ class StreamState:
                     data={"index": text_index, "delta_type": "text_delta", "content": content}
                 ))
 
-            # 处理结束原因
+            # Handle finish reason
             finish_reason = choice.get("finish_reason")
             if finish_reason:
                 self.stop_reason = self._normalize_finish_reason(finish_reason)
@@ -372,7 +372,7 @@ class StreamState:
         return events
 
     def _normalize_finish_reason(self, reason: str) -> str:
-        """规范化 OpenAI 结束原因"""
+        """Normalize OpenAI finish reason"""
         if reason == "stop":
             return "end_turn"
         elif reason == "tool_calls":
@@ -380,25 +380,25 @@ class StreamState:
         return reason
 
     def finish(self) -> list[StreamEvent]:
-        """完成流处理"""
+        """Finish stream processing"""
         if self.finished:
             return []
         self.finished = True
 
         events: list[StreamEvent] = []
 
-        # 关闭思考块
+        # Close thinking block
         if self.thinking_started and not self.thinking_finished:
             self.thinking_finished = True
             events.append(StreamEvent(event_type="content_block_stop", data={"index": 0}))
 
-        # 关闭文本块
+        # Close text block
         if self.text_started and not self.text_finished:
             self.text_finished = True
             text_index = 1 if self.thinking_started else 0
             events.append(StreamEvent(event_type="content_block_stop", data={"index": text_index}))
 
-        # 发送消息增量
+        # Send message delta
         if self.message_started:
             events.append(StreamEvent(
                 event_type="message_delta",
@@ -413,9 +413,9 @@ class StreamState:
 
 
 class CallbackStream:
-    """带回调的流式响应
+    """Callback-based stream response
 
-    支持 on_chunk 回调机制和 abort 中断。
+    Supports on_chunk callback mechanism and abort interruption.
     """
 
     def __init__(
@@ -423,11 +423,11 @@ class CallbackStream:
         on_chunk: Callable[[str], None] | None = None,
         on_event: Callable[[StreamEvent], None] | None = None,
     ):
-        """初始化回调流
+        """Initialize callback stream
 
         Args:
-            on_chunk: 文本增量回调函数
-            on_event: 事件回调函数
+            on_chunk: Text delta callback function
+            on_event: Event callback function
         """
         self._on_chunk = on_chunk
         self._on_event = on_event
@@ -435,23 +435,23 @@ class CallbackStream:
         self._pending: deque[StreamEvent] = deque()
 
     def abort(self) -> None:
-        """请求中断"""
+        """Request abort"""
         self._abort_flag = True
 
     def is_aborted(self) -> bool:
-        """检查是否已中断"""
+        """Check if aborted"""
         return self._abort_flag
 
     def push_sse_event(self, sse_event: SseEvent, state: StreamState, provider: str) -> list[StreamEvent]:
-        """推送 SSE 事件并处理
+        """Push SSE event and process
 
         Args:
-            sse_event: SSE 事件
-            state: 流状态
-            provider: 提供商类型
+            sse_event: SSE event
+            state: Stream state
+            provider: Provider type
 
         Returns:
-            处理后的流式事件列表
+            List of processed stream events
         """
         if self._abort_flag:
             return []
@@ -467,7 +467,7 @@ class CallbackStream:
         else:
             events = state.ingest_openai(data)
 
-        # 触发回调
+        # Trigger callbacks
         for event in events:
             if self._on_event:
                 self._on_event(event)
@@ -480,13 +480,13 @@ class CallbackStream:
         return events
 
     def finish(self, state: StreamState) -> list[StreamEvent]:
-        """完成流处理
+        """Finish stream processing
 
         Args:
-            state: 流状态
+            state: Stream state
 
         Returns:
-            完成事件列表
+            List of finish events
         """
         if self._abort_flag:
             return []

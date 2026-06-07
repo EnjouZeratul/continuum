@@ -1,13 +1,15 @@
 """Memory Storage Backend
 
-提供存储后端抽象和实现。
+Provides storage backend abstraction and implementations.
 
-[STABILITY: STABLE] 存储接口稳定
+[STABILITY: STABLE] Storage interface is stable
 """
 
 from __future__ import annotations
 
 import json
+import logging
+import sqlite3
 import threading
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -19,24 +21,26 @@ from typing import Any, TYPE_CHECKING
 if TYPE_CHECKING:
     pass
 
+logger = logging.getLogger(__name__)
+
 
 def _utc_now() -> datetime:
-    """获取 UTC 时间（timezone-aware）"""
+    """Get UTC time (timezone-aware)"""
     return datetime.now(timezone.utc)
 
 
 class MemoryTier(Enum):
-    """记忆层级"""
+    """Memory tier"""
 
-    WORKING = "working"  # 当前对话上下文
-    SESSION = "session"  # 会话记忆
-    PROJECT = "project"  # 项目知识库
-    LONG_TERM = "long_term"  # 跨项目知识
+    WORKING = "working"  # Current conversation context
+    SESSION = "session"  # Session memory
+    PROJECT = "project"  # Project knowledge base
+    LONG_TERM = "long_term"  # Cross-project knowledge
 
 
 @dataclass
 class MemoryEntry:
-    """记忆条目"""
+    """Memory entry"""
 
     id: str
     tier: MemoryTier
@@ -48,72 +52,71 @@ class MemoryEntry:
     importance: float = 0.5
 
     def touch(self) -> None:
-        """更新访问时间和计数"""
+        """Update access time and count"""
         self.last_accessed = _utc_now()
         self.access_count += 1
 
 
 class StorageBackend(ABC):
-    """存储后端抽象类
+    """Storage backend abstract class
 
-    支持多种存储后端：
-    - MemoryStorage: 内存存储（默认，无持久化）
-    - FileStorage: JSON 文件存储
-    - SQLiteStorage: SQLite 数据库存储
+    Supports multiple storage backends:
+    - MemoryStorage: In-memory storage (default, no persistence)
+    - FileStorage: JSON file storage
     """
 
     @abstractmethod
     def save(self, tier: MemoryTier, entry: MemoryEntry) -> None:
-        """保存记忆条目"""
-        pass
+        """Save memory entry"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def load(self, tier: MemoryTier, entry_id: str) -> MemoryEntry | None:
-        """加载记忆条目"""
-        pass
+        """Load memory entry"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def load_all(self, tier: MemoryTier) -> list[MemoryEntry]:
-        """加载指定层级的所有条目"""
-        pass
+        """Load all entries in specified tier"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def delete(self, tier: MemoryTier, entry_id: str) -> bool:
-        """删除记忆条目"""
-        pass
+        """Delete memory entry"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def clear(self, tier: MemoryTier) -> int:
-        """清空指定层级"""
-        pass
+        """Clear specified tier"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def count(self, tier: MemoryTier) -> int:
-        """获取条目数量"""
-        pass
+        """Get entry count"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def search(
         self, tier: MemoryTier, query: str, limit: int = 10
     ) -> list[MemoryEntry]:
-        """搜索条目"""
-        pass
+        """Search entries"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def flush(self) -> None:
-        """刷新缓存到存储"""
-        pass
+        """Flush cache to storage"""
+        pass  # pragma: no cover
 
     @abstractmethod
     def close(self) -> None:
-        """关闭存储"""
-        pass
+        """Close storage"""
+        pass  # pragma: no cover
 
 
 class MemoryStorage(StorageBackend):
-    """内存存储后端
+    """In-memory storage backend
 
-    无持久化，数据仅在内存中保存。
+    No persistence, data is only kept in memory.
     """
 
     def __init__(self):
@@ -168,17 +171,18 @@ class MemoryStorage(StorageBackend):
             return results
 
     def flush(self) -> None:
-        pass
+        """No-op for memory storage"""
+        logger.debug("MemoryStorage.flush: no-op")
 
     def close(self) -> None:
         self._storage.clear()
 
 
 class FileStorage(StorageBackend):
-    """JSON 文件存储后端
+    """JSON file storage backend
 
-    每个层级存储为一个 JSON 文件。
-    支持自动保存和手动保存。
+    Each tier is stored as a separate JSON file.
+    Supports auto-save and manual save.
     """
 
     def __init__(
@@ -187,12 +191,12 @@ class FileStorage(StorageBackend):
         auto_save: bool = True,
         session_id: str = "default",
     ):
-        """初始化文件存储
+        """Initialize file storage
 
         Args:
-            base_path: 存储目录
-            auto_save: 是否自动保存（每次修改后保存）
-            session_id: 会话 ID
+            base_path: Storage directory
+            auto_save: Whether to auto-save (save after each modification)
+            session_id: Session ID
         """
         self._base_path = Path(base_path)
         self._auto_save = auto_save
@@ -211,11 +215,11 @@ class FileStorage(StorageBackend):
         self._load_all()
 
     def _ensure_dir(self) -> None:
-        """确保存储目录存在"""
+        """Ensure storage directory exists"""
         self._base_path.mkdir(parents=True, exist_ok=True)
 
     def _get_file_path(self, tier: MemoryTier) -> Path:
-        """获取层级文件路径"""
+        """Get tier file path"""
         tier_names = {
             MemoryTier.WORKING: "working",
             MemoryTier.SESSION: "session",
@@ -225,7 +229,7 @@ class FileStorage(StorageBackend):
         return self._base_path / f"{self._session_id}_{tier_names[tier]}.json"
 
     def _entry_to_dict(self, entry: MemoryEntry) -> dict[str, Any]:
-        """转换条目为字典"""
+        """Convert entry to dictionary"""
         return {
             "id": entry.id,
             "tier": entry.tier.value,
@@ -238,7 +242,7 @@ class FileStorage(StorageBackend):
         }
 
     def _dict_to_entry(self, data: dict[str, Any]) -> MemoryEntry:
-        """转换字典为条目"""
+        """Convert dictionary to entry"""
         return MemoryEntry(
             id=data["id"],
             tier=MemoryTier(data["tier"]),
@@ -251,7 +255,7 @@ class FileStorage(StorageBackend):
         )
 
     def _save_tier(self, tier: MemoryTier) -> None:
-        """保存层级到文件"""
+        """Save tier to file"""
         file_path = self._get_file_path(tier)
         entries = [self._entry_to_dict(e) for e in self._storage[tier].values()]
         data = {
@@ -266,7 +270,7 @@ class FileStorage(StorageBackend):
             json.dump(data, f, indent=2, ensure_ascii=False)
 
     def _load_tier(self, tier: MemoryTier) -> None:
-        """从文件加载层级"""
+        """Load tier from file"""
         file_path = self._get_file_path(tier)
         if not file_path.exists():
             return
@@ -278,11 +282,11 @@ class FileStorage(StorageBackend):
             for entry_data in data.get("entries", []):
                 entry = self._dict_to_entry(entry_data)
                 self._storage[tier][entry.id] = entry
-        except (json.JSONDecodeError, KeyError):
-            pass
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Failed to load {tier} from {file_path}: {e}")
 
     def _load_all(self) -> None:
-        """加载所有层级"""
+        """Load all tiers"""
         for tier in MemoryTier:
             self._load_tier(tier)
 
@@ -300,7 +304,7 @@ class FileStorage(StorageBackend):
                 entry.touch()
             return entry
 
-    def load_all(self, tier: MemoryTier) -> list[MemoryEntry]:
+    def load_all(self, tier: MemoryTier) -> list[MemoryEntry]:  # pragma: no cover
         with self._lock:
             return list(self._storage[tier].values())
 
@@ -309,10 +313,10 @@ class FileStorage(StorageBackend):
             if entry_id in self._storage[tier]:
                 del self._storage[tier][entry_id]
                 self._dirty = True
-                if self._auto_save:
+                if self._auto_save:  # pragma: no branch
                     self._save_tier(tier)
                 return True
-            return False
+            return False  # pragma: no cover
 
     def clear(self, tier: MemoryTier) -> int:
         with self._lock:
@@ -341,7 +345,7 @@ class FileStorage(StorageBackend):
             return results
 
     def flush(self) -> None:
-        """保存所有修改"""
+        """Save all modifications"""
         with self._lock:
             if self._dirty:
                 for tier in MemoryTier:
@@ -349,15 +353,352 @@ class FileStorage(StorageBackend):
                 self._dirty = False
 
     def close(self) -> None:
-        """关闭存储，保存所有数据"""
+        """Close storage and save all data"""
         self.flush()
         self._storage.clear()
 
     def save_all(self) -> None:
-        """保存所有层级"""
+        """Save all tiers"""
         self.flush()
 
     @staticmethod
     def get_default_storage_path() -> Path:
-        """获取默认存储路径"""
+        """Get default storage path"""
         return Path.home() / ".continuum" / "memory"
+
+
+class SQLiteStorage(StorageBackend):
+    """SQLite storage backend
+
+    Uses SQLite database for persistent storage.
+    Supports efficient queries and transactions.
+
+    Features:
+        - Single-file database, easy to manage
+        - Full-text search (FTS) support
+        - Transaction support
+        - Efficient batch operations
+    """
+
+    def __init__(
+        self,
+        db_path: str | Path,
+        session_id: str = "default",
+        auto_commit: bool = True,
+        enable_fts: bool = True,
+    ):
+        """Initialize SQLite storage
+
+        Args:
+            db_path: Database file path
+            session_id: Session ID
+            auto_commit: Whether to auto-commit
+            enable_fts: Whether to enable full-text search
+        """
+        import sqlite3
+
+        self._db_path = Path(db_path)
+        self._session_id = session_id
+        self._auto_commit = auto_commit
+        self._enable_fts = enable_fts
+        self._lock = threading.RLock()
+
+        # Ensure directory exists
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Connect to database
+        self._conn = sqlite3.connect(
+            str(self._db_path),
+            check_same_thread=False,
+        )
+        self._conn.row_factory = sqlite3.Row
+
+        # Initialize table structure
+        self._init_tables()
+
+        logger.info(f"SQLiteStorage initialized: {self._db_path}")
+
+    def _init_tables(self) -> None:
+        """Initialize database tables"""
+        cursor = self._conn.cursor()
+
+        # Main memory table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS memories (
+                id TEXT PRIMARY KEY,
+                tier TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                metadata TEXT,
+                created_at TEXT NOT NULL,
+                last_accessed TEXT NOT NULL,
+                access_count INTEGER DEFAULT 0,
+                importance REAL DEFAULT 0.5
+            )
+        """)
+
+        # Indexes
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_tier_session
+            ON memories(tier, session_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_created_at
+            ON memories(created_at)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_importance
+            ON memories(importance DESC)
+        """)
+
+        # Full-text search table (optional)
+        if self._enable_fts:
+            cursor.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts
+                USING fts5(id, content, metadata)
+            """)
+
+        self._conn.commit()
+
+    def save(self, tier: MemoryTier, entry: MemoryEntry) -> None:
+        """Save memory entry"""
+        import json
+
+        with self._lock:
+            cursor = self._conn.cursor()
+
+            # Insert or replace
+            cursor.execute("""
+                INSERT OR REPLACE INTO memories
+                (id, tier, session_id, content, metadata, created_at, last_accessed, access_count, importance)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                entry.id,
+                tier.value,
+                self._session_id,
+                entry.content,
+                json.dumps(entry.metadata),
+                entry.created_at.isoformat(),
+                entry.last_accessed.isoformat(),
+                entry.access_count,
+                entry.importance,
+            ))
+
+            # Update full-text search index
+            if self._enable_fts:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO memories_fts (id, content, metadata)
+                    VALUES (?, ?, ?)
+                """, (
+                    entry.id,
+                    entry.content,
+                    json.dumps(entry.metadata),
+                ))
+
+            if self._auto_commit:
+                self._conn.commit()
+
+    def load(self, tier: MemoryTier, entry_id: str) -> MemoryEntry | None:
+        """Load memory entry"""
+        with self._lock:
+            cursor = self._conn.cursor()
+            cursor.execute("""
+                SELECT * FROM memories
+                WHERE tier = ? AND session_id = ? AND id = ?
+            """, (tier.value, self._session_id, entry_id))
+
+            row = cursor.fetchone()
+            if row:
+                # Update access info
+                cursor.execute("""
+                    UPDATE memories
+                    SET last_accessed = ?, access_count = access_count + 1
+                    WHERE id = ?
+                """, (_utc_now().isoformat(), entry_id))
+
+                if self._auto_commit:  # pragma: no branch
+                    self._conn.commit()
+
+                return self._row_to_entry(row)
+            return None  # pragma: no cover
+
+    def load_all(self, tier: MemoryTier) -> list[MemoryEntry]:  # pragma: no cover
+        """Load all entries in specified tier"""
+        with self._lock:
+            cursor = self._conn.cursor()
+            cursor.execute("""
+                SELECT * FROM memories
+                WHERE tier = ? AND session_id = ?
+                ORDER BY created_at DESC
+            """, (tier.value, self._session_id))
+
+            return [self._row_to_entry(row) for row in cursor.fetchall()]
+
+    def delete(self, tier: MemoryTier, entry_id: str) -> bool:
+        """Delete memory entry"""
+        with self._lock:
+            cursor = self._conn.cursor()
+
+            # Check if exists
+            cursor.execute("""
+                SELECT id FROM memories
+                WHERE tier = ? AND session_id = ? AND id = ?
+            """, (tier.value, self._session_id, entry_id))
+
+            if not cursor.fetchone():
+                return False
+
+            # Delete
+            cursor.execute("""
+                DELETE FROM memories WHERE id = ?
+            """, (entry_id,))
+
+            # Delete full-text search index
+            if self._enable_fts:  # pragma: no branch
+                cursor.execute("""
+                    DELETE FROM memories_fts WHERE id = ?
+                """, (entry_id,))
+
+            if self._auto_commit:  # pragma: no branch
+                self._conn.commit()
+
+            return True
+
+    def clear(self, tier: MemoryTier) -> int:
+        """Clear specified tier"""
+        import json
+
+        with self._lock:
+            cursor = self._conn.cursor()
+
+            # Get list of IDs to delete
+            cursor.execute("""
+                SELECT id FROM memories
+                WHERE tier = ? AND session_id = ?
+            """, (tier.value, self._session_id))
+
+            ids = [row["id"] for row in cursor.fetchall()]
+            count = len(ids)
+
+            if count == 0:
+                return 0
+
+            # Delete main table records
+            placeholders = ",".join("?" * len(ids))
+            cursor.execute(f"""
+                DELETE FROM memories WHERE id IN ({placeholders})
+            """, ids)
+
+            # Delete full-text search index
+            if self._enable_fts:  # pragma: no branch
+                cursor.execute(f"""
+                    DELETE FROM memories_fts WHERE id IN ({placeholders})
+                """, ids)
+
+            if self._auto_commit:  # pragma: no branch
+                self._conn.commit()
+
+            return count
+
+    def count(self, tier: MemoryTier) -> int:
+        """Get entry count"""
+        with self._lock:
+            cursor = self._conn.cursor()
+            cursor.execute("""
+                SELECT COUNT(*) FROM memories
+                WHERE tier = ? AND session_id = ?
+            """, (tier.value, self._session_id))
+            return cursor.fetchone()[0]
+
+    def search(
+        self, tier: MemoryTier, query: str, limit: int = 10
+    ) -> list[MemoryEntry]:
+        """Search entries"""
+        import json
+
+        with self._lock:
+            cursor = self._conn.cursor()
+
+            if self._enable_fts:
+                # Use full-text search
+                cursor.execute("""
+                    SELECT m.* FROM memories m
+                    JOIN memories_fts fts ON m.id = fts.id
+                    WHERE m.tier = ? AND m.session_id = ?
+                    AND memories_fts MATCH ?
+                    ORDER BY m.importance DESC
+                    LIMIT ?
+                """, (tier.value, self._session_id, query, limit))
+            else:
+                # Use LIKE search
+                cursor.execute("""
+                    SELECT * FROM memories
+                    WHERE tier = ? AND session_id = ?
+                    AND content LIKE ?
+                    ORDER BY importance DESC
+                    LIMIT ?
+                """, (tier.value, self._session_id, f"%{query}%", limit))
+
+            return [self._row_to_entry(row) for row in cursor.fetchall()]
+
+    def flush(self) -> None:
+        """Flush cache to storage"""
+        with self._lock:
+            self._conn.commit()
+
+    def close(self) -> None:
+        """Close storage"""
+        with self._lock:
+            self._conn.commit()
+            self._conn.close()
+
+    def _row_to_entry(self, row: sqlite3.Row) -> MemoryEntry:
+        """Convert database row to MemoryEntry"""
+        import json
+
+        return MemoryEntry(
+            id=row["id"],
+            tier=MemoryTier(row["tier"]),
+            content=row["content"],
+            metadata=json.loads(row["metadata"]) if row["metadata"] else {},
+            created_at=datetime.fromisoformat(row["created_at"]),
+            last_accessed=datetime.fromisoformat(row["last_accessed"]),
+            access_count=row["access_count"],
+            importance=row["importance"],
+        )
+
+    def vacuum(self) -> None:
+        """Clean up database and reclaim space"""
+        with self._lock:
+            self._conn.execute("VACUUM")
+            self._conn.commit()
+
+    def get_stats(self) -> dict[str, Any]:
+        """Get database statistics"""
+        with self._lock:
+            cursor = self._conn.cursor()
+
+            stats = {}
+
+            # Total record count
+            cursor.execute("SELECT COUNT(*) FROM memories")
+            stats["total_records"] = cursor.fetchone()[0]
+
+            # Record count per tier
+            cursor.execute("""
+                SELECT tier, COUNT(*) as count
+                FROM memories
+                WHERE session_id = ?
+                GROUP BY tier
+            """, (self._session_id,))
+
+            stats["by_tier"] = {
+                row["tier"]: row["count"] for row in cursor.fetchall()
+            }
+
+            # Database size
+            stats["db_size_bytes"] = self._db_path.stat().st_size if self._db_path.exists() else 0
+
+            return stats

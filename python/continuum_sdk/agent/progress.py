@@ -63,12 +63,15 @@ See Also:
     StepLogger: Execution history logging
 """
 
+import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class ProgressState(Enum):
@@ -286,8 +289,8 @@ class ProgressTracker:
         for callback in self.callbacks:
             try:
                 callback(event)
-            except Exception:
-                pass
+            except (TypeError, ValueError, RuntimeError, ArithmeticError) as e:
+                logger.debug("Progress callback failed: %s", e)
 
     def to_dict(self) -> dict[str, Any]:
         """Export progress as dict."""

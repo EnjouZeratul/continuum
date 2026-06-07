@@ -56,14 +56,14 @@ Environment Variables:
     - CONTINUUM_BASE_URL: Custom API endpoint
 
 Provider-Specific Setup:
-    >>> # Anthropic Claude
-    >>> agent = Agent(model="claude-sonnet-4-6")
+    >>> # Anthropic Claude (Recommended: auto-get default model)
+    >>> agent = Agent(api_key="your-key")
     >>>
-    >>> # OpenAI GPT
-    >>> agent = Agent(model="gpt-4", provider="openai")
+    >>> # Specify provider (auto-use provider's default model)
+    >>> agent = Agent(provider="openai", api_key="your-key")
     >>>
-    >>> # Google Gemini
-    >>> agent = Agent(model="gemini-1.5-pro", provider="google")
+    >>> # Explicitly specify model (optional, overrides default)
+    >>> agent = Agent(model="claude-sonnet-4-6", api_key="your-key")
     >>>
     >>> # Custom endpoint
     >>> agent = Agent(
@@ -99,10 +99,14 @@ if TYPE_CHECKING:
 
 # Import Rust bindings (will be available after compilation)
 try:
-    from sh_core import Agent as RustAgent
+    from sh_python import Agent as RustAgent
+    from sh_python import AgentRuntime as RustAgentRuntime
+    from sh_python import AgentConfig as RustAgentConfig
+    from sh_python import AgentStreamIterator as RustStreamIterator
+    from sh_python import StreamChunk as RustStreamChunk
 
     HAS_RUST_BINDINGS = True
-except ImportError:
+except ImportError:  # pragma: no cover
     HAS_RUST_BINDINGS = False
 
 # Import config module for auto-configuration
@@ -146,6 +150,7 @@ class AgentConfig:
         api_format: API format (anthropic, openai, google). Auto-detected from provider if not set.
         budget: Optional cost budget limit
         max_tokens: Maximum tokens per response
+        max_iterations: Maximum iterations in agent loop (default from CONTINUUM_MAX_ITERATIONS env, or 100)
         temperature: Sampling temperature
         system_prompt: Optional system prompt
         timeout: Request timeout in seconds
@@ -154,26 +159,66 @@ class AgentConfig:
     def __init__(
         self,
         name: str = "default",
-        model: str = "claude-sonnet-4-6",
-        provider: str = "anthropic",
+        model: str | None = None,
+        provider: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
         api_format: str | None = None,
         budget: float | None = None,
         max_tokens: int = 4096,
+        max_iterations: int | None = None,
         temperature: float = 0.7,
         system_prompt: str | None = None,
         timeout: float = 60.0,
         tools: list | None = None,
     ):
+        # Dynamically get default values from environment variables or providers config
+        # Support third-party APIs and custom providers
+        import os
+        import logging
+        from continuum_sdk.config.providers import get_default_model, get_default_base_url
+
         self.name = name
+        # Model default: priority: parameter > CONTINUUM_MODEL env > providers config
+        if model is None:
+            model = os.environ.get("CONTINUUM_MODEL")
+            if model is None and provider:
+                model = get_default_model(provider)
+            if model is None:
+                model = get_default_model("anthropic")  # Final default
         self.model = model
+
+        # Provider default: priority: parameter > CONTINUUM_PROVIDER env > anthropic
+        if provider is None:
+            provider = os.environ.get("CONTINUUM_PROVIDER", "anthropic")
         self.provider = provider
-        self.api_key = api_key
+
+        # base_url default: get from providers config
+        if base_url is None and provider:
+            base_url = get_default_base_url(provider)
         self.base_url = base_url
+
+        self.api_key = api_key
         self.api_format = api_format
         self.budget = budget
         self.max_tokens = max_tokens
+
+        # max_iterations: priority: parameter > CONTINUUM_MAX_ITERATIONS env > 100
+        if max_iterations is None:
+            env_val = os.environ.get("CONTINUUM_MAX_ITERATIONS")
+            if env_val is not None:
+                try:
+                    max_iterations = int(env_val)
+                except ValueError:
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"Invalid CONTINUUM_MAX_ITERATIONS value '{env_val}', using default 100"
+                    )
+                    max_iterations = 100
+            else:
+                max_iterations = 100
+        self.max_iterations = max_iterations
+
         self.temperature = temperature
         self.system_prompt = system_prompt
         self.timeout = timeout
@@ -189,6 +234,7 @@ class AgentConfig:
             "api_format": self.api_format,
             "budget": self.budget,
             "max_tokens": self.max_tokens,
+            "max_iterations": self.max_iterations,
             "temperature": self.temperature,
             "system_prompt": self.system_prompt,
             "timeout": self.timeout,
@@ -197,14 +243,17 @@ class AgentConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AgentConfig:
+        from continuum_sdk.config.providers import get_default_model
+
         return cls(
             name=data.get("name", "default"),
-            model=data.get("model", "claude-sonnet-4-6"),
-            provider=data.get("provider", "anthropic"),
+            model=data.get("model"),  # Let __init__ handle default values
+            provider=data.get("provider"),  # Let __init__ handle default values
             api_key=data.get("api_key"),
             base_url=data.get("base_url"),
             budget=data.get("budget"),
             max_tokens=data.get("max_tokens", 4096),
+            max_iterations=data.get("max_iterations"),  # Let __init__ handle default values
             temperature=data.get("temperature", 0.7),
             system_prompt=data.get("system_prompt"),
             timeout=data.get("timeout", 60.0),
@@ -242,12 +291,12 @@ class Agent:
 
     Quick Start:
         >>> from continuum import Agent
-        >>> agent = Agent()  # Auto-configures
+        >>> agent = Agent()  # Auto-configures with default model
         >>> result = agent.run("your task")
 
     Advanced Usage:
-        >>> # Custom configuration
-        >>> agent = Agent(name="assistant", model="claude-sonnet-4-6")
+        >>> # Custom configuration (model is optional, auto-selected if not specified)
+        >>> agent = Agent(name="assistant")
         >>> agent.register_tool("search", my_search_function)
         >>> agent.start()
         >>> session = agent.create_session()
@@ -272,6 +321,7 @@ class Agent:
         model: str | None = None,
         api_key: str | None = None,
         provider: str | None = None,
+        _use_rust: bool | None = None,
     ):
         """
         Create a new Agent.
@@ -282,6 +332,7 @@ class Agent:
             model: Model name (overrides config)
             api_key: API key (overrides config)
             provider: Provider name (overrides config)
+            _use_rust: Force use/disable Rust bindings (for testing)
         """
         self._name = name or "default"
 
@@ -313,11 +364,14 @@ class Agent:
         # LLM client (initialized on first use)
         self._llm_client: BaseLlmClient | None = None
 
-        # Rust bindings if available
-        if HAS_RUST_BINDINGS:
+        # Rust bindings if available (can be disabled for testing)
+        use_rust = _use_rust if _use_rust is not None else HAS_RUST_BINDINGS
+        if use_rust and HAS_RUST_BINDINGS:
             self._rust_agent = RustAgent(self._name)
+            self._rust_runtime = RustAgentRuntime()
         else:
             self._rust_agent = None
+            self._rust_runtime = None
 
     def _get_llm_client(self) -> BaseLlmClient:
         """
@@ -329,7 +383,7 @@ class Agent:
         if self._llm_client is None:
             if not self._config.api_key:
                 raise ValueError(
-                    "API key is required. Set CONTINUUM_API_KEY (or CONTINUUM_API_KEY) environment variable "
+                    "API key is required. Set CONTINUUM_API_KEY environment variable "
                     "or pass api_key parameter."
                 )
 
@@ -353,7 +407,8 @@ class Agent:
     def state(self) -> AgentState:
         """Agent state."""
         if self._rust_agent:
-            rust_state = self._rust_agent.state()
+            # Rust binding uses #[getter], so state is a property not a method
+            rust_state = self._rust_agent.state
             return AgentState(rust_state)
         return self._state
 
@@ -583,6 +638,7 @@ class Agent:
         Streaming task execution.
 
         Automatically handles startup and session creation.
+        Supports both Rust bindings (when available) and pure Python fallback.
 
         Args:
             task: Task description
@@ -591,16 +647,51 @@ class Agent:
         Yields:
             StreamChunk objects
         """
-        if auto_start and self._state != AgentState.RUNNING:
-            self.start()
+        # Use Rust streaming if available
+        if HAS_RUST_BINDINGS and self._rust_runtime is not None:  # pragma: no cover
+            if auto_start and self._state != AgentState.RUNNING:
+                self.start()
 
-        if not self._current_session:
-            self._current_session = self.create_session()
+            rust_config = RustAgentConfig(
+                agent_id=self._name,
+                model=self._config.model,
+                temperature=self._config.temperature,
+                max_iterations=self._config.max_iterations,
+                system_prompt=self._config.system_prompt,
+            )
 
-        self._current_session.add_user_message(task)
+            # Get the stream iterator from Rust
+            rust_iterator = self._rust_runtime.run_stream(task, rust_config)
 
-        async for chunk in self.execute_stream(task):
-            yield chunk
+            # Convert Rust StreamChunk to Python StreamChunk
+            async for rust_chunk in rust_iterator:
+                # Convert Rust StreamChunk to Python StreamChunk
+                chunk = StreamChunk(
+                    content=rust_chunk.content or "",
+                    finish_reason="stop" if rust_chunk.is_final else None,
+                    tool_calls=[],
+                )
+                yield chunk
+
+                # Check for abort
+                if hasattr(rust_iterator, 'is_aborted') and rust_iterator.is_aborted():
+                    break
+
+                # Stop on final chunk
+                if rust_chunk.is_final:
+                    break
+        else:
+            # Pure Python fallback
+            if auto_start and self._state != AgentState.RUNNING:
+                self.start()
+
+            if not self._current_session:
+                self._current_session = self.create_session()
+
+            self._current_session.add_user_message(task)
+
+            async for chunk in self.execute_stream(task):
+                yield chunk
 
     def chat(self, message: str) -> str:
         """

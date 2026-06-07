@@ -1,50 +1,50 @@
-"""工作流 DAG 示例
+"""Workflow DAG Example
 
-展示如何创建和执行 DAG 工作流。
+Demonstrates how to create and execute DAG workflows.
 """
 
 import asyncio
 
 from continuum_sdk.workflow import DAG, Node
 
-# ==================== 定义节点函数 ====================
+# ==================== Define Node Functions ====================
 
 
 async def fetch_data():
-    """获取数据"""
-    print("   [fetch_data] 正在获取数据...")
+    """Fetch data"""
+    print("   [fetch_data] Fetching data...")
     await asyncio.sleep(0.5)
     return {"records": [1, 2, 3, 4, 5], "source": "api"}
 
 
 def validate_data(fetch_data):
-    """验证数据"""
-    print("   [validate_data] 正在验证数据...")
+    """Validate data"""
+    print("   [validate_data] Validating data...")
     data = fetch_data
     if not data.get("records"):
-        raise ValueError("没有数据")
+        raise ValueError("No data")
     return {"valid": True, "count": len(data["records"])}
 
 
 async def process_batch_1(fetch_data):
-    """处理批次 1"""
-    print("   [process_batch_1] 处理中...")
+    """Process batch 1"""
+    print("   [process_batch_1] Processing...")
     await asyncio.sleep(0.3)
     records = fetch_data["records"][:3]
     return {"batch": 1, "processed": [r * 2 for r in records]}
 
 
 async def process_batch_2(fetch_data):
-    """处理批次 2"""
-    print("   [process_batch_2] 处理中...")
+    """Process batch 2"""
+    print("   [process_batch_2] Processing...")
     await asyncio.sleep(0.4)
     records = fetch_data["records"][3:]
     return {"batch": 2, "processed": [r * 3 for r in records]}
 
 
 def merge_results(process_batch_1, process_batch_2, validate_data):
-    """合并结果"""
-    print("   [merge_results] 合并中...")
+    """Merge results"""
+    print("   [merge_results] Merging...")
     return {
         "total_processed": len(process_batch_1["processed"])
         + len(process_batch_2["processed"]),
@@ -55,42 +55,42 @@ def merge_results(process_batch_1, process_batch_2, validate_data):
 
 
 async def save_results(merge_results):
-    """保存结果"""
-    print("   [save_results] 保存中...")
+    """Save results"""
+    print("   [save_results] Saving...")
     await asyncio.sleep(0.2)
     return {"saved": True, "records": merge_results["total_processed"]}
 
 
 def notify_success(save_results):
-    """通知成功"""
-    print("   [notify_success] 发送成功通知...")
-    return {"notified": True, "message": "工作流完成"}
+    """Notify success"""
+    print("   [notify_success] Sending success notification...")
+    return {"notified": True, "message": "Workflow completed"}
 
 
 def notify_failure(**kwargs):
-    """通知失败（备用节点）"""
-    print("   [notify_failure] 发送失败通知...")
-    return {"notified": False, "message": "工作流失败"}
+    """Notify failure (fallback node)"""
+    print("   [notify_failure] Sending failure notification...")
+    return {"notified": False, "message": "Workflow failed"}
 
 
-# ==================== 构建 DAG ====================
+# ==================== Build DAG ====================
 
 
 def create_data_pipeline():
-    """创建数据处理工作流"""
-    dag = DAG("data-pipeline", name="数据处理流水线")
+    """Create data processing workflow"""
+    dag = DAG("data-pipeline", name="Data Processing Pipeline")
 
-    # 添加节点
-    dag.add(Node("fetch", func=fetch_data, description="获取数据"))
-    dag.add(Node("validate", func=validate_data, description="验证数据"))
-    dag.add(Node("batch1", func=process_batch_1, description="处理批次1"))
-    dag.add(Node("batch2", func=process_batch_2, description="处理批次2"))
-    dag.add(Node("merge", func=merge_results, description="合并结果"))
-    dag.add(Node("save", func=save_results, description="保存结果"))
-    dag.add(Node("notify_ok", func=notify_success, description="成功通知"))
-    dag.add(Node("notify_fail", func=notify_failure, description="失败通知"))
+    # Add nodes
+    dag.add(Node("fetch", func=fetch_data, description="Fetch data"))
+    dag.add(Node("validate", func=validate_data, description="Validate data"))
+    dag.add(Node("batch1", func=process_batch_1, description="Process batch 1"))
+    dag.add(Node("batch2", func=process_batch_2, description="Process batch 2"))
+    dag.add(Node("merge", func=merge_results, description="Merge results"))
+    dag.add(Node("save", func=save_results, description="Save results"))
+    dag.add(Node("notify_ok", func=notify_success, description="Success notification"))
+    dag.add(Node("notify_fail", func=notify_failure, description="Failure notification"))
 
-    # 设置依赖
+    # Set dependencies
     dag.depends_on("validate", "fetch")
     dag.depends_on("batch1", "fetch")
     dag.depends_on("batch2", "fetch")
@@ -101,49 +101,49 @@ def create_data_pipeline():
     return dag
 
 
-# ==================== 运行示例 ====================
+# ==================== Run Example ====================
 
 
 async def main():
-    print("=== 工作流 DAG 示例 ===\n")
+    print("=== Workflow DAG Example ===\n")
 
-    # 1. 创建 DAG
+    # 1. Create DAG
     dag = create_data_pipeline()
 
-    # 2. 可视化 DAG
-    print("1. DAG 结构:")
+    # 2. Visualize DAG
+    print("1. DAG Structure:")
     print(dag.visualize())
     print()
 
-    # 3. 验证 DAG
-    print("2. 验证 DAG:")
+    # 3. Validate DAG
+    print("2. Validate DAG:")
     errors = dag.validate()
     if errors:
-        print(f"   验证失败: {errors}")
+        print(f"   Validation failed: {errors}")
         return
-    print("   验证通过\n")
+    print("   Validation passed\n")
 
-    # 4. 顺序执行
-    print("3. 顺序执行:")
+    # 4. Sequential execution
+    print("3. Sequential execution:")
     result = await dag.execute(parallel=False)
-    print(f"   状态: {result.status.value}")
-    print(f"   执行顺序: {result.execution_order()}")
-    print(f"   最终输出: {result.get_output('save')}")
+    print(f"   Status: {result.status.value}")
+    print(f"   Execution order: {result.execution_order()}")
+    print(f"   Final output: {result.get_output('save')}")
     print()
 
-    # 5. 并行执行
-    print("4. 并行执行:")
+    # 5. Parallel execution
+    print("4. Parallel execution:")
     dag2 = create_data_pipeline()
     result2 = await dag2.execute(parallel=True)
-    print(f"   状态: {result2.status.value}")
-    print(f"   所有输出: {result2.get_all_outputs()}")
+    print(f"   Status: {result2.status.value}")
+    print(f"   All outputs: {result2.get_all_outputs()}")
     print()
 
-    # 6. 测试失败处理
-    print("5. 测试失败节点:")
+    # 6. Test failure handling
+    print("5. Test failure node:")
 
     def failing_func():
-        raise RuntimeError("模拟失败")
+        raise RuntimeError("Simulated failure")
 
     dag3 = DAG("test-failure")
     dag3.add(Node("a", func=lambda: "ok"))
@@ -151,14 +151,14 @@ async def main():
     dag3.add(Node("c", func=lambda: "ok").depends_on("b"))
 
     result3 = await dag3.execute()
-    print(f"   状态: {result3.status.value}")
-    print(f"   失败节点: {result3.failed_nodes()}")
+    print(f"   Status: {result3.status.value}")
+    print(f"   Failed nodes: {result3.failed_nodes()}")
 
-    # 检查节点状态
+    # Check node status
     b_result = result3.get_result("b")
     c_result = result3.get_result("c")
-    print(f"   b 状态: {b_result.status.value}, 错误: {b_result.error}")
-    print(f"   c 状态: {c_result.status.value}, 原因: {c_result.error}")
+    print(f"   b status: {b_result.status.value}, error: {b_result.error}")
+    print(f"   c status: {c_result.status.value}, reason: {c_result.error}")
 
 
 if __name__ == "__main__":

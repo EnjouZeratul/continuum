@@ -1087,5 +1087,222 @@ class TestSecurityIntegration:
         assert result.metadata["count"] == 1
 
 
+class TestSecureMode:
+    """Tests for TOCTOU-safe secure mode."""
+
+    def test_read_secure_mode_valid_path(self, tmp_path: Path):
+        """Test secure mode read with valid path."""
+        file_path = tmp_path / "secure_read.txt"
+        file_path.write_text("Secure content")
+
+        result = read_file(
+            str(file_path),
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        assert result.is_error is False
+        assert result.content == "Secure content"
+        assert result.metadata.get("secure_mode") is True
+
+    def test_read_secure_mode_out_of_bound(self, tmp_path: Path):
+        """Test secure mode read rejects out-of-bound path."""
+        # Create file outside workspace
+        outside_path = tmp_path / "outside.txt"
+        outside_path.write_text("Outside content")
+
+        # Workspace is a different directory
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+
+        with pytest.raises(ToolError) as exc_info:
+            read_file(
+                str(outside_path),
+                secure_mode=True,
+                workspace=str(project_path)
+            )
+
+        assert "validation failed" in exc_info.value.message.lower() or "security" in exc_info.value.message.lower()
+
+    def test_read_secure_mode_nonexistent_file(self, tmp_path: Path):
+        """Test secure mode read handles nonexistent file."""
+        result = None
+        with pytest.raises(ToolError) as exc_info:
+            result = read_file(
+                str(tmp_path / "nonexistent.txt"),
+                secure_mode=True,
+                workspace=str(tmp_path)
+            )
+
+        assert "not found" in exc_info.value.message.lower()
+
+    def test_write_secure_mode_new_file(self, tmp_path: Path):
+        """Test secure mode atomic write creates new file."""
+        file_path = tmp_path / "secure_write_new.txt"
+
+        result = write_file(
+            str(file_path),
+            "Atomic content\n",  # Secure mode writes exact content
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        assert result.is_error is False
+        assert file_path.exists()
+        assert file_path.read_text() == "Atomic content\n"
+        assert result.metadata.get("secure_mode") is True
+
+    def test_write_secure_mode_overwrites_existing(self, tmp_path: Path):
+        """Test secure mode atomic write overwrites existing file."""
+        file_path = tmp_path / "secure_overwrite.txt"
+        file_path.write_text("Old content")
+
+        result = write_file(
+            str(file_path),
+            "New atomic content\n",  # Secure mode writes exact content
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        assert result.is_error is False
+        assert file_path.read_text() == "New atomic content\n"
+
+    def test_write_secure_mode_exact_content(self, tmp_path: Path):
+        """Test secure mode writes exact content without adding newline."""
+        file_path = tmp_path / "exact_content.txt"
+
+        result = write_file(
+            str(file_path),
+            "Exact",  # No trailing newline
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        assert result.is_error is False
+        assert file_path.read_text() == "Exact"  # Exactly as provided
+
+    def test_write_secure_mode_creates_directories(self, tmp_path: Path):
+        """Test secure mode creates parent directories."""
+        file_path = tmp_path / "nested" / "secure" / "file.txt"
+
+        result = write_file(
+            str(file_path),
+            "Nested secure content",
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        assert result.is_error is False
+        assert file_path.exists()
+
+    def test_write_secure_mode_validation_failure(self, tmp_path: Path):
+        """Test secure mode validates path before write."""
+        # Try to write outside workspace
+        outside_path = tmp_path / "outside.txt"
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+
+        with pytest.raises(ToolError) as exc_info:
+            write_file(
+                str(outside_path),
+                "Should fail",
+                secure_mode=True,
+                workspace=str(project_path)
+            )
+
+        assert "validation failed" in exc_info.value.message.lower() or "security" in exc_info.value.message.lower()
+
+    def test_write_secure_mode_skips_append(self, tmp_path: Path):
+        """Test secure mode falls back to legacy mode for append."""
+        file_path = tmp_path / "secure_append.txt"
+        file_path.write_text("Original\n")
+
+        result = write_file(
+            str(file_path),
+            "Appended",
+            secure_mode=True,
+            append=True,
+            workspace=str(tmp_path)
+        )
+
+        # Secure mode should be skipped for append operations
+        assert result.is_error is False
+        assert "Original" in file_path.read_text()
+        assert "Appended" in file_path.read_text()
+
+    def test_read_secure_mode_binary_content(self, tmp_path: Path):
+        """Test secure mode handles binary content."""
+        file_path = tmp_path / "binary_secure.bin"
+        file_path.write_bytes(b"\x00\x01\x02\xff\xfe")
+
+        result = read_file(
+            str(file_path),
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        # Should read successfully, binary data decoded
+        assert result.is_error is False
+
+    def test_read_secure_mode_unicode_content(self, tmp_path: Path):
+        """Test secure mode handles unicode content."""
+        file_path = tmp_path / "unicode_secure.txt"
+        file_path.write_text("你好世界 World 🌍", encoding="utf-8")
+
+        result = read_file(
+            str(file_path),
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        assert result.is_error is False
+        assert "你好" in result.content
+
+    def test_read_secure_mode_with_pagination(self, tmp_path: Path):
+        """Test secure mode with offset and limit."""
+        file_path = tmp_path / "paginated_secure.txt"
+        lines = [f"Line {i}" for i in range(10)]
+        file_path.write_text("\n".join(lines))
+
+        result = read_file(
+            str(file_path),
+            offset=3,
+            limit=3,
+            secure_mode=True,
+            workspace=str(tmp_path)
+        )
+
+        assert result.is_error is False
+        assert "Line 3" in result.content
+
+    def test_read_secure_mode_disabled_security(self, tmp_path: Path):
+        """Test secure mode with disabled security still works."""
+        file_path = tmp_path / "no_security.txt"
+        file_path.write_text("No security check")
+
+        # No workspace = security disabled
+        result = read_file(
+            str(file_path),
+            secure_mode=True
+        )
+
+        assert result.is_error is False
+        assert result.content == "No security check"
+
+    def test_write_secure_mode_disabled_security(self, tmp_path: Path):
+        """Test secure mode write with disabled security still works."""
+        file_path = tmp_path / "no_security_write.txt"
+
+        # No workspace = security disabled
+        result = write_file(
+            str(file_path),
+            "No security write",
+            secure_mode=True
+        )
+
+        assert result.is_error is False
+        assert file_path.exists()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

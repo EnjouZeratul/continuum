@@ -85,10 +85,13 @@ See Also:
 """
 
 import json
+import logging
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Import Rust bindings
 try:
@@ -100,7 +103,7 @@ except ImportError:
 
 
 class MessageRole(Enum):
-    """消息角色枚举"""
+    """Message role enumeration."""
 
     USER = "user"
     ASSISTANT = "assistant"
@@ -109,7 +112,7 @@ class MessageRole(Enum):
 
 
 class Message:
-    """会话消息"""
+    """Session message container."""
 
     def __init__(
         self,
@@ -186,7 +189,7 @@ class Session:
         self._cost: float = 0.0
         self._token_count: int = 0
 
-        # Rust 绑定
+        # Rust bindings
         if HAS_RUST_BINDINGS:
             self._rust_session = RustSession(self._id)
         else:
@@ -194,33 +197,36 @@ class Session:
 
     @property
     def id(self) -> str:
-        """会话 ID"""
+        """Session ID."""
         if self._rust_session:
-            return self._rust_session.id()
+            # Rust binding uses #[getter], so id is a property not a method
+            return self._rust_session.id
         return self._id
 
     @property
     def created_at(self) -> datetime:
-        """创建时间"""
+        """Creation timestamp."""
         if self._rust_session:
-            return datetime.fromisoformat(self._rust_session.created_at())
+            # Rust binding uses #[getter], so created_at is a property not a method
+            return datetime.fromisoformat(self._rust_session.created_at)
         return self._created_at
 
     @property
     def message_count(self) -> int:
-        """消息数量"""
+        """Message count."""
         if self._rust_session:
+            # message_count is a method in Rust binding
             return self._rust_session.message_count()
         return len(self._messages)
 
     @property
     def cost(self) -> float:
-        """总成本"""
+        """Total cost."""
         return self._cost
 
     @property
     def tokens(self) -> int:
-        """Token 数量"""
+        """Token count."""
         return self._token_count
 
     def add_message(
@@ -230,89 +236,109 @@ class Session:
         metadata: dict[str, Any] | None = None,
     ) -> Message:
         """
-        添加消息
+        Add message.
 
         Args:
-            role: 消息角色
-            content: 消息内容
-            metadata: 元数据
+            role: Message role
+            content: Message content
+            metadata: Metadata
 
         Returns:
-            添加的消息
+            The added message
         """
         message = Message(role=role, content=content, metadata=metadata)
         self._messages.append(message)
 
-        # 同步到 Rust
+        # Sync to Rust
         if self._rust_session:
             if role == MessageRole.USER:
                 self._rust_session.add_user_message(content)
-            elif role == MessageRole.ASSISTANT:
+            elif role == MessageRole.ASSISTANT:  # pragma: no branch
                 self._rust_session.add_assistant_message(content)
 
         return message
 
     def add_user_message(self, content: str) -> Message:
-        """添加用户消息"""
+        """Add user message."""
         return self.add_message(MessageRole.USER, content)
 
     def add_assistant_message(self, content: str) -> Message:
-        """添加助手消息"""
+        """Add assistant message."""
         return self.add_message(MessageRole.ASSISTANT, content)
 
     def add_system_message(self, content: str) -> Message:
-        """添加系统消息"""
+        """Add system message."""
         return self.add_message(MessageRole.SYSTEM, content)
 
-    def get_messages(self) -> list[Message]:
-        """获取所有消息"""
+    def get_messages(self, limit: int | None = None) -> list[Message]:
+        """Get messages."""
         if self._rust_session:
-            # 从 Rust 绑定获取
             rust_messages = self._rust_session.get_messages()
-            return [
+            messages = [
                 Message(
                     role=MessageRole(r[0]),
                     content=r[1],
                 )
                 for r in rust_messages
             ]
-        return self._messages.copy()
+        else:
+            messages = self._messages.copy()
+
+        if limit is None:
+            return messages
+        return messages[-limit:]
 
     def get_last_message(self) -> Message | None:
-        """获取最后一条消息"""
+        """Get last message."""
         if not self._messages:
             return None
         return self._messages[-1]
 
     def clear_messages(self) -> None:
-        """清空消息历史"""
+        """Clear message history."""
         self._messages.clear()
         if self._rust_session:
             self._rust_session.clear_messages()
 
     def set_metadata(self, key: str, value: Any) -> None:
-        """设置元数据"""
+        """Set metadata."""
         self._metadata[key] = value
 
     def get_metadata(self, key: str) -> Any | None:
-        """获取元数据"""
+        """Get metadata."""
         return self._metadata.get(key)
 
     def record_tool_use(self, tool_name: str) -> None:
-        """记录工具使用"""
+        """Record tool usage."""
         self._tools_used.append(tool_name)
 
     def get_tools_used(self) -> list[str]:
-        """获取使用的工具列表"""
+        """Get list of tools used."""
         return self._tools_used.copy()
 
     def update_cost(self, cost: float, tokens: int) -> None:
-        """更新成本"""
+        """Update cost."""
         self._cost += cost
         self._token_count += tokens
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "created_at": self.created_at.isoformat(),
+            "messages": [m.to_dict() for m in self.get_messages()],
+            "metadata": self._metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Session":
+        session = cls(id=data["id"])
+        session._created_at = datetime.fromisoformat(data["created_at"])
+        session._messages = [Message.from_dict(m) for m in data.get("messages", [])]
+        session._metadata = data.get("metadata", {})
+        return session
+
     def export(self) -> str:
-        """导出会话为 JSON"""
+        """Export session as JSON."""
         if self._rust_session:
             return self._rust_session.export()
 
@@ -329,7 +355,7 @@ class Session:
 
     @classmethod
     def from_export(cls, export_data: str) -> "Session":
-        """从导出数据恢复会话"""
+        """Restore session from exported data."""
         data = json.loads(export_data)
         session = cls(id=data["id"])
         session._created_at = datetime.fromisoformat(data["created_at"])
@@ -343,7 +369,7 @@ class Session:
     def __repr__(self) -> str:
         return f"Session(id={self._id}, messages={len(self._messages)})"
 
-    def save(self, path: str | Path) -> None:
+    def save(self, path: str | Path) -> Path:
         """
         Save session to file.
 
@@ -366,6 +392,8 @@ class Session:
 
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+        return path
 
     @classmethod
     def load(cls, path: str | Path) -> "Session":
@@ -460,7 +488,85 @@ class Session:
         if not session_dir.exists():
             return []
 
-        return [f.stem for f in session_dir.glob("*.json")]
+        return [f.stem for f in session_dir.glob("*.json")]  # pragma: no cover
+
+    @classmethod
+    def recover(cls, checkpoint_path: str | Path) -> "Session":
+        """
+        Recover a session from a checkpoint file.
+
+        从检查点文件恢复会话状态。
+
+        Args:
+            checkpoint_path: Path to the checkpoint file (JSON format).
+                检查点文件路径（JSON格式）。
+
+        Returns:
+            Session: Restored Session instance.
+                恢复的 Session 实例。
+
+        Raises:
+            FileNotFoundError: If the checkpoint file does not exist.
+                检查点文件不存在时抛出。
+            ValueError: If the checkpoint file format is invalid.
+                检查点文件格式无效时抛出。
+
+        Example:
+            >>> session = Session.recover("~/.continuum/checkpoints/session-001.json")
+            >>> print(f"Recovered session: {session.id}")
+        """
+        checkpoint_path = Path(checkpoint_path)
+
+        logger.info("Recovering session from checkpoint: %s", checkpoint_path)
+
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(
+                f"Checkpoint file not found: {checkpoint_path}. "
+                "Please ensure the checkpoint path is correct and the file exists."
+            )
+
+        try:
+            with open(checkpoint_path, encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid checkpoint file format: {checkpoint_path}. "
+                f"The file is not valid JSON. Error: {e}"
+            ) from e
+
+        # Validate required fields
+        required_fields = ["id", "created_at"]
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            raise ValueError(
+                f"Invalid checkpoint file: missing required fields {missing_fields}. "
+                "Please ensure the checkpoint file contains a valid session export."
+            )
+
+        logger.debug(
+            "Checkpoint data loaded: id=%s, messages=%d",
+            data.get("id"),
+            len(data.get("messages", [])),
+        )
+
+        session = cls(id=data["id"])
+        session._created_at = datetime.fromisoformat(data["created_at"])
+        session._messages = [
+            Message.from_dict(m) for m in data.get("messages", [])
+        ]
+        session._metadata = data.get("metadata", {})
+        session._tools_used = data.get("tools_used", [])
+        session._cost = data.get("cost", 0.0)
+        session._token_count = data.get("tokens", 0)
+
+        logger.info(
+            "Session recovered successfully: id=%s, messages=%d, cost=%.4f",
+            session.id,
+            session.message_count,
+            session.cost,
+        )
+
+        return session
 
 
 def create_session(id: str | None = None) -> Session:

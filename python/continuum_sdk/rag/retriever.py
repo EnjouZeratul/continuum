@@ -1,12 +1,12 @@
 """Retriever Engine
 
-检索引擎：向量相似度检索和 RAG 支持。
+Retrieval engine: vector similarity search and RAG support.
 
 Features:
-    - 文档索引与检索
-    - 多种分块策略（固定大小、段落、代码）
-    - 混合检索（向量 + 关键词）
-    - RAG Pipeline（带重排序）
+    - Document indexing and retrieval
+    - Multiple chunking strategies (fixed size, paragraph, code)
+    - Hybrid retrieval (vector + keyword)
+    - RAG Pipeline (with reranking)
 """
 
 from __future__ import annotations
@@ -39,13 +39,13 @@ __all__ = [
 
 @dataclass
 class Document:
-    """文档结构
+    """Document structure
 
     Attributes:
-        id: 文档 ID（可选，自动生成）
-        content: 文档内容
-        metadata: 元数据
-        source: 来源（文件路径、URL 等）
+        id: Document ID (optional, auto-generated)
+        content: Document content
+        metadata: Metadata
+        source: Source (file path, URL, etc.)
     """
 
     content: str
@@ -54,26 +54,26 @@ class Document:
     source: str | None = None
 
     def with_source(self, source: str) -> Document:
-        """设置来源"""
+        """Set source"""
         self.source = source
         return self
 
     def with_metadata(self, key: str, value: Any) -> Document:
-        """添加元数据"""
+        """Add metadata"""
         self.metadata[key] = value
         return self
 
 
 @dataclass
 class RetrievalResult:
-    """检索结果
+    """Retrieval result
 
     Attributes:
-        doc_id: 文档 ID
-        content: 文档内容
-        score: 相似度分数 (0.0-1.0)
-        metadata: 元数据
-        source: 来源
+        doc_id: Document ID
+        content: Document content
+        score: Similarity score (0.0-1.0)
+        metadata: Metadata
+        source: Source
     """
 
     doc_id: str
@@ -85,13 +85,13 @@ class RetrievalResult:
 
 @dataclass
 class ChunkPosition:
-    """分块位置
+    """Chunk position
 
     Attributes:
-        start: 起始字符位置
-        end: 结束字符位置
-        index: 分块索引
-        total: 总分块数
+        start: Start character position
+        end: End character position
+        index: Chunk index
+        total: Total chunks
     """
 
     start: int
@@ -102,14 +102,14 @@ class ChunkPosition:
 
 @dataclass
 class Chunk:
-    """文档分块
+    """Document chunk
 
     Attributes:
-        id: 分块 ID
-        doc_id: 文档 ID
-        content: 分块内容
-        position: 在原文中的位置
-        metadata: 元数据
+        id: Chunk ID
+        doc_id: Document ID
+        content: Chunk content
+        position: Position in original text
+        metadata: Metadata
     """
 
     id: str
@@ -120,20 +120,20 @@ class Chunk:
 
 
 class HybridWeights:
-    """混合检索权重配置
+    """Hybrid retrieval weight configuration
 
-    用于配置向量搜索和关键词搜索的权重比例。
+    Used to configure the weight ratio between vector search and keyword search.
     """
 
     def __init__(self, vector: float = 0.7, keyword: float = 0.3):
-        """初始化权重
+        """Initialize weights
 
         Args:
-            vector: 向量搜索权重 (默认 0.7)
-            keyword: 关键词搜索权重 (默认 0.3)
+            vector: Vector search weight (default 0.7)
+            keyword: Keyword search weight (default 0.3)
 
         Raises:
-            ValueError: 权重之和不为 1.0
+            ValueError: Weights do not sum to 1.0
         """
         if abs(vector + keyword - 1.0) > 0.001:
             raise ValueError(f"Weights must sum to 1.0, got {vector + keyword}")
@@ -142,194 +142,194 @@ class HybridWeights:
 
     @classmethod
     def vector_only(cls) -> HybridWeights:
-        """仅使用向量搜索"""
+        """Use only vector search"""
         return cls(vector=1.0, keyword=0.0)
 
     @classmethod
     def keyword_only(cls) -> HybridWeights:
-        """仅使用关键词搜索"""
+        """Use only keyword search"""
         return cls(vector=0.0, keyword=1.0)
 
     @classmethod
     def balanced(cls) -> HybridWeights:
-        """均衡权重"""
+        """Balanced weights"""
         return cls(vector=0.5, keyword=0.5)
 
 
 class RetrieverEngine(ABC):
-    """检索引擎抽象基类
+    """Retriever engine abstract base class
 
-    提供向量相似度检索能力。
+    Provides vector similarity search capabilities.
     """
 
     @abstractmethod
     async def index(self, documents: list[Document]) -> list[str]:
-        """索引文档
+        """Index documents
 
         Args:
-            documents: 要索引的文档列表
+            documents: List of documents to index
 
         Returns:
-            文档 ID 列表
+            List of document IDs
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     async def retrieve(self, query: str, top_k: int = 5) -> list[RetrievalResult]:
-        """检索相似文档
+        """Retrieve similar documents
 
         Args:
-            query: 查询文本
-            top_k: 返回结果数量
+            query: Query text
+            top_k: Number of results to return
 
         Returns:
-            检索结果列表
+            List of retrieval results
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     async def hybrid_retrieve(
         self, query: str, top_k: int = 5, weights: HybridWeights | None = None
     ) -> list[RetrievalResult]:
-        """混合检索（向量 + 关键词）
+        """Hybrid retrieval (vector + keyword)
 
         Args:
-            query: 查询文本
-            top_k: 返回结果数量
-            weights: 权重配置（默认 70% 向量 + 30% 关键词）
+            query: Query text
+            top_k: Number of results to return
+            weights: Weight configuration (default 70% vector + 30% keyword)
 
         Returns:
-            检索结果列表
+            List of retrieval results
         """
-        pass
+        pass  # pragma: no cover
 
     async def retrieve_with_filter(
         self, query: str, top_k: int = 5, filter: dict[str, Any] | None = None
     ) -> list[RetrievalResult]:
-        """带过滤条件的检索
+        """Retrieve with filter conditions
 
         Args:
-            query: 查询文本
-            top_k: 返回结果数量
-            filter: 元数据过滤条件
+            query: Query text
+            top_k: Number of results to return
+            filter: Metadata filter conditions
 
         Returns:
-            检索结果列表
+            List of retrieval results
         """
         _ = filter
         return await self.retrieve(query, top_k)
 
     @abstractmethod
     async def delete(self, doc_ids: list[str]) -> bool:
-        """删除文档
+        """Delete documents
 
         Args:
-            doc_ids: 要删除的文档 ID 列表
+            doc_ids: List of document IDs to delete
 
         Returns:
-            是否成功删除
+            Whether deletion was successful
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     async def clear(self) -> bool:
-        """清空索引
+        """Clear index
 
         Returns:
-            是否成功清空
+            Whether clearing was successful
         """
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     async def count(self) -> int:
-        """获取文档数量
+        """Get document count
 
         Returns:
-            文档数量
+            Document count
         """
-        pass
+        pass  # pragma: no cover
 
 
 @runtime_checkable
 class EmbeddingModel(Protocol):
-    """Embedding 模型协议
+    """Embedding model protocol
 
-    定义文本嵌入向量生成接口。
+    Defines text embedding vector generation interface.
     """
 
     async def embed(self, text: str) -> list[float]:
-        """生成文本嵌入向量
+        """Generate text embedding vector
 
         Args:
-            text: 输入文本
+            text: Input text
 
         Returns:
-            嵌入向量
+            Embedding vector
         """
-        ...
+        ...  # pragma: no cover
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """批量生成嵌入向量
+        """Generate embedding vectors in batch
 
         Args:
-            texts: 输入文本列表
+            texts: List of input texts
 
         Returns:
-            嵌入向量列表
+            List of embedding vectors
         """
-        ...
+        ...  # pragma: no cover
 
     @property
     def dimension(self) -> int:
-        """向量维度"""
-        ...
+        """Vector dimension"""
+        ...  # pragma: no cover
 
     @property
     def model_name(self) -> str:
-        """模型名称"""
-        ...
+        """Model name"""
+        ...  # pragma: no cover
 
 
 @runtime_checkable
 class ChunkingStrategy(Protocol):
-    """分块策略协议
+    """Chunking strategy protocol
 
-    定义文档分块接口。
+    Defines document chunking interface.
     """
 
     def chunk(self, document: Document) -> list[Chunk]:
-        """分块文档
+        """Chunk document
 
         Args:
-            document: 输入文档
+            document: Input document
 
         Returns:
-            分块列表
+            List of chunks
         """
-        ...
+        ...  # pragma: no cover
 
 
 class FixedSizeChunker:
-    """固定大小分块策略
+    """Fixed size chunking strategy
 
-    按固定字符数分块，支持重叠。
+    Chunks by fixed character count with overlap support.
     """
 
     def __init__(self, chunk_size: int = 500, overlap: int = 50):
-        """初始化分块器
+        """Initialize chunker
 
         Args:
-            chunk_size: 分块大小（字符数）
-            overlap: 重叠大小
+            chunk_size: Chunk size (character count)
+            overlap: Overlap size
         """
         self.chunk_size = chunk_size
         self.overlap = overlap
 
     def chunk(self, document: Document) -> list[Chunk]:
-        """分块文档"""
+        """Chunk document"""
         content = document.content
 
-        # 内容小于分块大小，直接返回
+        # Content smaller than chunk size, return directly
         if len(content) <= self.chunk_size:
             return [
                 Chunk(
@@ -362,11 +362,11 @@ class FixedSizeChunker:
                 )
             )
 
-            # 防止死循环：到达末尾时直接设置 start = end
+            # Prevent infinite loop: when reaching end, set start = end directly
             start = end - self.overlap if end < len(content) else end
             index += 1
 
-        # 更新总分块数
+        # Update total chunks
         total = len(chunks)
         for chunk in chunks:
             chunk.position.total = total
@@ -375,24 +375,24 @@ class FixedSizeChunker:
 
 
 class ParagraphChunker:
-    """段落分块策略
+    """Paragraph chunking strategy
 
-    按自然段落边界分块，保持语义完整性。
-    适合文档、文章等自然语言内容。
+    Chunks by natural paragraph boundaries, preserving semantic integrity.
+    Suitable for documents, articles, and other natural language content.
     """
 
     def __init__(self, max_chunk_size: int = 1000, min_chunk_size: int = 100):
-        """初始化段落分块器
+        """Initialize paragraph chunker
 
         Args:
-            max_chunk_size: 最大分块大小
-            min_chunk_size: 最小分块大小
+            max_chunk_size: Maximum chunk size
+            min_chunk_size: Minimum chunk size
         """
         self.max_chunk_size = max_chunk_size
         self.min_chunk_size = min_chunk_size
 
     def chunk(self, document: Document) -> list[Chunk]:
-        """分块文档"""
+        """Chunk document"""
         content = document.content
         paragraphs = [p for p in content.split("\n") if p.strip()]
 
@@ -438,7 +438,7 @@ class ParagraphChunker:
 
                 current_chunk = paragraph
 
-        # 处理最后一个分块
+        # Handle the last chunk
         if len(current_chunk) >= self.min_chunk_size:
             chunks.append(
                 Chunk(
@@ -473,23 +473,23 @@ class ParagraphChunker:
 
 
 class RecursiveChunker:
-    """递归分块策略
+    """Recursive chunking strategy
 
-    依次尝试多种分隔符，从大到小。
-    适合通用文本，保持语义完整性。
+    Tries multiple separators in order, from largest to smallest.
+    Suitable for general text, preserving semantic integrity.
     """
 
     def __init__(self, max_chunk_size: int = 1000):
-        """初始化递归分块器
+        """Initialize recursive chunker
 
         Args:
-            max_chunk_size: 最大分块大小
+            max_chunk_size: Maximum chunk size
         """
         self.max_chunk_size = max_chunk_size
         self._separators = ["\n\n\n", "\n\n", "\n", ". ", " ", ""]
 
     def chunk(self, document: Document) -> list[Chunk]:
-        """分块文档"""
+        """Chunk document"""
         return self._recursive_split(document, document.content, 0, 0)
 
     def _recursive_split(
@@ -499,7 +499,7 @@ class RecursiveChunker:
         start_offset: int,
         initial_index: int,
     ) -> list[Chunk]:
-        """递归分块"""
+        """Recursive chunking"""
         if len(text) <= self.max_chunk_size:
             return [
                 Chunk(
@@ -518,7 +518,7 @@ class RecursiveChunker:
 
         for separator in self._separators:
             if separator == "":
-                # 最后手段：按字符分割
+                # Last resort: split by character
                 chunks: list[Chunk] = []
                 start = 0
                 index = initial_index
@@ -560,7 +560,7 @@ class RecursiveChunker:
                     if len(current_chunk) + len(part_with_sep) <= self.max_chunk_size:
                         current_chunk += part_with_sep
                     else:
-                        if current_chunk:
+                        if current_chunk:  # pragma: no branch
                             chunks.append(
                                 Chunk(
                                     id=f"{document.id or 'doc'}-{index}",
@@ -579,7 +579,7 @@ class RecursiveChunker:
                             index += 1
 
                         if len(part_with_sep) > self.max_chunk_size:
-                            # 递归分割
+                            # Recursive split
                             sub_chunks = self._recursive_split(
                                 document, part_with_sep, current_start, index
                             )
@@ -590,7 +590,7 @@ class RecursiveChunker:
                         else:
                             current_chunk = part_with_sep
 
-                if current_chunk:
+                if current_chunk:  # pragma: no branch
                     chunks.append(
                         Chunk(
                             id=f"{document.id or 'doc'}-{index}",
@@ -611,7 +611,9 @@ class RecursiveChunker:
                     chunk.position.total = total
                 return chunks
 
-        return [
+        # This return is unreachable because the empty string separator (last in list)
+        # is always found in text, triggering the character-level split above.
+        return [  # pragma: no cover
             Chunk(
                 id=f"{document.id or 'doc'}-{initial_index}",
                 doc_id=document.id or "",
@@ -628,21 +630,21 @@ class RecursiveChunker:
 
 
 class MockEmbeddingModel:
-    """Mock Embedding 模型（用于测试）
+    """Mock Embedding model (for testing)
 
-    生成基于文本哈希的伪向量。
+    Generates hash-based pseudo vectors.
     """
 
     def __init__(self, dimension: int = 128):
-        """初始化 Mock 模型
+        """Initialize Mock model
 
         Args:
-            dimension: 向量维度
+            dimension: Vector dimension
         """
         self._dimension = dimension
 
     async def embed(self, text: str) -> list[float]:
-        """生成基于文本的伪向量"""
+        """Generate text-based pseudo vector"""
         vector: list[float] = []
         bytes_data = text.encode("utf-8")
         for i in range(self._dimension):
@@ -651,7 +653,7 @@ class MockEmbeddingModel:
         return vector
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """批量生成嵌入向量"""
+        """Generate embedding vectors in batch"""
         embeddings: list[list[float]] = []
         for text in texts:
             embeddings.append(await self.embed(text))
@@ -659,12 +661,12 @@ class MockEmbeddingModel:
 
     @property
     def dimension(self) -> int:
-        """向量维度"""
+        """Vector dimension"""
         return self._dimension
 
     @property
     def model_name(self) -> str:
-        """模型名称"""
+        """Model name"""
         return "mock-embedding-model"
 
 
@@ -673,24 +675,24 @@ VectorStoreAdapter = InMemoryVectorStore
 
 
 class DefaultRetrieverEngine(RetrieverEngine):
-    """默认检索引擎实现
+    """Default retriever engine implementation
 
-    结合 Embedding 模型、分块策略和向量存储提供完整的 RAG 功能。
+    Combines Embedding model, chunking strategy, and vector store to provide complete RAG functionality.
 
     Example:
         >>> from continuum_sdk.rag import DefaultRetrieverEngine, MockEmbeddingModel, FixedSizeChunker
         >>>
-        >>> # 创建引擎
+        >>> # Create engine
         >>> engine = DefaultRetrieverEngine(
         ...     embedding_model=MockEmbeddingModel(128),
         ...     chunker=FixedSizeChunker()
         ... )
         >>>
-        >>> # 索引文档
+        >>> # Index documents
         >>> doc = Document(content="Hello world", source="test.txt")
         >>> doc_ids = await engine.index([doc])
         >>>
-        >>> # 检索
+        >>> # Retrieve
         >>> results = await engine.retrieve("Hello", top_k=5)
     """
 
@@ -701,34 +703,34 @@ class DefaultRetrieverEngine(RetrieverEngine):
         vector_store: InMemoryVectorStore | None = None,
         hybrid_weights: HybridWeights | None = None,
     ):
-        """初始化检索引擎
+        """Initialize retriever engine
 
         Args:
-            embedding_model: Embedding 模型
-            chunker: 分块策略（默认 FixedSizeChunker）
-            vector_store: 向量存储（默认 InMemoryVectorStore）
-            hybrid_weights: 混合检索权重（默认 70% 向量 + 30% 关键词）
+            embedding_model: Embedding model
+            chunker: Chunking strategy (default FixedSizeChunker)
+            vector_store: Vector store (default InMemoryVectorStore)
+            hybrid_weights: Hybrid retrieval weights (default 70% vector + 30% keyword)
         """
         self._embedding_model = embedding_model
         self._chunker = chunker or FixedSizeChunker()
         self._vector_store = vector_store or InMemoryVectorStore()
         self._hybrid_weights = hybrid_weights or HybridWeights()
 
-        # 文档索引（文档 ID -> 分块 ID 列表）
+        # Document index (document ID -> chunk ID list)
         self._doc_index: dict[str, list[str]] = {}
-        # 分块内容缓存（分块 ID -> 内容）
+        # Chunk content cache (chunk ID -> content)
         self._chunk_cache: dict[str, str] = {}
         self._lock = threading.RLock()
 
     async def index(self, documents: list[Document]) -> list[str]:
-        """索引文档"""
+        """Index documents"""
         doc_ids: list[str] = []
 
         for doc in documents:
-            # 生成文档 ID
+            # Generate document ID
             doc_id = doc.id or str(uuid.uuid4())
 
-            # 创建带 ID 的文档副本
+            # Create document copy with ID
             doc_with_id = Document(
                 id=doc_id,
                 content=doc.content,
@@ -736,15 +738,15 @@ class DefaultRetrieverEngine(RetrieverEngine):
                 source=doc.source,
             )
 
-            # 分块
+            # Chunk
             chunks = self._chunker.chunk(doc_with_id)
             chunk_ids = [c.id for c in chunks]
             chunk_contents = [c.content for c in chunks]
 
-            # 批量生成 embeddings
+            # Generate embeddings in batch
             embeddings = await self._embedding_model.embed_batch(chunk_contents)
 
-            # 构建向量项并存储
+            # Build vector items and store
             with self._lock:
                 for chunk, embedding in zip(chunks, embeddings, strict=True):
                     metadata = chunk.metadata.copy()
@@ -753,17 +755,17 @@ class DefaultRetrieverEngine(RetrieverEngine):
                     if doc.source:
                         metadata["source"] = doc.source
 
-                    # 使用 VectorStore 的同步接口
+                    # Use VectorStore's sync interface
                     self._vector_store.upsert(
                         chunk.id,
                         embedding,
                         metadata,
                     )
 
-                    # 缓存分块内容
+                    # Cache chunk content
                     self._chunk_cache[chunk.id] = chunk.content
 
-                # 记录文档索引
+                # Record document index
                 self._doc_index[doc_id] = chunk_ids
 
             doc_ids.append(doc_id)
@@ -771,14 +773,14 @@ class DefaultRetrieverEngine(RetrieverEngine):
         return doc_ids
 
     async def retrieve(self, query: str, top_k: int = 5) -> list[RetrievalResult]:
-        """检索相似文档"""
-        # 生成查询向量
+        """Retrieve similar documents"""
+        # Generate query vector
         query_embedding = await self._embedding_model.embed(query)
 
-        # 搜索相似向量（使用 VectorStore 的同步接口）
+        # Search similar vectors (using VectorStore's sync interface)
         results = self._vector_store.search(query_embedding, top_k)
 
-        # 转换为 RetrievalResult
+        # Convert to RetrievalResult
         retrieval_results: list[RetrievalResult] = []
         with self._lock:
             for r in results:
@@ -798,26 +800,26 @@ class DefaultRetrieverEngine(RetrieverEngine):
     async def hybrid_retrieve(
         self, query: str, top_k: int = 5, weights: HybridWeights | None = None
     ) -> list[RetrievalResult]:
-        """混合检索（向量 + 关键词）"""
+        """Hybrid retrieval (vector + keyword)"""
         w = weights or self._hybrid_weights
 
-        # 向量搜索
+        # Vector search
         vector_results = await self.retrieve(query, top_k * 2)
 
         if w.keyword == 0.0:
             return vector_results[:top_k]
 
-        # 关键词匹配增强
+        # Keyword match enhancement
         query_lower = query.lower()
         query_keywords = query_lower.split()
 
-        # 重新计算分数（向量分数 + 关键词匹配奖励）
+        # Recalculate scores (vector score + keyword match bonus)
         scored_results: list[RetrievalResult] = []
         for r in vector_results:
             content_lower = r.content.lower()
             keyword_matches = sum(1 for kw in query_keywords if kw in content_lower)
 
-            # 混合分数
+            # Hybrid score
             keyword_score = (
                 (keyword_matches / max(len(query_keywords), 1)) * w.keyword
                 if query_keywords
@@ -835,12 +837,12 @@ class DefaultRetrieverEngine(RetrieverEngine):
                 )
             )
 
-        # 按分数排序并截断
+        # Sort by score and truncate
         scored_results.sort(key=lambda x: x.score, reverse=True)
         return scored_results[:top_k]
 
     async def delete(self, doc_ids: list[str]) -> bool:
-        """删除文档"""
+        """Delete documents"""
         all_chunk_ids: list[str] = []
 
         with self._lock:
@@ -854,13 +856,13 @@ class DefaultRetrieverEngine(RetrieverEngine):
         if not all_chunk_ids:
             return False
 
-        # 使用 VectorStore 的同步批量删除接口
+        # Use VectorStore's sync batch delete interface
         count = self._vector_store.delete_batch(all_chunk_ids)
         return count > 0
 
     async def clear(self) -> bool:
-        """清空索引"""
-        # 使用 VectorStore 的同步接口
+        """Clear index"""
+        # Use VectorStore's sync interface
         self._vector_store.clear()
         with self._lock:
             self._doc_index.clear()
@@ -868,6 +870,6 @@ class DefaultRetrieverEngine(RetrieverEngine):
         return True
 
     async def count(self) -> int:
-        """获取文档数量"""
+        """Get document count"""
         with self._lock:
             return len(self._doc_index)

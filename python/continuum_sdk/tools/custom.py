@@ -1,6 +1,6 @@
-"""自定义工具 API
+"""Custom Tool API
 
-用于创建和注册自定义工具。
+For creating and registering custom tools.
 """
 
 import asyncio
@@ -12,7 +12,7 @@ from typing import Any, get_type_hints
 
 
 class CustomTool(ABC):
-    """自定义工具基类
+    """Base class for custom tools
 
     Usage:
         from continuum_sdk.tools import CustomTool
@@ -38,49 +38,49 @@ class CustomTool(ABC):
             async def execute(self, **kwargs) -> str:
                 return f"Processed: {kwargs['input']}"
 
-        # 注册
+        # Register
         registry.register(MyTool())
     """
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """工具名称"""
-        ...
+        """Tool name"""
+        ...  # pragma: no cover
 
     @property
     @abstractmethod
     def description(self) -> str:
-        """工具描述"""
-        ...
+        """Tool description"""
+        ...  # pragma: no cover
 
     @abstractmethod
     def parameters_schema(self) -> dict[str, Any]:
-        """参数 JSON Schema"""
-        ...
+        """Parameter JSON Schema"""
+        ...  # pragma: no cover
 
     @abstractmethod
     async def execute(self, **kwargs) -> str:
-        """执行工具"""
-        ...
+        """Execute tool"""
+        ...  # pragma: no cover
 
     @property
     def category(self) -> str:
-        """工具分类"""
+        """Tool category"""
         return "other"
 
     @property
     def requires_confirmation(self) -> bool:
-        """是否需要用户确认"""
+        """Whether user confirmation is required"""
         return False
 
     @property
     def is_dangerous(self) -> bool:
-        """是否为危险操作"""
+        """Whether this is a dangerous operation"""
         return False
 
     def to_meta(self) -> dict[str, Any]:
-        """转换为元数据字典"""
+        """Convert to metadata dictionary"""
         return {
             "name": self.name,
             "description": self.description,
@@ -98,14 +98,14 @@ def tool(
     requires_confirmation: bool = False,
     is_dangerous: bool = False,
 ) -> Callable:
-    """工具装饰器
+    """Tool decorator
 
     Args:
-        name: 工具名称
-        description: 工具描述
-        parameters: 参数 Schema（可选，自动推断）
-        requires_confirmation: 是否需要确认
-        is_dangerous: 是否危险
+        name: Tool name
+        description: Tool description
+        parameters: Parameter Schema (optional, auto-inferred)
+        requires_confirmation: Whether confirmation is required
+        is_dangerous: Whether dangerous
 
     Usage:
         from continuum_sdk.tools import tool
@@ -120,7 +120,7 @@ def tool(
     """
 
     def decorator(func: Callable) -> CustomTool:
-        # 自动推断参数 Schema
+        # Auto-infer parameter Schema
         inferred_params = parameters
         if inferred_params is None:
             hints = get_type_hints(func)
@@ -158,7 +158,7 @@ def tool(
                 "required": required,
             }
 
-        # 创建动态类
+        # Create dynamic class
         class DecoratedTool(CustomTool):
             @property
             def name(self) -> str:
@@ -191,63 +191,63 @@ def tool(
 
 
 class ToolRegistry:
-    """工具注册表
+    """Tool registry
 
     Usage:
         from continuum_sdk.tools import ToolRegistry, CustomTool
 
         registry = ToolRegistry()
 
-        # 注册自定义工具
+        # Register custom tool
         registry.register(MyTool())
 
-        # 列出所有工具
+        # List all tools
         tools = registry.list()
 
-        # 执行工具
+        # Execute tool
         result = await registry.execute("my_tool", input="test")
     """
 
     def __init__(self):
-        """初始化注册表"""
+        """Initialize registry"""
         self._tools: dict[str, CustomTool] = {}
 
     def register(self, tool: CustomTool) -> None:
-        """注册工具
+        """Register tool
 
         Args:
-            tool: 自定义工具实例
+            tool: Custom tool instance
         """
         self._tools[tool.name] = tool
 
     def unregister(self, name: str) -> bool:
-        """注销工具"""
+        """Unregister tool"""
         if name in self._tools:
             del self._tools[name]
             return True
         return False
 
     def get(self, name: str) -> CustomTool | None:
-        """获取工具"""
+        """Get tool"""
         return self._tools.get(name)
 
     def list(self) -> list[CustomTool]:
-        """列出所有工具"""
+        """List all tools"""
         return list(self._tools.values())
 
     def list_names(self) -> builtins.list[str]:
-        """列出所有工具名称"""
+        """List all tool names"""
         return list(self._tools.keys())
 
     async def execute(self, name: str, **kwargs) -> str:
-        """执行工具
+        """Execute tool
 
         Args:
-            name: 工具名称
-            **kwargs: 工具参数
+            name: Tool name
+            **kwargs: Tool parameters
 
         Returns:
-            执行结果
+            Execution result
         """
         tool = self.get(name)
         if tool is None:
@@ -255,24 +255,24 @@ class ToolRegistry:
         return await tool.execute(**kwargs)
 
     def has_tool(self, name: str) -> bool:
-        """检查工具是否存在"""
+        """Check if tool exists"""
         return name in self._tools
 
     def get_meta(self, name: str) -> dict[str, Any] | None:
-        """获取工具元数据"""
+        """Get tool metadata"""
         tool = self.get(name)
         return tool.to_meta() if tool else None
 
 
-# 默认注册表实例
+# Default registry instance
 default_registry = ToolRegistry()
 
 
 def register_tool(tool: CustomTool) -> None:
-    """注册工具到默认注册表"""
+    """Register tool to default registry"""
     default_registry.register(tool)
 
 
 def get_registry() -> ToolRegistry:
-    """获取默认注册表"""
+    """Get default registry"""
     return default_registry

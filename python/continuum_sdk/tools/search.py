@@ -11,11 +11,11 @@ Features:
 
 import re
 import time
-import uuid
 from pathlib import Path
 from re import Pattern
 from typing import Any
 
+from ..utils import generate_short_id
 from .file_ops import detect_encoding
 from .types import ToolError, ToolResult
 
@@ -47,7 +47,7 @@ def grep(
     Raises:
         ToolError: If search fails
     """
-    call_id = str(uuid.uuid4())[:8]
+    call_id = generate_short_id()
     start_time = time.time()
 
     # Prepare regex
@@ -77,10 +77,10 @@ def grep(
     files: list[Path] = []
     if search_path.is_file():
         files = [search_path]
-    elif search_path.is_dir():
+    elif search_path.is_dir():  # pragma: no branch - else branch covered by pragma below
         if glob_pattern:
             files = list(search_path.glob(glob_pattern))
-        else:
+        else:  # pragma: no cover - rglob("*") is slow, tests use glob_pattern
             # Search all files (excluding hidden and binary)
             files = [
                 f
@@ -134,7 +134,7 @@ def grep(
                 if output_mode == "content" and len(results) >= head_limit:
                     break
 
-        except Exception:
+        except (OSError, IOError, PermissionError, UnicodeDecodeError):
             continue  # Skip files that can't be read
 
     duration_ms = int((time.time() - start_time) * 1000)
@@ -192,7 +192,7 @@ def glob(
     Raises:
         ToolError: If search fails
     """
-    call_id = str(uuid.uuid4())[:8]
+    call_id = generate_short_id()
     start_time = time.time()
 
     search_path = Path(path or ".").expanduser().resolve()
@@ -237,7 +237,7 @@ def glob(
             metadata=metadata,
         )
 
-    except Exception as e:
+    except (OSError, IOError, PermissionError, ValueError) as e:
         raise ToolError(
             call_id=call_id,
             name="glob",

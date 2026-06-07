@@ -48,6 +48,13 @@ from .streaming import (
     CallbackStream,
     ContentBlockType,
 )
+from .fallback import (
+    FallbackConfig,
+    FallbackEvent,
+    FallbackEventType,
+    FallbackLlmClient,
+    create_fallback_client,
+)
 
 __all__ = [
     # Client
@@ -57,6 +64,12 @@ __all__ = [
     "OpenAIClient",
     "GeminiClient",
     "CustomClient",
+    # Fallback
+    "FallbackLlmClient",
+    "FallbackConfig",
+    "FallbackEvent",
+    "FallbackEventType",
+    "create_fallback_client",
     # Errors
     "LlmError",
     "AuthenticationError",

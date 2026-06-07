@@ -1,6 +1,6 @@
-"""Hello Agent 示例
+"""Hello Agent Example
 
-最简单的 Agent 使用示例。
+The simplest Agent usage example.
 """
 
 import asyncio
@@ -9,28 +9,28 @@ from continuum_sdk import Agent, Session
 
 
 async def main():
-    # 创建会话
+    # Create session
     session = Session()
-    session.add_user_message("你好！请介绍一下你自己。")
+    session.add_user_message("Hello! Please introduce yourself.")
 
-    # 创建 Agent
+    # Create Agent
     agent = Agent()
 
-    print("=== Hello Agent 示例 ===\n")
+    print("=== Hello Agent Example ===\n")
 
-    # 发送消息
-    response = agent.run("你好！请介绍一下你自己。")
+    # Send message
+    response = agent.run("Hello! Please introduce yourself.")
     print(f"Agent: {response}\n")
     session.add_assistant_message(response)
 
-    # 继续对话
-    response = agent.run("你能做什么？")
+    # Continue conversation
+    response = agent.run("What can you do?")
     print(f"Agent: {response}\n")
     session.add_assistant_message(response)
 
-    # 保存会话
+    # Save session
     session.save_to_default()
-    print(f"会话已保存，ID: {session.id}")
+    print(f"Session saved, ID: {session.id}")
 
 
 if __name__ == "__main__":

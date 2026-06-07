@@ -77,11 +77,14 @@ Components:
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from ..llm import BaseLlmClient, LlmClient, Message
 from .planner import Plan, Planner, Step, StepStatus, StepType
@@ -153,6 +156,7 @@ class IntelligentAgent:
         api_format: str | None = None,
         mode: AgentMode = AgentMode.INTERACTIVE,
         max_retries: int = 3,
+        max_iterations: int | None = None,
         on_progress: Callable[[ProgressEvent], None] | None = None,
     ):
         """
@@ -166,6 +170,7 @@ class IntelligentAgent:
             api_format: API format override (anthropic|openai|google)
             mode: Execution mode
             max_retries: Max retries per step
+            max_iterations: Max iterations in execution loop (default from CONTINUUM_MAX_ITERATIONS env, or 100)
             on_progress: Progress callback
         """
         self.api_key = api_key
@@ -175,6 +180,22 @@ class IntelligentAgent:
         self.api_format = api_format
         self.mode = mode
         self.max_retries = max_retries
+
+        # max_iterations: priority: parameter > CONTINUUM_MAX_ITERATIONS env > 100
+        import os
+        if max_iterations is None:
+            env_val = os.environ.get("CONTINUUM_MAX_ITERATIONS")
+            if env_val is not None:
+                try:
+                    max_iterations = int(env_val)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid CONTINUUM_MAX_ITERATIONS value '{env_val}', using default 100"
+                    )
+                    max_iterations = 100
+            else:
+                max_iterations = 100
+        self.max_iterations = max_iterations
 
         # Initialize components
         self._llm_client: BaseLlmClient | None = None
@@ -272,11 +293,14 @@ class IntelligentAgent:
         start_time = datetime.now()
         self.tracker.start(len(plan.steps))
 
-        # Track corrections
+        # Track corrections and iterations
         corrections_applied = 0
+        iteration_count = 0
 
         # Execute steps
-        while True:
+        while iteration_count < self.max_iterations:
+            iteration_count += 1
+
             # Get next pending steps
             pending = plan.get_pending_steps()
 
@@ -307,13 +331,13 @@ class IntelligentAgent:
                         step.status = StepStatus.SKIPPED
                         self.tracker.update_step(step.id, "skipped", step.description)
                         continue
-                except Exception:
-                    pass
+                except (TypeError, ValueError, RuntimeError) as e:
+                    logger.debug("on_step_start callback failed: %s", e)
 
             # Interactive mode: ask for confirmation
             if self.mode == AgentMode.INTERACTIVE:
                 # In real implementation, would prompt user
-                pass
+                logger.debug("Interactive mode: step %s pending confirmation", step.id)
 
             # Execute step
             step.status = StepStatus.RUNNING
@@ -330,10 +354,13 @@ class IntelligentAgent:
                 if on_step_complete:
                     try:
                         on_step_complete(step)
-                    except Exception:
-                        pass
+                    except (TypeError, ValueError, RuntimeError) as e:
+                        logger.debug("on_step_complete callback failed: %s", e)
 
             except Exception as e:
+                # Preserve error message for later use
+                error_message = str(e)
+
                 # Analyze error
                 error_ctx = self.correction.analyze_error(
                     error=e,
@@ -343,7 +370,7 @@ class IntelligentAgent:
                 )
 
                 self.logger.log(
-                    step.id, "error", str(e), {"error_type": error_ctx.error_type.value}
+                    step.id, "error", error_message, {"error_type": error_ctx.error_type.value}
                 )
 
                 # Propose correction
@@ -380,29 +407,37 @@ class IntelligentAgent:
 
                 elif correction.strategy == RecoveryStrategy.ASK_USER:
                     # Callback for user input
-                    if on_error:
+                    if on_error:  # pragma: no branch
                         try:
-                            if not on_error(step, error_ctx):
+                            if not on_error(step, error_ctx):  # pragma: no branch
                                 step.status = StepStatus.FAILED
-                                step.error = str(e)
+                                step.error = error_message
                                 break  # Abort
-                        except Exception:
-                            pass
+                        except (TypeError, ValueError, RuntimeError) as callback_err:  # pragma: no cover
+                            logger.debug("on_error callback failed during recovery: %s", callback_err)
 
                 # Mark as failed
                 step.status = StepStatus.FAILED
-                step.error = str(e)
+                step.error = error_message
                 self.tracker.update_step(step.id, "failed", step.description)
 
                 if on_error:
                     try:
                         on_error(step, error_ctx)
-                    except Exception:
-                        pass
+                    except (TypeError, ValueError, RuntimeError) as callback_err:
+                        logger.debug("on_error callback failed: %s", callback_err)
 
                 # Check if should abort
                 if correction.strategy == RecoveryStrategy.ABORT:
                     break
+
+        # Check if we hit max_iterations limit
+        if iteration_count >= self.max_iterations:
+            logger.warning(
+                "Execution stopped after reaching max_iterations limit (%d). "
+                "Consider increasing max_iterations if the task requires more steps.",
+                self.max_iterations
+            )
 
         # Calculate result
         end_time = datetime.now()

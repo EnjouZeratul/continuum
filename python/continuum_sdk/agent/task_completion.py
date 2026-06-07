@@ -28,7 +28,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from ..llm import BaseLlmClient, Message
+from ..llm import BaseLlmClient, LlmError, Message
 
 
 class CompletionMarker(Enum):
@@ -252,12 +252,21 @@ Respond in this exact JSON format:
 
             return self._parse_llm_response(response.content)
 
-        except Exception:
+        except (LlmError, json.JSONDecodeError, KeyError, ValueError):
+            # LLM API call failed or response parsing failed, graceful fallback to rule-based check
             return CompletionStatus(
                 marker=CompletionMarker.IN_PROGRESS,
                 is_completed=False,
                 confidence=0.0,
                 reason="LLM analysis failed, falling back to rule-based check",
+            )
+        except Exception:
+            # Catch all other exceptions (network errors, timeouts, etc.) to ensure graceful fallback
+            return CompletionStatus(
+                marker=CompletionMarker.IN_PROGRESS,
+                is_completed=False,
+                confidence=0.0,
+                reason="LLM analysis failed due to unexpected error, falling back to rule-based check",
             )
 
     def _parse_llm_response(self, content: str) -> CompletionStatus:
