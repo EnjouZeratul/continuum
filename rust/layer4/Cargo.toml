@@ -39,9 +39,10 @@ futures.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-continuum = { version = "1.0.0", path = "../../cli" }
-sh-layer1 = { version = "1.0.0", path = "../layer1" }
-sh-layer2 = { version = "1.0.0", path = "../layer2" }
+# continuum CLI dev-dependency removed (circular dependency for publishing)
+# continuum = { version = "1.0.0", path = "../../cli" }
+sh-layer1 = { version = "1.0.0" }
+sh-layer2 = { version = "1.0.0" }
 
 [[test]]
 name = "integration_llm"
