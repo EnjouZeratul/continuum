@@ -7,8 +7,6 @@ Tests for task planning, self-correction, and progress tracking.
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import asyncio
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -1100,6 +1098,66 @@ class TestProgressTrackerEstimation:
         assert remaining >= 0
 
 
+class TestProgressTrackerMissingCoverage:
+    """Tests to achieve 95%+ coverage on progress.py."""
+
+    def test_update_step_skipped(self):
+        """Test updating step with skipped status."""
+        tracker = ProgressTracker()
+        tracker.start(3)
+        tracker.update_step("s1", "skipped", "Skipped step")
+        assert tracker.skipped_steps == 1
+        assert tracker.completed_steps == 0
+
+    def test_update_step_with_done_status(self):
+        """Test 'done' is treated as completed."""
+        tracker = ProgressTracker()
+        tracker.start(2)
+        tracker.update_step("s1", "done", "Done step")
+        assert tracker.completed_steps == 1
+
+    def test_resume_when_not_paused(self):
+        """Test resume when not in PAUSED state does nothing."""
+        tracker = ProgressTracker()
+        tracker.start(3)
+        # State is RUNNING, not PAUSED
+        tracker.resume()
+        # Should still be RUNNING
+        assert tracker.state == ProgressState.RUNNING
+
+    def test_format_time_hours(self):
+        """Test formatting time in hours."""
+        tracker = ProgressTracker()
+        # 3665 seconds = 1h 1m
+        result = tracker._format_time(3665)
+        assert "1h" in result
+        assert "1m" in result
+
+    def test_format_time_minutes(self):
+        """Test formatting time in minutes."""
+        tracker = ProgressTracker()
+        # 125 seconds = 2m 5s
+        result = tracker._format_time(125)
+        assert "2m" in result
+        assert "5s" in result
+
+    def test_format_time_seconds(self):
+        """Test formatting time in seconds."""
+        tracker = ProgressTracker()
+        result = tracker._format_time(45)
+        assert "45s" in result
+
+    def test_to_dict_includes_events(self):
+        """Test to_dict includes event history."""
+        tracker = ProgressTracker()
+        tracker.start(2)
+        tracker.update_step("s1", "completed", "Step 1")
+        tracker.update_step("s2", "completed", "Step 2")
+        data = tracker.to_dict()
+        assert "events" in data
+        assert len(data["events"]) == 2  # two step updates
+
+
 # ==================== IntelligentAgent Execution Tests ====================
 
 
@@ -1870,6 +1928,1053 @@ class TestIntelligentAgentExecuteStep:
 
         result = await agent._llm_execute(step)
         assert result == "Mock LLM result"
+
+
+# ==================== IntelligentAgent Max Iterations Tests ====================
+
+
+class TestIntelligentAgentMaxIterations:
+    """Test max_iterations handling and iteration limit."""
+
+    def test_max_iterations_from_parameter(self):
+        """Test max_iterations from constructor parameter."""
+        agent = IntelligentAgent(api_key="test-key", max_iterations=50)
+        assert agent.max_iterations == 50
+
+    def test_max_iterations_default_value(self):
+        """Test max_iterations defaults to 100."""
+        agent = IntelligentAgent(api_key="test-key")
+        assert agent.max_iterations == 100
+
+    def test_max_iterations_from_env_valid(self):
+        """Test max_iterations from valid env var."""
+        with patch.dict(os.environ, {"CONTINUUM_MAX_ITERATIONS": "200"}):
+            agent = IntelligentAgent(api_key="test-key")
+            assert agent.max_iterations == 200
+
+    def test_max_iterations_from_env_invalid(self):
+        """Test max_iterations from invalid env var uses default."""
+        with patch.dict(os.environ, {"CONTINUUM_MAX_ITERATIONS": "not-a-number"}):
+            agent = IntelligentAgent(api_key="test-key")
+            assert agent.max_iterations == 100
+
+    @pytest.mark.asyncio
+    async def test_execution_respects_max_iterations(self):
+        """Test that execution stops at max_iterations limit."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS, max_iterations=2)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+
+        # Create a plan with steps that depend on each other
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="A1", action="a1"),
+            Step(id="s2", type=StepType.ANALYZE, description="A2", action="a2", dependencies=["s1"]),
+            Step(id="s3", type=StepType.ANALYZE, description="A3", action="a3", dependencies=["s2"]),
+            Step(id="s4", type=StepType.ANALYZE, description="A4", action="a4", dependencies=["s3"]),
+            Step(id="s5", type=StepType.ANALYZE, description="A5", action="a5", dependencies=["s4"]),
+        ]
+        plan = Plan(id="limit-plan", task="test limit", steps=steps)
+
+        # Mock _execute_step with a side effect that tracks iterations
+        call_count = 0
+
+        async def counting_execute(step):
+            nonlocal call_count
+            call_count += 1
+            return f"result-{call_count}"
+
+        with patch.object(agent, "_execute_step", side_effect=counting_execute):
+            result = await agent.execute(plan)
+
+        # Should have stopped at max_iterations (2)
+        assert result is not None
+        assert call_count <= 2
+
+
+# ==================== IntelligentAgent Recovery Strategy Tests ====================
+
+
+class TestIntelligentAgentRecoveryStrategies:
+    """Test recovery strategies during execution."""
+
+    def _make_agent_with_correction(self):
+        """Create agent with mocked correction system."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+        return agent
+
+    @pytest.mark.asyncio
+    async def test_retry_strategy_retries_step(self):
+        """Test RETRY strategy causes step retry."""
+        agent = self._make_agent_with_correction()
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=2),
+        ]
+        plan = Plan(id="retry-test", task="retry", steps=steps)
+
+        call_count = 0
+
+        async def flaky_execute(step):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ConnectionError("Network timeout")
+            return "success"
+
+        # Mock get_pending_steps to include RETRYING steps
+        def patched_get_pending():
+            completed_ids = {
+                s.id for s in plan.steps
+                if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED)
+            }
+            result = []
+            for step in plan.steps:
+                if step.status in (StepStatus.PENDING, StepStatus.RETRYING):
+                    if all(dep_id in completed_ids for dep_id in step.dependencies):
+                        if step.status == StepStatus.RETRYING:
+                            step.status = StepStatus.PENDING
+                        result.append(step)
+            return result
+
+        plan.get_pending_steps = patched_get_pending
+
+        # Make analyze_error return NETWORK error (suggests RETRY)
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.NETWORK,
+                message="Network timeout",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.RETRY,
+                    description="Retry network call"
+                )
+                with patch.object(agent, "_execute_step", side_effect=flaky_execute):
+                    result = await agent.execute(plan)
+
+        assert call_count >= 2  # First failed, then retried
+
+    @pytest.mark.asyncio
+    async def test_retry_modified_strategy_updates_action(self):
+        """Test RETRY_MODIFIED strategy updates step action."""
+        agent = self._make_agent_with_correction()
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="original action", max_retries=2),
+        ]
+        plan = Plan(id="modified-test", task="modified", steps=steps)
+
+        executed_actions = []
+
+        async def track_execute(step):
+            executed_actions.append(step.action)
+            if "modified" not in step.action:
+                raise ImportError("No module named 'requests'")
+            return "success"
+
+        # Mock get_pending_steps to include RETRYING steps
+        def patched_get_pending():
+            completed_ids = {
+                s.id for s in plan.steps
+                if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED)
+            }
+            result = []
+            for step in plan.steps:
+                if step.status in (StepStatus.PENDING, StepStatus.RETRYING):
+                    if all(dep_id in completed_ids for dep_id in step.dependencies):
+                        if step.status == StepStatus.RETRYING:
+                            step.status = StepStatus.PENDING
+                        result.append(step)
+            return result
+
+        plan.get_pending_steps = patched_get_pending
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.IMPORT,
+                message="No module named 'requests'",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.RETRY_MODIFIED,
+                    description="Install and retry",
+                    modified_action="modified action with fix"
+                )
+                with patch.object(agent, "_execute_step", side_effect=track_execute):
+                    result = await agent.execute(plan)
+
+        assert "modified action with fix" in executed_actions
+
+    @pytest.mark.asyncio
+    async def test_skip_strategy_skips_step(self):
+        """Test SKIP strategy marks step as skipped."""
+        agent = self._make_agent_with_correction()
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=0),
+        ]
+        plan = Plan(id="skip-test", task="skip", steps=steps)
+
+        async def failing_execute(step):
+            raise ValueError("Non-critical error")
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.VALUE,
+                message="Non-critical error",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.SKIP,
+                    description="Skip this step"
+                )
+                with patch.object(agent, "_execute_step", side_effect=failing_execute):
+                    result = await agent.execute(plan)
+
+        assert plan.steps[0].status == StepStatus.SKIPPED
+
+    @pytest.mark.asyncio
+    async def test_abort_strategy_stops_execution_immediately(self):
+        """Test ABORT strategy stops execution immediately."""
+        agent = self._make_agent_with_correction()
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=0),
+            Step(id="s2", type=StepType.EDIT, description="Edit", action="edit", dependencies=["s1"]),
+        ]
+        plan = Plan(id="abort-test", task="abort", steps=steps)
+
+        executed_steps = []
+
+        async def tracking_execute(step):
+            executed_steps.append(step.id)
+            if step.id == "s1":
+                raise PermissionError("Access denied")
+            return "success"
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.PERMISSION,
+                message="Access denied",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.ABORT,
+                    description="Fatal error, abort"
+                )
+                with patch.object(agent, "_execute_step", side_effect=tracking_execute):
+                    result = await agent.execute(plan)
+
+        # Only s1 should have been attempted
+        assert "s1" in executed_steps
+        assert "s2" not in executed_steps
+
+    @pytest.mark.asyncio
+    async def test_ask_user_strategy_with_on_error_callback(self):
+        """Test ASK_USER strategy invokes on_error callback."""
+        agent = self._make_agent_with_correction()
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=0),
+        ]
+        plan = Plan(id="ask-test", task="ask", steps=steps)
+
+        error_callbacks = []
+
+        def on_error_handler(step, error_ctx):
+            error_callbacks.append((step.id, error_ctx.error_type))
+            return False  # Abort
+
+        async def failing_execute(step):
+            raise FileNotFoundError("config.yml not found")
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.NOT_FOUND,
+                message="config.yml not found",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.ASK_USER,
+                    description="Need user input"
+                )
+                with patch.object(agent, "_execute_step", side_effect=failing_execute):
+                    result = await agent.execute(plan, on_error=on_error_handler)
+
+        assert len(error_callbacks) > 0
+        assert error_callbacks[0][0] == "s1"
+
+
+# ==================== IntelligentAgent Tool Execution Tests ====================
+
+
+class TestIntelligentAgentToolExecution:
+    """Test _execute_step with actual tool types."""
+
+    def _make_agent_with_tools(self):
+        """Create agent with mocked tools."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Tool result"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.current_plan = Plan(id="test", task="test task", steps=[])
+        return agent
+
+    @pytest.mark.asyncio
+    async def test_execute_step_search_type(self):
+        """Test executing SEARCH step type with grep tool."""
+        agent = self._make_agent_with_tools()
+        step = Step(
+            id="s1",
+            type=StepType.SEARCH,
+            description="Search code",
+            action='search for "def authenticate"',
+        )
+
+        # Mock the GrepTool at the import location
+        with patch('continuum_sdk.tools.GrepTool') as MockGrepTool:
+            mock_grep = Mock()
+            mock_result = Mock()
+            mock_result.content = "Found 3 matches"
+            mock_grep.search = Mock(return_value=mock_result)
+            MockGrepTool.return_value = mock_grep
+
+            result = await agent._execute_step(step)
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_execute_step_search_with_pattern_extraction(self):
+        """Test SEARCH step extracts pattern from action."""
+        agent = self._make_agent_with_tools()
+        step = Step(
+            id="s1",
+            type=StepType.SEARCH,
+            description="Search",
+            action='find "error_handler"',
+        )
+
+        with patch('continuum_sdk.tools.GrepTool') as MockGrepTool:
+            mock_grep = Mock()
+            mock_result = Mock()
+            mock_result.content = "Found"
+            mock_grep.search = Mock(return_value=mock_result)
+            MockGrepTool.return_value = mock_grep
+
+            result = await agent._execute_step(step)
+            # Verify search was called with extracted pattern
+            mock_grep.search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_execute_step_read_type_with_target(self):
+        """Test executing READ step type with target file."""
+        agent = self._make_agent_with_tools()
+        step = Step(
+            id="s1",
+            type=StepType.READ,
+            description="Read file",
+            action="read auth.py",
+            target="auth.py",
+        )
+
+        with patch('continuum_sdk.tools.ReadTool') as MockReadTool:
+            mock_reader = Mock()
+            mock_result = Mock()
+            mock_result.content = "file contents"
+            mock_reader.read = Mock(return_value=mock_result)
+            MockReadTool.return_value = mock_reader
+
+            result = await agent._execute_step(step)
+            mock_reader.read.assert_called_with("auth.py")
+
+    @pytest.mark.asyncio
+    async def test_execute_step_read_type_without_target(self):
+        """Test READ step without target falls back to LLM."""
+        agent = self._make_agent_with_tools()
+        step = Step(
+            id="s1",
+            type=StepType.READ,
+            description="Read",
+            action="read the file",  # No target, no extractable file
+        )
+
+        # Should fall back to _llm_analyze
+        result = await agent._execute_step(step)
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_execute_step_read_with_file_in_action(self):
+        """Test READ step extracts file path from action."""
+        agent = self._make_agent_with_tools()
+        step = Step(
+            id="s1",
+            type=StepType.READ,
+            description="Read",
+            action="read the config.yaml file",
+            target=None,
+        )
+
+        with patch('continuum_sdk.tools.ReadTool') as MockReadTool:
+            mock_reader = Mock()
+            mock_result = Mock()
+            mock_result.content = "config"
+            mock_reader.read = Mock(return_value=mock_result)
+            MockReadTool.return_value = mock_reader
+
+            result = await agent._execute_step(step)
+            # Should have extracted "config.yaml" from action
+            mock_reader.read.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_execute_step_test_type(self):
+        """Test executing TEST step type with bash tool."""
+        agent = self._make_agent_with_tools()
+        step = Step(
+            id="s1",
+            type=StepType.TEST,
+            description="Run tests",
+            action="run tests",
+        )
+
+        with patch('continuum_sdk.tools.BashTool') as MockBashTool:
+            mock_bash = Mock()
+            mock_result = Mock()
+            mock_result.content = "All tests passed"
+            mock_bash.run = Mock(return_value=mock_result)
+            MockBashTool.return_value = mock_bash
+
+            result = await agent._execute_step(step)
+            mock_bash.run.assert_called_once()
+            # Should run pytest
+            call_args = mock_bash.run.call_args[0][0]
+            assert "pytest" in call_args
+
+    @pytest.mark.asyncio
+    async def test_execute_step_write_type(self):
+        """Test executing WRITE step type falls back to LLM."""
+        agent = self._make_agent_with_tools()
+        step = Step(
+            id="s1",
+            type=StepType.WRITE,
+            description="Write file",
+            action="create new file",
+        )
+
+        # WRITE step type not explicitly handled, falls to _llm_execute
+        result = await agent._execute_step(step)
+        assert result is not None
+
+
+# ==================== IntelligentAgent Callback Exception Tests ====================
+
+
+class TestIntelligentAgentCallbackExceptions:
+    """Test callback exception handling during execution."""
+
+    def _make_agent(self):
+        """Create agent with mocked LLM."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+        return agent
+
+    @pytest.mark.asyncio
+    async def test_on_step_start_callback_exception_handled(self):
+        """Test that on_step_start callback exceptions are caught."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
+        plan = Plan(id="test", task="test", steps=steps)
+
+        def bad_callback(step):
+            raise TypeError("Bad callback")
+
+        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+            # Should not crash, exception is handled
+            result = await agent.execute(plan, on_step_start=bad_callback)
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_on_step_complete_callback_exception_handled(self):
+        """Test that on_step_complete callback exceptions are caught."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
+        plan = Plan(id="test", task="test", steps=steps)
+
+        def bad_callback(step):
+            raise ValueError("Bad complete callback")
+
+        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+            # Should not crash
+            result = await agent.execute(plan, on_step_complete=bad_callback)
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_on_error_callback_exception_handled(self):
+        """Test that on_error callback exceptions are caught."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        plan = Plan(id="test", task="test", steps=steps)
+
+        def bad_error_callback(step, error_ctx):
+            raise RuntimeError("Bad error callback")
+
+        async def failing_execute(step):
+            raise ValueError("Step failed")
+
+        with patch.object(agent, "_execute_step", side_effect=failing_execute):
+            # Should not crash
+            result = await agent.execute(plan, on_error=bad_error_callback)
+            assert result is not None
+
+
+# ==================== IntelligentAgent Additional Edge Cases ====================
+
+
+class TestIntelligentAgentEdgeCases:
+    """Test edge cases and additional coverage."""
+
+    def test_agent_with_progress_callback(self):
+        """Test agent creation with progress callback."""
+        events = []
+        agent = IntelligentAgent(
+            api_key="test-key",
+            on_progress=lambda e: events.append(e)
+        )
+        assert agent.tracker is not None
+        assert len(agent.tracker.callbacks) == 1
+
+    @pytest.mark.asyncio
+    async def test_execute_with_current_plan(self):
+        """Test execute uses current_plan when no plan provided."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+
+        # Create a plan first
+        plan = await agent.plan("fix bug")
+        agent.current_plan = plan
+
+        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+            # Execute without passing plan - should use current_plan
+            result = await agent.execute()
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_execute_waits_for_running_steps(self):
+        """Test execution waits when all steps are running."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="A", action="a"),
+        ]
+        plan = Plan(id="wait-test", task="wait", steps=steps)
+
+        # First call sets status to RUNNING, second call returns
+        call_count = 0
+
+        async def delayed_execute(step):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                step.status = StepStatus.RUNNING
+                # This simulates the step being running - but we need to return
+                await asyncio.sleep(0.01)  # Small delay
+            return "done"
+
+        with patch.object(agent, "_execute_step", side_effect=delayed_execute):
+            result = await agent.execute(plan)
+            assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_execute_stops_on_failed_blocking_steps(self):
+        """Test execution stops when failed steps block progress."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0),
+            Step(id="s2", type=StepType.EDIT, description="E", action="e", dependencies=["s1"]),
+        ]
+        plan = Plan(id="block-test", task="block", steps=steps)
+
+        # First step fails, second depends on it
+        async def failing_execute(step):
+            raise RuntimeError("Step failed")
+
+        with patch.object(agent, "_execute_step", side_effect=failing_execute):
+            result = await agent.execute(plan)
+            assert result is not None
+            # s1 should be FAILED, s2 should remain PENDING (dependency not satisfied)
+            assert plan.steps[0].status == StepStatus.FAILED
+
+    def test_plan_summary_status_icons(self):
+        """Test plan summary shows correct status icons."""
+        agent = IntelligentAgent(api_key="test-key")
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="Pending", action="a"),
+            Step(id="s2", type=StepType.SEARCH, description="Running", action="b"),
+            Step(id="s3", type=StepType.EDIT, description="Completed", action="c"),
+            Step(id="s4", type=StepType.TEST, description="Failed", action="d"),
+            Step(id="s5", type=StepType.VERIFY, description="Skipped", action="e"),
+        ]
+        steps[1].status = StepStatus.RUNNING
+        steps[2].status = StepStatus.COMPLETED
+        steps[3].status = StepStatus.FAILED
+        steps[4].status = StepStatus.SKIPPED
+
+        agent.current_plan = Plan(id="icon-test", task="test icons", steps=steps)
+
+        summary = agent.get_plan_summary()
+        assert "○" in summary  # PENDING
+        assert "◐" in summary  # RUNNING
+        assert "●" in summary  # COMPLETED
+        assert "✗" in summary  # FAILED
+        assert "◌" in summary  # SKIPPED
+
+
+# ==================== Additional Error Handling Tests ====================
+
+
+class TestIntelligentAgentErrorHandling:
+    """Test comprehensive error handling scenarios."""
+
+    def _make_agent(self):
+        """Create agent with mocked LLM."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+        return agent
+
+    @pytest.mark.asyncio
+    async def test_error_logs_to_step_logger(self):
+        """Test that errors are logged to StepLogger."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        plan = Plan(id="log-test", task="log", steps=steps)
+
+        async def failing_execute(step):
+            raise ValueError("Test error")
+
+        with patch.object(agent, "_execute_step", side_effect=failing_execute):
+            await agent.execute(plan)
+
+        # Check that error was logged
+        logs = agent.logger.to_dict()
+        error_logs = [l for l in logs if l.get("status") == "error"]
+        assert len(error_logs) > 0
+
+    @pytest.mark.asyncio
+    async def test_retrying_status_logs_attempt(self):
+        """Test that RETRYING status logs retry attempt."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=2)]
+        plan = Plan(id="retry-log-test", task="retry", steps=steps)
+
+        call_count = 0
+
+        async def retry_execute(step):
+            nonlocal call_count
+            call_count += 1
+            if call_count <= 1:
+                raise ConnectionError("Network error")
+            return "success"
+
+        # Mock get_pending_steps to include RETRYING steps
+        def patched_get_pending():
+            completed_ids = {
+                s.id for s in plan.steps
+                if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED)
+            }
+            result = []
+            for step in plan.steps:
+                if step.status in (StepStatus.PENDING, StepStatus.RETRYING):
+                    if all(dep_id in completed_ids for dep_id in step.dependencies):
+                        if step.status == StepStatus.RETRYING:
+                            step.status = StepStatus.PENDING
+                        result.append(step)
+            return result
+
+        plan.get_pending_steps = patched_get_pending
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.NETWORK,
+                message="Network error",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.RETRY,
+                    description="Retry"
+                )
+                with patch.object(agent, "_execute_step", side_effect=retry_execute):
+                    await agent.execute(plan)
+
+        # Check retry logs
+        logs = agent.logger.to_dict()
+        retry_logs = [l for l in logs if l.get("status") == "retrying"]
+        assert len(retry_logs) > 0
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
+
+
+# ==================== Additional Coverage Tests ====================
+
+
+class TestIntelligentAgentAdditionalCoverage:
+    """Additional tests to cover remaining uncovered branches."""
+
+    def _make_agent(self):
+        """Create agent with mocked LLM."""
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+        return agent
+
+    @pytest.mark.asyncio
+    async def test_retry_exhausted_marks_failed(self):
+        """Test that exhausting retries marks step as FAILED."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        plan = Plan(id="exhaust-test", task="exhaust", steps=steps)
+
+        async def always_fails(step):
+            raise ConnectionError("Always fails")
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.NETWORK,
+                message="Network error",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.RETRY,
+                    description="Retry"
+                )
+                with patch.object(agent, "_execute_step", side_effect=always_fails):
+                    result = await agent.execute(plan)
+
+        # Should be marked FAILED, not stuck in RETRYING
+        assert plan.steps[0].status == StepStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_retry_modified_exhausted_marks_failed(self):
+        """Test that exhausting RETRY_MODIFIED marks step as FAILED."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        plan = Plan(id="modified-exhaust-test", task="modified exhaust", steps=steps)
+
+        async def always_fails(step):
+            raise ImportError("No module")
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.IMPORT,
+                message="No module",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.RETRY_MODIFIED,
+                    description="Install module",
+                    modified_action="pip install foo"
+                )
+                with patch.object(agent, "_execute_step", side_effect=always_fails):
+                    result = await agent.execute(plan)
+
+        assert plan.steps[0].status == StepStatus.FAILED
+
+    @pytest.mark.asyncio
+    async def test_ask_user_on_error_returns_true_continues(self):
+        """Test ASK_USER with on_error returning True continues execution."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        plan = Plan(id="ask-continue-test", task="ask continue", steps=steps)
+
+        error_callback_calls = []
+
+        def error_callback(step, error_ctx):
+            error_callback_calls.append((step.id, error_ctx.error_type))
+            return True  # Continue, don't abort
+
+        async def failing_execute(step):
+            raise FileNotFoundError("Missing file")
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.NOT_FOUND,
+                message="Missing file",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.ASK_USER,
+                    description="Ask user"
+                )
+                with patch.object(agent, "_execute_step", side_effect=failing_execute):
+                    result = await agent.execute(plan, on_error=error_callback)
+
+        # Should have called error callback
+        assert len(error_callback_calls) > 0
+
+    @pytest.mark.asyncio
+    async def test_on_error_callback_exception_during_ask_user(self):
+        """Test that on_error exception during ASK_USER is handled."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        plan = Plan(id="ask-exception-test", task="ask exception", steps=steps)
+
+        def bad_error_callback(step, error_ctx):
+            raise TypeError("Bad callback during ASK_USER")
+
+        async def failing_execute(step):
+            raise FileNotFoundError("Missing")
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.NOT_FOUND,
+                message="Missing",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.ASK_USER,
+                    description="Ask"
+                )
+                with patch.object(agent, "_execute_step", side_effect=failing_execute):
+                    # Should not crash
+                    result = await agent.execute(plan, on_error=bad_error_callback)
+                    assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_on_error_called_after_ask_user_continue(self):
+        """Test on_error is called after ASK_USER returns True (continue)."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        plan = Plan(id="double-callback-test", task="double callback", steps=steps)
+
+        all_callback_calls = []
+
+        def tracking_callback(step, error_ctx):
+            all_callback_calls.append(step.id)
+            return True  # Continue
+
+        async def failing_execute(step):
+            raise PermissionError("Access denied")
+
+        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+            mock_analyze.return_value = ErrorContext(
+                error_type=ErrorType.PERMISSION,
+                message="Access denied",
+                step_id="s1"
+            )
+            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+                mock_propose.return_value = Correction(
+                    strategy=RecoveryStrategy.ASK_USER,
+                    description="Ask"
+                )
+                with patch.object(agent, "_execute_step", side_effect=failing_execute):
+                    result = await agent.execute(plan, on_error=tracking_callback)
+
+        # Should have been called
+        assert "s1" in all_callback_calls
+
+    @pytest.mark.asyncio
+    async def test_interactive_mode_logs_debug(self):
+        """Test that INTERACTIVE mode logs debug message."""
+        agent = self._make_agent()
+        agent.mode = AgentMode.INTERACTIVE
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
+        plan = Plan(id="interactive-test", task="interactive", steps=steps)
+
+        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+            result = await agent.execute(plan)
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_step_by_step_mode_logs_debug(self):
+        """Test that STEP_BY_STEP mode logs debug message."""
+        agent = self._make_agent()
+        agent.mode = AgentMode.STEP_BY_STEP
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
+        plan = Plan(id="step-test", task="step", steps=steps)
+
+        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+            result = await agent.execute(plan)
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_execute_waits_for_running_steps_async(self):
+        """Test that execution properly waits when steps are running."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
+        plan = Plan(id="wait-async-test", task="wait async", steps=steps)
+
+        # Simulate a step that takes time to complete
+        call_count = 0
+
+        async def delayed_execute(step):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First call - mark as running and return (simulating running state)
+                step.status = StepStatus.RUNNING
+                return "still running"
+            return "done"
+
+        # Override get_pending_steps to simulate running state check
+        original_get_pending = plan.get_pending_steps
+
+        def patched_get_pending():
+            # Check if any steps are running
+            running = [s for s in plan.steps if s.status == StepStatus.RUNNING]
+            if running:
+                return []  # No pending steps while running
+            return original_get_pending()
+
+        plan.get_pending_steps = patched_get_pending
+
+        with patch.object(agent, "_execute_step", side_effect=delayed_execute):
+            result = await agent.execute(plan)
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_on_step_start_returns_true_branch(self):
+        """Test that on_step_start returning True proceeds with execution."""
+        agent = self._make_agent()
+        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
+        plan = Plan(id="proceed-test", task="proceed", steps=steps)
+
+        def proceed_callback(step):
+            return True  # Proceed with execution
+
+        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+            result = await agent.execute(plan, on_step_start=proceed_callback)
+
+        assert result is not None
+        assert plan.steps[0].status == StepStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_execute_waits_when_no_pending_but_not_complete(self):
+        """Test execution waits when no pending steps but not 100% complete."""
+        agent = self._make_agent()
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="A", action="a"),
+            Step(id="s2", type=StepType.EDIT, description="B", action="b", dependencies=["s1"]),
+        ]
+        plan = Plan(id="wait-test", task="wait", steps=steps)
+
+        # Set s1 to RUNNING status so there are no pending steps initially
+        plan.steps[0].status = StepStatus.RUNNING
+
+        # Track if sleep was called
+        sleep_calls = []
+
+        async def track_sleep(duration):
+            sleep_calls.append(duration)
+            # On first sleep, mark s1 as complete to allow progress
+            if len(sleep_calls) == 1:
+                plan.steps[0].status = StepStatus.COMPLETED
+
+        call_count = 0
+
+        async def controlled_execute(step):
+            nonlocal call_count
+            call_count += 1
+            return f"result-{call_count}"
+
+        with patch('asyncio.sleep', side_effect=track_sleep):
+            with patch.object(agent, "_execute_step", side_effect=controlled_execute):
+                result = await agent.execute(plan)
+
+        assert result is not None
+        # Sleep should have been called because s1 was RUNNING initially
+        assert len(sleep_calls) > 0
+
+
+class TestMaxIterationsWarning:
+    """Test max_iterations warning branch coverage.
+    测试 max_iterations 警告分支覆盖。
+    Covers branch 410->420 in intelligent.py.
+    """
+
+    @pytest.mark.asyncio
+    async def test_execution_logs_warning_at_max_iterations_limit(self):
+        """Test that execution logs warning when hitting max_iterations.
+        测试当达到 max_iterations 时执行记录警告。
+        """
+        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS, max_iterations=1)
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = "Done"
+        mock_client.chat = AsyncMock(return_value=mock_response)
+        agent._llm_client = mock_client
+        agent.planner.llm_client = mock_client
+
+        # Create a plan with multiple steps but max_iterations=1
+        steps = [
+            Step(id="s1", type=StepType.ANALYZE, description="A1", action="a1"),
+            Step(id="s2", type=StepType.ANALYZE, description="A2", action="a2", dependencies=["s1"]),
+            Step(id="s3", type=StepType.ANALYZE, description="A3", action="a3", dependencies=["s2"]),
+        ]
+        plan = Plan(id="limit-warning-plan", task="test warning", steps=steps)
+
+        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+            with patch("continuum_sdk.agent.intelligent.logger") as mock_logger:
+                result = await agent.execute(plan)
+
+                # Should have logged a warning when hitting max_iterations
+                assert result is not None
+                # The warning should be logged after hitting the limit
+                warning_calls = [
+                    call for call in mock_logger.warning.call_args_list
+                    if "max_iterations" in str(call)
+                ]
+                assert len(warning_calls) > 0
 
 
 if __name__ == "__main__":

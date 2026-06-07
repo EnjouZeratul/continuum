@@ -3,13 +3,6 @@
 import os
 import sys
 
-# Add python directory to path
-_python_dir = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "python",
-)
-sys.path.insert(0, _python_dir)
-
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -401,8 +394,11 @@ class TestTaskCompletionDetector:
     @pytest.mark.asyncio
     async def test_llm_check_fails_gracefully(self, temp_persistence_path):
         """Test that LLM failure falls back gracefully."""
+        from continuum_sdk.llm.errors import LlmError
+
         mock_client = MagicMock()
-        mock_client.chat = AsyncMock(side_effect=Exception("API error"))
+        # 使用具体的 LLM 异常类型，而不是通用 Exception
+        mock_client.chat = AsyncMock(side_effect=LlmError("API error", provider="test"))
 
         detector = TaskCompletionDetector(
             llm_client=mock_client,
@@ -456,3 +452,182 @@ class TestTaskCompletionDetector:
         )
         # Below threshold, so not marked complete even if LLM says yes
         assert status.is_completed is False
+
+    @pytest.mark.asyncio
+    async def test_llm_check_no_completion(self, temp_persistence_path):
+        """Test LLM check returns no completion."""
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.content = '{"complete": "no", "confidence": 0.3, "reason": "Not done yet", "suggestions": ["Keep working"]}'
+        mock_client.chat = AsyncMock(return_value=mock_response)
+
+        detector = TaskCompletionDetector(
+            llm_client=mock_client,
+            persistence_path=temp_persistence_path,
+        )
+
+        status = await detector.check_completion(
+            task="Do something",
+            result="Started working",
+        )
+        assert status.marker == CompletionMarker.IN_PROGRESS
+        assert status.is_completed is False
+        assert status.confidence == 0.3
+        assert "Keep working" in status.suggestions
+
+    @pytest.mark.asyncio
+    async def test_llm_unexpected_exception_fallback(self, temp_persistence_path):
+        """Test that unexpected exceptions fall back gracefully."""
+        mock_client = MagicMock()
+        # Use a generic exception to test the broad except clause
+        mock_client.chat = AsyncMock(side_effect=RuntimeError("Unexpected error"))
+
+        detector = TaskCompletionDetector(
+            llm_client=mock_client,
+            persistence_path=temp_persistence_path,
+        )
+
+        status = await detector.check_completion(
+            task="Do something",
+            result="Did it",
+        )
+        assert status.marker == CompletionMarker.IN_PROGRESS
+        assert status.is_completed is False
+        assert "unexpected error" in status.reason.lower()
+
+    @pytest.mark.asyncio
+    async def test_llm_json_decode_error_in_parse(self, temp_persistence_path):
+        """Test handling of malformed JSON in LLM response."""
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        # JSON with invalid value type for confidence
+        mock_response.content = '{"complete": "yes", "confidence": "not_a_number", "reason": "Bad JSON"}'
+        mock_client.chat = AsyncMock(return_value=mock_response)
+
+        detector = TaskCompletionDetector(
+            llm_client=mock_client,
+            persistence_path=temp_persistence_path,
+        )
+
+        status = await detector.check_completion(
+            task="Task",
+            result="Result",
+        )
+        assert status.marker == CompletionMarker.IN_PROGRESS
+        assert "Failed to parse" in status.reason
+
+    def test_mark_completed_nonexistent_task(self, temp_persistence_path):
+        """Test marking a non-existent task as completed does nothing."""
+        detector = TaskCompletionDetector(
+            persistence_path=temp_persistence_path,
+        )
+
+        # Should not raise, just do nothing
+        detector.mark_completed("nonexistent-task", "Should be ignored")
+        assert detector.get_task("nonexistent-task") is None
+
+    def test_mark_interrupted_nonexistent_task(self, temp_persistence_path):
+        """Test marking a non-existent task as interrupted does nothing."""
+        detector = TaskCompletionDetector(
+            persistence_path=temp_persistence_path,
+        )
+
+        # Should not raise, just do nothing
+        detector.mark_interrupted("nonexistent-task", "Should be ignored")
+        assert detector.get_task("nonexistent-task") is None
+
+    def test_load_task_nonexistent(self, temp_persistence_path):
+        """Test loading a non-existent task returns None."""
+        detector = TaskCompletionDetector(
+            persistence_path=temp_persistence_path,
+        )
+
+        result = detector._load_task("nonexistent-task")
+        assert result is None
+
+    def test_load_all_tasks_handles_corrupted_files(self, temp_persistence_path):
+        """Test that corrupted task files are skipped during load."""
+        detector = TaskCompletionDetector(
+            persistence_path=temp_persistence_path,
+        )
+
+        # Create a valid task file
+        status = CompletionStatus(
+            marker=CompletionMarker.IN_PROGRESS,
+            is_completed=False,
+            confidence=0.0,
+        )
+        valid_record = TaskRecord(
+            task_id="valid-task",
+            description="Valid task",
+            status=status,
+        )
+        detector._persist_task(valid_record)
+
+        # Create a corrupted JSON file
+        corrupted_file = temp_persistence_path / "corrupted.json"
+        with open(corrupted_file, "w", encoding="utf-8") as f:
+            f.write("{ this is not valid json }")
+
+        # Create a file with missing required keys
+        missing_keys_file = temp_persistence_path / "missing_keys.json"
+        with open(missing_keys_file, "w", encoding="utf-8") as f:
+            f.write('{"some_key": "some_value"}')
+
+        # Clear memory and reload
+        detector._tasks.clear()
+        detector.load_all_tasks()
+
+        # Only the valid task should be loaded
+        assert len(detector._tasks) == 1
+        assert "valid-task" in detector._tasks
+
+    def test_mark_completed_without_reason(self, temp_persistence_path):
+        """Test marking task completed without providing a reason."""
+        detector = TaskCompletionDetector(
+            persistence_path=temp_persistence_path,
+        )
+
+        status = CompletionStatus(
+            marker=CompletionMarker.IN_PROGRESS,
+            is_completed=False,
+            confidence=0.0,
+        )
+        record = TaskRecord(
+            task_id="no-reason-001",
+            description="Test without reason",
+            status=status,
+        )
+        detector._tasks["no-reason-001"] = record
+
+        detector.mark_completed("no-reason-001")
+
+        updated = detector.get_task("no-reason-001")
+        assert updated.status.marker == CompletionMarker.TASK_COMPLETED
+        assert updated.status.is_completed is True
+        assert "Manually marked" in updated.status.reason
+
+    def test_mark_interrupted_without_reason(self, temp_persistence_path):
+        """Test marking task interrupted without providing a reason."""
+        detector = TaskCompletionDetector(
+            persistence_path=temp_persistence_path,
+        )
+
+        status = CompletionStatus(
+            marker=CompletionMarker.IN_PROGRESS,
+            is_completed=False,
+            confidence=0.0,
+        )
+        record = TaskRecord(
+            task_id="no-reason-int-001",
+            description="Test without reason",
+            status=status,
+        )
+        detector._tasks["no-reason-int-001"] = record
+
+        detector.mark_interrupted("no-reason-int-001")
+
+        updated = detector.get_task("no-reason-int-001")
+        assert updated.status.marker == CompletionMarker.USER_INTERRUPTED
+        assert updated.status.is_completed is False
+        assert "User interrupted" in updated.status.reason

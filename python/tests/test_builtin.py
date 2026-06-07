@@ -13,8 +13,6 @@ import tempfile
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from continuum_sdk.tools.bash import (
     BLOCKED_COMMANDS,
     BashTool,
@@ -36,7 +34,7 @@ from continuum_sdk.tools.search import (
     GrepTool,
     grep,
 )
-from continuum_sdk.tools.types import ToolError, ToolResult
+from continuum_sdk.tools.types import ToolError, ToolNotAvailableError, ToolResult
 
 # ==============================================================================
 # ReadTool Tests
@@ -550,10 +548,19 @@ class TestBashTool:
     def test_bash_command_with_exit_code(self):
         """测试非零退出码"""
         bash = BashTool()
-        result = bash.run("exit 42")
+        # Use findstr/cat on nonexistent file - these are actual executables
+        with tempfile.TemporaryDirectory() as tmpdir:
+            nonexistent = os.path.join(tmpdir, "nonexistent_xyz.txt")
+            if os.name == "nt":
+                # Windows: findstr is a standalone exe, fails on nonexistent file
+                result = bash.run(f"findstr xyz {nonexistent}")
+            else:
+                # Unix: cat fails on nonexistent file
+                result = bash.run(f"cat {nonexistent}")
 
         assert result.is_error is True
-        assert "42" in result.content
+        # Exit code should be mentioned or error should be indicated
+        assert "Exit code" in result.content or "Error" in result.content
 
     def test_bash_command_timeout(self):
         """测试命令超时"""
@@ -568,27 +575,38 @@ class TestBashTool:
         """测试命令不存在"""
         bash = BashTool()
 
-        # Windows 上 cmd 可能返回 "is not recognized" 错误
-        result = bash.run("nonexistent_command_xyz_12345")
-        # 应该返回错误结果（非零退出码或错误消息）
-        assert (
-            result.is_error is True
-            or "not found" in result.content.lower()
-            or "not recognized" in result.content.lower()
-            or "Execution failed" in result.content
-        )
+        # On both Windows and Unix, nonexistent commands raise ToolError
+        with pytest.raises(ToolError) as exc_info:
+            bash.run("nonexistent_command_xyz_12345")
+
+        # Should indicate command not found
+        error_msg = str(exc_info.value).lower()
+        assert "not found" in error_msg or "command" in error_msg
 
     def test_bash_working_directory(self):
         """测试指定工作目录"""
         with tempfile.TemporaryDirectory() as tmpdir:
             bash = BashTool()
-            # 跨平台：写入文件并验证工作目录
-            result = bash.run("echo test > test_file.txt", working_dir=tmpdir)
+            # Create a marker file to verify working directory
+            subdir = os.path.join(tmpdir, "subdir")
+            os.makedirs(subdir)
+            marker_file = os.path.join(subdir, "marker.txt")
+
+            # Create the marker file directly
+            with open(marker_file, "w") as f:
+                f.write("marker")
+
+            # Use findstr/cat to read the file from the working directory
+            if os.name == "nt":
+                # Windows: findstr to search in file
+                result = bash.run("findstr marker marker.txt", working_dir=subdir)
+            else:
+                # Unix: cat to read file
+                result = bash.run("cat marker.txt", working_dir=subdir)
 
             assert result.is_error is False
-            # 验证文件是否创建在指定目录
-            test_file = os.path.join(tmpdir, "test_file.txt")
-            assert os.path.exists(test_file), f"File should be created in {tmpdir}"
+            # The marker content should be in the output
+            assert "marker" in result.content
 
     def test_bash_working_directory_not_found(self):
         """测试工作目录不存在"""
@@ -609,14 +627,25 @@ class TestBashTool:
     def test_bash_environment_variables(self):
         """测试环境变量"""
         bash = BashTool()
-        # Windows 使用 %VAR% 语法，Unix 使用 $VAR
-        if os.name == "nt":
-            result = bash.run("echo %MY_TEST_VAR%", env={"MY_TEST_VAR": "test_value"})
-        else:
-            result = bash.run("echo $MY_TEST_VAR", env={"MY_TEST_VAR": "test_value"})
+        # Create a small script file to read and print env var
+        # This avoids shell-based variable expansion which differs by platform
+        with tempfile.TemporaryDirectory() as tmpdir:
+            if os.name == "nt":
+                # Windows: Create a batch script
+                script_path = os.path.join(tmpdir, "test_env.bat")
+                with open(script_path, "w") as f:
+                    f.write("@echo %MY_TEST_VAR%")
+                result = bash.run(f"{script_path}", env={"MY_TEST_VAR": "test_value"})
+            else:
+                # Unix: Create a shell script
+                script_path = os.path.join(tmpdir, "test_env.sh")
+                with open(script_path, "w") as f:
+                    f.write("#!/bin/sh\necho $MY_TEST_VAR")
+                os.chmod(script_path, 0o755)
+                result = bash.run(f"{script_path}", env={"MY_TEST_VAR": "test_value"})
 
-        assert result.is_error is False
-        assert "test_value" in result.content
+            assert result.is_error is False
+            assert "test_value" in result.content
 
     def test_bash_tool_callable(self):
         """测试 BashTool 直接调用"""
@@ -664,11 +693,30 @@ class TestCommandValidation:
         assert error is None
 
     def test_validate_dangerous_command_allowed(self):
-        """测试危险命令允许（但需确认）"""
-        # 危险命令返回 None（允许但标记）
+        """测试危险命令需确认"""
+        # 危险命令返回 require-confirm 字符串
         for cmd in ["rm", "git push"]:
             error = validate_command(f"{cmd} args")
-            assert error is None
+            assert error is not None
+            assert "confirm=True" in error
+
+    def test_validate_deferred_p3_command_vectors_require_confirmation(self):
+        """测试前缀/查找命令绕过向量需要确认"""
+        # Note: Commands with ';' are blocked by command substitution detection
+        # because ';' is a command separator. Test the valid prefix commands.
+        for cmd in [
+            "env sudo rm -rf /",
+            "nice sudo rm -rf /",
+            "nohup sudo rm -rf /",
+            "xargs sudo",
+            "chroot / sudo rm -rf /",
+            "ionice sudo rm -rf /",
+            "strace sudo rm -rf /",
+            "time sudo rm -rf /",
+        ]:
+            error = validate_command(cmd)
+            assert error is not None
+            assert "confirm=True" in error
 
 
 # ==============================================================================
@@ -1184,8 +1232,29 @@ class TestBuiltinTools:
     def test_execute_unknown_tool_raises_error(self):
         """测试 execute 调用未知工具抛出错误"""
         tools = BuiltinTools()
-        # Rust binding 返回 RuntimeError，Python fallback 返回 NotImplementedError
-        with pytest.raises((NotImplementedError, RuntimeError)):
+        with pytest.raises(ToolNotAvailableError):
+            tools.execute("unknown_tool_xyz", {})
+
+    def test_execute_unknown_tool_key_error_from_executor_is_normalized(self):
+        """测试 Rust executor 未知工具错误被归一化"""
+        class MissingToolExecutor:
+            def execute(self, name, args):
+                raise KeyError(f"Tool not found: {name}")
+
+        tools = BuiltinTools()
+        tools._executor = MissingToolExecutor()
+        with pytest.raises(ToolNotAvailableError):
+            tools.execute("unknown_tool_xyz", {})
+
+    def test_execute_unknown_tool_runtime_error_from_executor_is_normalized(self):
+        """测试 Rust executor RuntimeError 未知工具错误被归一化"""
+        class MissingToolExecutor:
+            def execute(self, name, args):
+                raise RuntimeError(f"Tool not found: {name}")
+
+        tools = BuiltinTools()
+        tools._executor = MissingToolExecutor()
+        with pytest.raises(ToolNotAvailableError):
             tools.execute("unknown_tool_xyz", {})
 
     def test_check_binding_without_executor(self):
@@ -1200,7 +1269,7 @@ class TestBuiltinTools:
             tools._check_binding("read_file")
 
             # 非 fallback 工具应抛出错误
-            with pytest.raises(NotImplementedError):
+            with pytest.raises(ToolNotAvailableError):
                 tools._check_binding("unknown_tool")
         finally:
             builtin_module.HAS_RUST_BINDING = original

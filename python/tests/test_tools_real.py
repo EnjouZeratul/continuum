@@ -1,13 +1,10 @@
-"""
-Tool Tests
+"""Tool Tests
 
 Unit tests for real tool implementations.
 """
 
 import os
 import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import tempfile
@@ -46,13 +43,10 @@ class TestBashTool:
     def test_bash_command_not_found(self):
         """Test command not found error"""
         bash = BashTool()
-        result = bash.run("nonexistent_command_xyz_12345")
-        # On Windows, shell may return error result instead of raising
-        assert (
-            result.is_error is True
-            or "not found" in result.content.lower()
-            or "not recognized" in result.content.lower()
-        )
+        with pytest.raises(ToolError) as exc_info:
+            bash.run("nonexistent_command_xyz_12345")
+        assert "Command not found" in str(exc_info.value)
+        assert "nonexistent_command_xyz_12345" in str(exc_info.value)
 
     def test_bash_async(self):
         """Test async execution"""

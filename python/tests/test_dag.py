@@ -471,3 +471,159 @@ class TestVisualize:
         viz = dag.visualize()
         assert "a <- [none]" in viz
         assert "b <- [a]" in viz
+
+
+class TestMissingCoverage:
+    """Tests for missing coverage branches in continuum_sdk.workflow.dag."""
+
+    def test_depends_on_nonexistent_node(self):
+        """Test depends_on for non-existent node (line 277->279)."""
+        dag = DAG("test")
+        dag.add(Node("a"))
+        # Add dependency on non-existent node via depends_on method
+        result = dag.depends_on("a", "nonexistent")
+        assert result is dag
+        # Node "a" now depends on "nonexistent" which doesn't exist
+        assert "nonexistent" in dag.get("a").dependencies
+
+    def test_validate_cycle_detection_self_reference(self):
+        """Test validate cycle detection with self-reference (line 310->309)."""
+        dag = DAG("test")
+        dag.add(Node("a").depends_on("a"))  # Self-cycle
+        errors = dag.validate()
+        assert "Cycle detected" in errors[0]
+
+    def test_get_execution_order_dependency_not_in_nodes(self):
+        """Test execution order when dependency is not in nodes (line 334->333)."""
+        dag = DAG("test")
+        dag.add(Node("a").depends_on("nonexistent"))
+        order = dag._get_execution_order()
+        # Should still include "a" since nonexistent is not in in_degree
+        assert "a" in order
+
+    @pytest.mark.asyncio
+    async def test_execute_node_without_func(self):
+        """Test _execute_node with func=None (line 397->395)."""
+        dag = DAG("test")
+        dag.add(Node("a"))  # No func
+        result = await dag.execute()
+        assert result.status == NodeStatus.SUCCESS
+        assert result.get_output("a") is None
+
+    @pytest.mark.asyncio
+    async def test_execute_node_with_dependencies_no_output(self):
+        """Test _execute_node when dependency has no output (line 399->393)."""
+        dag = DAG("test")
+        # Node a has no func, so output will be None
+        dag.add(Node("a"))
+        # Node b depends on a but a's output is None
+        dag.add(Node("b", func=lambda a: "result").depends_on("a"))
+        result = await dag.execute()
+        assert result.status == NodeStatus.SUCCESS
+        # b should execute even though a has no output
+        assert result.get_output("b") == "result"
+
+    @pytest.mark.asyncio
+    async def test_execute_node_async_coroutine_detection(self):
+        """Test _execute_node asyncio.iscoroutine check (line 405->403)."""
+
+        async def async_func():
+            return "async_result"
+
+        dag = DAG("test")
+        dag.add(Node("a", func=async_func))
+        result = await dag.execute()
+        assert result.get_output("a") == "async_result"
+
+    def test_get_levels_empty_level_break(self):
+        """Test _get_levels when level is empty (line 426)."""
+        dag = DAG("test")
+        # Create a cycle which should cause level to be empty
+        dag.add(Node("a").depends_on("b"))
+        dag.add(Node("b").depends_on("a"))
+        levels = dag._get_levels()
+        # Due to cycle, levels may be empty or incomplete
+        # The break should prevent infinite loop
+        assert isinstance(levels, list)
+
+
+class TestFullBranchCoverage:
+    """Tests for full branch coverage in dag.py."""
+
+    def test_depends_on_for_nonexistent_node(self):
+        """Test depends_on for non-existent node returns self (line 277->279)."""
+        dag = DAG("test")
+        dag.add(Node("a"))
+        # depends_on on a node that doesn't exist in the DAG
+        result = dag.depends_on("nonexistent", "a")
+        # Should return self without adding dependency
+        assert result is dag
+        # The nonexistent node still doesn't exist
+        assert dag.get("nonexistent") is None
+
+    @pytest.mark.asyncio
+    async def test_execute_node_func_none(self):
+        """Test _execute_node when func is None (line 397->395)."""
+        dag = DAG("test")
+        dag.add(Node("a"))  # No func
+        result = await dag.execute()
+        assert result.status == NodeStatus.SUCCESS
+        assert result.get_output("a") is None
+
+    @pytest.mark.asyncio
+    async def test_execute_node_with_empty_dep_outputs(self):
+        """Test _execute_node when dep_outputs is empty (line 399->393)."""
+        dag = DAG("test")
+        dag.add(Node("a", func=lambda: "result"))
+        dag.add(Node("b", func=lambda: "no deps"))  # No dependencies
+        result = await dag.execute()
+        assert result.status == NodeStatus.SUCCESS
+        assert result.get_output("b") == "no deps"
+
+    @pytest.mark.asyncio
+    async def test_execute_node_async_coroutine(self):
+        """Test _execute_node when result is coroutine (line 405->403)."""
+
+        async def async_func():
+            await asyncio.sleep(0.001)
+            return "async_result"
+
+        dag = DAG("test")
+        dag.add(Node("a", func=async_func))
+        result = await dag.execute()
+        assert result.get_output("a") == "async_result"
+
+    @pytest.mark.asyncio
+    async def test_execute_node_func_not_none_but_returns_none(self):
+        """Test _execute_node when func is not None but returns None (line 397->395)."""
+        dag = DAG("test")
+        dag.add(Node("a", func=lambda: None))  # func is not None, but returns None
+        result = await dag.execute()
+        assert result.status == NodeStatus.SUCCESS
+        assert result.get_output("a") is None
+
+    @pytest.mark.asyncio
+    async def test_execute_node_with_empty_dep_outputs_branch(self):
+        """Test _execute_node when dep_outputs is empty but func has no args (line 399->393)."""
+        dag = DAG("test")
+        # Node with no dependencies but func that takes no arguments
+        dag.add(Node("a", func=lambda: 42))
+        result = await dag.execute()
+        assert result.get_output("a") == 42
+
+    @pytest.mark.asyncio
+    async def test_execute_node_func_result_not_coroutine(self):
+        """Test _execute_node when func_result is not coroutine (line 405->403)."""
+        dag = DAG("test")
+        dag.add(Node("a", func=lambda: "sync_result"))
+        result = await dag.execute()
+        assert result.get_output("a") == "sync_result"
+
+    def test_validate_cycle_detection_multiple_nodes(self):
+        """Test validate cycle detection with multiple nodes (line 310->309)."""
+        dag = DAG("test")
+        dag.add(Node("a").depends_on("b"))
+        dag.add(Node("b").depends_on("c"))
+        dag.add(Node("c").depends_on("a"))  # Cycle
+        errors = dag.validate()
+        assert "Cycle detected" in errors[0]

@@ -1,7 +1,14 @@
 """
 Builtin Tools Additional Coverage Tests
 
-Tests to improve builtin.py coverage from 64% to 80%+.
+Tests to improve builtin.py coverage from 81% to 95%+.
+
+Missing coverage areas:
+1. Rust executor paths (mock executor tests)
+2. LSP tools fallback (go_to_definition, find_references, get_hover, symbol_search)
+3. execute() method for LSP tools
+4. JSON decode error in list_directory
+5. RuntimeError re-raise in execute()
 """
 
 import json
@@ -14,7 +21,9 @@ from continuum_sdk.tools.builtin import (
     BuiltinTools,
     ToolCategory,
     ToolMeta,
+    get_builtin_tools,
 )
+from continuum_sdk.tools.types import ToolNotAvailableError
 
 
 class TestBuiltinToolsFallback:
@@ -368,7 +377,7 @@ class TestBuiltinToolsExecute:
 
         try:
             tools = BuiltinTools()
-            with pytest.raises(NotImplementedError, match="not available"):
+            with pytest.raises(ToolNotAvailableError, match="not available"):
                 tools.execute("unknown_tool_xyz", {})
         finally:
             builtin_module.HAS_RUST_BINDING = original
@@ -680,6 +689,451 @@ class TestEditFileVariations:
             os.unlink(path)
         finally:
             builtin_module.HAS_RUST_BINDING = original
+
+
+# ==============================================================================
+# Rust Executor Mock Tests
+# ==============================================================================
+
+
+class TestRustExecutorPaths:
+    """Test Rust executor paths with mock executor"""
+
+    def test_edit_file_rust_executor(self):
+        """Test edit_file with mock Rust executor"""
+        class MockExecutor:
+            def execute(self, name, args):
+                return f"Mock execute result for {name}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.edit_file("test.py", "old", "new")
+        assert "Mock execute result" in result
+
+    def test_grep_rust_executor(self):
+        """Test grep with mock Rust executor"""
+        class MockExecutor:
+            def grep(self, pattern, path, glob):
+                return f"Mock grep: {pattern}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.grep("def test", path="src/", glob="*.py")
+        assert "Mock grep" in result
+
+    def test_glob_rust_executor(self):
+        """Test glob with mock Rust executor"""
+        class MockExecutor:
+            def glob(self, pattern, path):
+                return f"Mock glob: {pattern}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.glob("**/*.py", path="src/")
+        assert "Mock glob" in result
+
+    def test_bash_rust_executor(self):
+        """Test bash with mock Rust executor"""
+        class MockExecutor:
+            def bash(self, command, timeout_ms, working_dir):
+                return f"Mock bash: {command}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.bash("echo test", timeout_ms=5000, working_dir="/tmp")
+        assert "Mock bash" in result
+
+    def test_list_directory_json_decode_error(self):
+        """Test list_directory when executor returns non-JSON"""
+        class MockExecutor:
+            def execute(self, name, args):
+                return "Not JSON data"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.list_directory("/tmp")
+        # Should return [{"raw": "Not JSON data"}] on decode error
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0]["raw"] == "Not JSON data"
+
+    def test_go_to_definition_rust_executor(self):
+        """Test go_to_definition with mock Rust executor"""
+        class MockExecutor:
+            def execute(self, name, args):
+                return f"Mock definition: {args}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.go_to_definition("test.py", 10, 5)
+        assert "Mock definition" in result
+
+    def test_find_references_rust_executor(self):
+        """Test find_references with mock Rust executor"""
+        class MockExecutor:
+            def execute(self, name, args):
+                return f"Mock references: {args}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.find_references("test.py", 10, 5)
+        assert "Mock references" in result
+
+    def test_get_hover_rust_executor(self):
+        """Test get_hover with mock Rust executor"""
+        class MockExecutor:
+            def execute(self, name, args):
+                return f"Mock hover: {args}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.get_hover("test.py", 10, 5)
+        assert "Mock hover" in result
+
+    def test_symbol_search_rust_executor(self):
+        """Test symbol_search with mock Rust executor"""
+        class MockExecutor:
+            def execute(self, name, args):
+                return f"Mock symbol_search: {args}"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.symbol_search("test_func")
+        assert "Mock symbol_search" in result
+
+    def test_execute_runtime_error_re_raise(self):
+        """Test execute re-raises RuntimeError when not 'Tool not found'"""
+        class MockExecutor:
+            def execute(self, name, args):
+                raise RuntimeError("Internal error: something went wrong")
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        with pytest.raises(RuntimeError, match="Internal error"):
+            tools.execute("read_file", {"path": "test.txt"})
+
+
+# ==============================================================================
+# LSP Tools Fallback Tests
+# ==============================================================================
+
+
+class TestLSPToolsFallback:
+    """Test LSP tools in Python fallback mode"""
+
+    def test_go_to_definition_fallback(self):
+        """Test go_to_definition fallback"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".py"
+            ) as f:
+                f.write("def my_func():\n    pass\n")
+                path = f.name
+
+            tools = BuiltinTools()
+            # LSP tools return results even without LSP server
+            result = tools.go_to_definition(path, 1, 5)
+            # Should return some content (even if "No LSP server" message)
+            assert isinstance(result, str)
+
+            os.unlink(path)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_find_references_fallback(self):
+        """Test find_references fallback"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".py"
+            ) as f:
+                f.write("def my_func():\n    pass\n")
+                path = f.name
+
+            tools = BuiltinTools()
+            result = tools.find_references(path, 1, 5)
+            assert isinstance(result, str)
+
+            os.unlink(path)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_get_hover_fallback(self):
+        """Test get_hover fallback"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".py"
+            ) as f:
+                f.write("def my_func():\n    pass\n")
+                path = f.name
+
+            tools = BuiltinTools()
+            result = tools.get_hover(path, 1, 5)
+            assert isinstance(result, str)
+
+            os.unlink(path)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_symbol_search_fallback(self):
+        """Test symbol_search fallback"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            tools = BuiltinTools()
+            result = tools.symbol_search("test_func")
+            assert isinstance(result, str)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+
+class TestExecuteLSPTools:
+    """Test execute method for LSP tools in fallback mode"""
+
+    def test_execute_go_to_definition(self):
+        """Test execute for go_to_definition"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".py"
+            ) as f:
+                f.write("def my_func():\n    pass\n")
+                path = f.name
+
+            tools = BuiltinTools()
+            result = tools.execute("go_to_definition", {
+                "file": path,
+                "line": 1,
+                "column": 5,
+            })
+            assert isinstance(result, str)
+
+            os.unlink(path)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_execute_find_references(self):
+        """Test execute for find_references"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".py"
+            ) as f:
+                f.write("def my_func():\n    pass\n")
+                path = f.name
+
+            tools = BuiltinTools()
+            result = tools.execute("find_references", {
+                "file": path,
+                "line": 1,
+                "column": 5,
+            })
+            assert isinstance(result, str)
+
+            os.unlink(path)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_execute_get_hover(self):
+        """Test execute for get_hover"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".py"
+            ) as f:
+                f.write("def my_func():\n    pass\n")
+                path = f.name
+
+            tools = BuiltinTools()
+            result = tools.execute("get_hover", {
+                "file": path,
+                "line": 1,
+                "column": 5,
+            })
+            assert isinstance(result, str)
+
+            os.unlink(path)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_execute_symbol_search(self):
+        """Test execute for symbol_search"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            tools = BuiltinTools()
+            result = tools.execute("symbol_search", {
+                "pattern": "test_func",
+            })
+            assert isinstance(result, str)
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+
+# ==============================================================================
+# Edge Cases and Error Handling
+# ==============================================================================
+
+
+class TestBuiltinToolsEdgeCases:
+    """Test edge cases and error handling"""
+
+    def test_read_file_with_executor(self):
+        """Test read_file with mock Rust executor"""
+        class MockExecutor:
+            def read_file(self, path, offset, limit):
+                return "Mock read content"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.read_file("test.txt", offset=5, limit=10)
+        assert "Mock read content" in result
+
+    def test_write_file_with_executor(self):
+        """Test write_file with mock Rust executor"""
+        class MockExecutor:
+            def write_file(self, path, content):
+                return "Mock write success"
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.write_file("test.txt", "content")
+        assert "Mock write success" in result
+
+    def test_list_directory_with_executor(self):
+        """Test list_directory with mock Rust executor returning JSON"""
+        class MockExecutor:
+            def execute(self, name, args):
+                return json.dumps([{"name": "file.txt", "type": "file"}])
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        result = tools.list_directory("/tmp")
+        assert isinstance(result, list)
+        assert result[0]["name"] == "file.txt"
+
+    def test_is_available_with_executor(self):
+        """Test is_available with mock Rust executor"""
+        class MockExecutor:
+            def is_available(self, name):
+                return name in ["read_file", "write_file"]
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        assert tools.is_available("read_file") is True
+        assert tools.is_available("bash") is False
+
+    def test_fallback_tools_property(self):
+        """Test _fallback_tools property"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            tools = BuiltinTools()
+            fallback = tools._fallback_tools
+            assert "read_file" in fallback
+            assert "write_file" in fallback
+            assert "go_to_definition" in fallback
+            assert "symbol_search" in fallback
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_check_binding_unavailable_in_fallback(self):
+        """Test _check_binding raises for unavailable tool in fallback mode"""
+        import continuum_sdk.tools.builtin as builtin_module
+        original = builtin_module.HAS_RUST_BINDING
+        builtin_module.HAS_RUST_BINDING = False
+
+        try:
+            tools = BuiltinTools()
+            # Tool not in fallback should raise
+            with pytest.raises(ToolNotAvailableError, match="not available"):
+                tools._check_binding("rust_only_tool_xyz")
+        finally:
+            builtin_module.HAS_RUST_BINDING = original
+
+    def test_get_tool_meta_returns_none_for_unknown(self):
+        """Test get_tool_meta returns None for unknown tool"""
+        tools = BuiltinTools()
+        result = tools.get_tool_meta("completely_unknown_tool_xyz")
+        assert result is None
+
+    def test_execute_with_executor_key_error(self):
+        """Test execute handles KeyError from executor"""
+        class MockExecutor:
+            def execute(self, name, args):
+                raise KeyError(f"Tool not found: {name}")
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        with pytest.raises(ToolNotAvailableError):
+            tools.execute("unknown_tool", {})
+
+    def test_execute_with_executor_tool_not_found_runtime_error(self):
+        """Test execute handles RuntimeError with 'Tool not found'"""
+        class MockExecutor:
+            def execute(self, name, args):
+                raise RuntimeError("Tool not found: xyz")
+
+        tools = BuiltinTools()
+        tools._executor = MockExecutor()
+
+        with pytest.raises(ToolNotAvailableError):
+            tools.execute("unknown_tool", {})
+
+
+class TestModuleLevelFunctions:
+    """Test module-level functions"""
+
+    def test_get_builtin_tools_creates_instance(self):
+        """Test get_builtin_tools creates instance"""
+        import continuum_sdk.tools.builtin as builtin_module
+        # Reset singleton
+        builtin_module._builtin_tools = None
+
+        tools = get_builtin_tools()
+        assert isinstance(tools, BuiltinTools)
+        assert len(tools._tools_cache) > 0
 
 
 if __name__ == "__main__":
