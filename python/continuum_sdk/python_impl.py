@@ -8,8 +8,9 @@ This module is used when Rust binding is not available.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from .config.providers import get_default_model
 from .utils import generate_short_id
@@ -76,7 +77,7 @@ class PythonAgent:
         self._tools[name] = func
         self._internal_agent.register_tool(name, func, description, parameters)
 
-    def create_session(self) -> "PythonSession":
+    def create_session(self) -> PythonSession:
         """Create a new session."""
         session_id = generate_short_id()
         session = PythonSession(session_id=session_id)
@@ -199,9 +200,6 @@ class PythonBuiltinTools:
 import json
 import re
 from pathlib import Path
-from typing import Any
-
-from .utils import generate_short_id
 
 __all__ = [
     "PythonAgent",
@@ -411,7 +409,7 @@ class PythonQueryEngine:
                     "column": 1,
                 }]
             return []
-        except (OSError, IOError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError):
             return []
 
     def find_references(
@@ -454,7 +452,7 @@ class PythonQueryEngine:
                             })
                 return refs
             return []
-        except (OSError, IOError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError):
             return []
 
     def hover(
@@ -479,7 +477,7 @@ class PythonQueryEngine:
         try:
             result = get_hover(file_path, line, column)
             return result.content if result.content else None
-        except (OSError, IOError):
+        except OSError:
             return None
 
     def shutdown(self, language: str) -> None:
@@ -568,7 +566,6 @@ class PythonQueryEngine:
         Returns:
             List of symbols with name, kind, line, column
         """
-        from .tools.lsp import symbol_search
         try:
             path = Path(file_path).expanduser().resolve()
             if not path.exists():
@@ -601,7 +598,7 @@ class PythonQueryEngine:
                         })
 
             return symbols
-        except (OSError, IOError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError):
             return []
 
     def rename_symbol(
@@ -666,7 +663,7 @@ class PythonQueryEngine:
                         "new_name": new_name,
                         "locations": positions,
                     })
-            except (OSError, IOError, PermissionError, UnicodeDecodeError):
+            except (OSError, PermissionError, UnicodeDecodeError):
                 continue
 
         return {
@@ -712,7 +709,7 @@ class TierProxy:
         memory.working().search("query")
     """
 
-    def __init__(self, memory_system: "PythonMemorySystem", tier: str):
+    def __init__(self, memory_system: PythonMemorySystem, tier: str):
         self._memory = memory_system
         self._tier = tier
 
@@ -806,7 +803,7 @@ class PythonMemorySystem:
         query_lower = query.lower()
 
         for t in tiers:
-            for memory_id, memory in self._memories.get(t, {}).items():
+            for _memory_id, memory in self._memories.get(t, {}).items():
                 if query_lower in memory["content"].lower():
                     memory["access_count"] = memory.get("access_count", 0) + 1
                     results.append(memory.copy())
@@ -871,19 +868,19 @@ class PythonMemorySystem:
             return True
         return False
 
-    def working(self) -> "TierProxy":
+    def working(self) -> TierProxy:
         """Get working memory tier proxy."""
         return TierProxy(self, "working")
 
-    def session(self) -> "TierProxy":
+    def session(self) -> TierProxy:
         """Get session memory tier proxy."""
         return TierProxy(self, "session")
 
-    def project(self) -> "TierProxy":
+    def project(self) -> TierProxy:
         """Get project memory tier proxy."""
         return TierProxy(self, "project")
 
-    def long_term(self) -> "TierProxy":
+    def long_term(self) -> TierProxy:
         """Get long-term memory tier proxy."""
         return TierProxy(self, "longterm")
 
@@ -1237,7 +1234,7 @@ class PythonMultimodalHandler:
 
         hostname = parsed.hostname
         if not hostname:
-            raise ValueError(f"Invalid URL: missing hostname")
+            raise ValueError("Invalid URL: missing hostname")
 
         # Block localhost and similar hostnames
         blocked_hostnames = {'localhost', 'localhost.localdomain', 'local'}
@@ -1248,7 +1245,7 @@ class PythonMultimodalHandler:
         try:
             # Get all IP addresses for the hostname
             addr_info = socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == 'https' else 80))
-            for family, socktype, proto, canonname, sockaddr in addr_info:
+            for _family, _socktype, _proto, _canonname, sockaddr in addr_info:
                 ip = sockaddr[0]
                 if self._is_private_ip(ip):
                     raise ValueError(f"URL resolves to private/internal IP: {hostname} -> {ip}")
@@ -1271,8 +1268,8 @@ class PythonMultimodalHandler:
         Raises:
             ValueError: If redirect target is invalid or points to private IP
         """
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         current_url = url
         redirect_count = 0
@@ -1543,24 +1540,24 @@ class ImageInput:
             self._base64_data = base64_data
 
     @classmethod
-    def from_path(cls, path: str, media_type: str | None = None) -> "ImageInput":
+    def from_path(cls, path: str, media_type: str | None = None) -> ImageInput:
         """Create from file path."""
         return cls(path=path, media_type=media_type)
 
     @classmethod
-    def from_url(cls, url: str) -> "ImageInput":
+    def from_url(cls, url: str) -> ImageInput:
         """Create from URL."""
         return cls(url=url)
 
     @classmethod
     def from_base64(
         cls, data: str, media_type: str = "image/jpeg"
-    ) -> "ImageInput":
+    ) -> ImageInput:
         """Create from base64 data."""
         return cls(base64_data=data, media_type=media_type)
 
     @classmethod
-    def from_bytes(cls, data: bytes, media_type: str = "image/jpeg") -> "ImageInput":
+    def from_bytes(cls, data: bytes, media_type: str = "image/jpeg") -> ImageInput:
         """Create from raw bytes."""
         instance = cls(media_type=media_type)
         instance._bytes_data = data

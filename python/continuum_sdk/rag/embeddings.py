@@ -29,10 +29,8 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
 
 from continuum_sdk.config.loader import _get_env
 
@@ -66,12 +64,12 @@ class EmbeddingConfig:
     """Embedding model configuration"""
     provider: str = "openai"
     model: str = "text-embedding-3-small"
-    api_key: Optional[str] = None
-    base_url: Optional[str] = None
-    dimension: Optional[int] = None
+    api_key: str | None = None
+    base_url: str | None = None
+    dimension: int | None = None
 
     @classmethod
-    def from_env(cls, provider: str = "openai") -> "EmbeddingConfig":
+    def from_env(cls, provider: str = "openai") -> EmbeddingConfig:
         """Create configuration from environment variables"""
         if provider == "openai":
             return cls(
@@ -119,9 +117,9 @@ class Embeddings:
     def __init__(
         self,
         provider: str = "openai",
-        model: Optional[str] = None,
-        api_key: Optional[str] = None,
-        dimension: Optional[int] = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        dimension: int | None = None,
         _use_rust: bool = True,
     ):
         """
@@ -195,7 +193,7 @@ class Embeddings:
             logger.warning("No HTTP client available, embeddings will fail")
 
     @classmethod
-    def from_env(cls, provider: str = "openai") -> "Embeddings":
+    def from_env(cls, provider: str = "openai") -> Embeddings:
         """
         Create embedding model from environment variables
 

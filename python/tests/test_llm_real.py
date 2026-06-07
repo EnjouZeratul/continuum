@@ -14,12 +14,11 @@ LLM 真实 API 调用测试
 """
 
 import os
-import sys
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
-from continuum_sdk.llm import LlmClient, Message, ChatResponse, TokenUsage
+from continuum_sdk.llm import ChatResponse, LlmClient, Message, TokenUsage
 
 # 是否使用真实 API
 USE_REAL_API = os.environ.get("USE_REAL_API", "").lower() in ("1", "true", "yes")

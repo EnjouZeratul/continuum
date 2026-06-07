@@ -542,7 +542,7 @@ async def bash_execute(
             call_id=call_id, name="bash",
             message=f"Command not found: {command.split()[0]}",
         ) from e
-    except (subprocess.SubprocessError, OSError, IOError, PermissionError) as e:  # pragma: no cover - hard to trigger these errors in tests
+    except (subprocess.SubprocessError, OSError, PermissionError) as e:  # pragma: no cover - hard to trigger these errors in tests
         record_audit(sec, AuditOperation.EXECUTE, command, success=False,
                      details=str(e))
         raise ToolError(

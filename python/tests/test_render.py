@@ -6,9 +6,9 @@ Target coverage: 100%
 import builtins
 import os
 import sys
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 class TestCodeTheme:
@@ -35,7 +35,7 @@ class TestRenderOptions:
     def test_default_options(self):
         """Test default RenderOptions values."""
         try:
-            from continuum_sdk.render import RenderOptions, CodeTheme
+            from continuum_sdk.render import CodeTheme, RenderOptions
 
             options = RenderOptions()
             assert options.code_theme == CodeTheme.MONOKAI
@@ -49,7 +49,7 @@ class TestRenderOptions:
     def test_custom_options(self):
         """Test RenderOptions with custom values."""
         try:
-            from continuum_sdk.render import RenderOptions, CodeTheme
+            from continuum_sdk.render import CodeTheme, RenderOptions
 
             options = RenderOptions(
                 code_theme=CodeTheme.GITHUB_DARK,
@@ -73,7 +73,7 @@ class TestMarkdownRenderer:
     def test_init_default_theme(self):
         """Test renderer initialization with default theme."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer
 
             renderer = MarkdownRenderer()
             assert renderer.theme == CodeTheme.MONOKAI
@@ -83,7 +83,7 @@ class TestMarkdownRenderer:
     def test_init_custom_theme(self):
         """Test renderer initialization with custom theme."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer
 
             renderer = MarkdownRenderer(theme=CodeTheme.GITHUB_DARK)
             assert renderer.theme == CodeTheme.GITHUB_DARK
@@ -93,7 +93,7 @@ class TestMarkdownRenderer:
     def test_init_with_options(self):
         """Test renderer initialization with custom options."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, RenderOptions, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer, RenderOptions
 
             options = RenderOptions(
                 code_theme=CodeTheme.ONE_DARK,
@@ -109,7 +109,7 @@ class TestMarkdownRenderer:
     def test_theme_property_getter(self):
         """Test theme property getter."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer
 
             renderer = MarkdownRenderer(theme=CodeTheme.VIM)
             assert renderer.theme == CodeTheme.VIM
@@ -119,7 +119,7 @@ class TestMarkdownRenderer:
     def test_theme_property_setter(self):
         """Test theme property setter updates options."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer
 
             renderer = MarkdownRenderer(theme=CodeTheme.MONOKAI)
             renderer.theme = CodeTheme.NATIVE
@@ -132,7 +132,7 @@ class TestMarkdownRenderer:
     def test_options_property(self):
         """Test options property getter."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, RenderOptions, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer, RenderOptions
 
             custom_options = RenderOptions(code_theme=CodeTheme.GITHUB_DARK)
             renderer = MarkdownRenderer(options=custom_options)
@@ -155,8 +155,9 @@ class TestMarkdownRenderer:
     def test_render_with_provided_console(self):
         """Test render with provided console."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -208,8 +209,9 @@ class TestMarkdownRenderer:
     def test_render_code_block_with_line_numbers(self):
         """Test code block with line numbers enabled."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, RenderOptions
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer, RenderOptions
 
             options = RenderOptions(show_line_numbers=True)
             renderer = MarkdownRenderer(options=options)
@@ -238,8 +240,9 @@ class TestMarkdownRenderer:
     def test_render_table_with_title(self):
         """Test table rendering with title."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -265,8 +268,9 @@ class TestMarkdownRenderer:
     def test_render_heading_invalid_level(self):
         """Test heading rendering with invalid level uses default style."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -316,8 +320,9 @@ class TestMarkdownRenderer:
     def test_render_list_empty(self):
         """Test empty list rendering."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -339,8 +344,9 @@ class TestMarkdownRenderer:
     def test_render_blockquote(self):
         """Test blockquote rendering."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -361,8 +367,9 @@ class TestMarkdownRenderer:
     def test_render_link_with_hyperlinks_enabled(self):
         """Test link rendering with hyperlinks enabled."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -395,7 +402,7 @@ class TestMarkdownRenderer:
     def test_set_options_valid_keys(self):
         """Test set_options with valid keys."""
         try:
-            from continuum_sdk.render import MarkdownRenderer, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer
 
             renderer = MarkdownRenderer()
             renderer.set_options(
@@ -456,8 +463,9 @@ class TestRenderMarkdownFunction:
     def test_render_markdown_custom_theme(self):
         """Test render_markdown with custom theme."""
         try:
-            from continuum_sdk.render import render_markdown, CodeTheme
             from rich.console import Console
+
+            from continuum_sdk.render import CodeTheme, render_markdown
 
             console = Console()
             render_markdown("# Test", theme=CodeTheme.GITHUB_DARK, console=console)
@@ -467,8 +475,9 @@ class TestRenderMarkdownFunction:
     def test_render_markdown_with_console(self):
         """Test render_markdown with provided console."""
         try:
-            from continuum_sdk.render import render_markdown
             from rich.console import Console
+
+            from continuum_sdk.render import render_markdown
 
             console = Console()
             render_markdown("# Test", console=console)
@@ -486,7 +495,6 @@ class TestImportErrorHandling:
             {"rich.console": None, "rich.markdown": None, "rich.syntax": None},
         ):
             # Need to reload the module to test the import error path
-            import importlib
 
             # Clear any cached imports
             if "continuum_sdk.render" in sys.modules:
@@ -512,8 +520,6 @@ class TestImportErrorHandling:
         """Test that module handles rich import gracefully with fallback values."""
         # This test verifies the fallback import block (lines 48-56)
         # We simulate the ImportError by mocking the import
-        import importlib
-        import types
 
         # Create a mock module that raises ImportError on attribute access
         def create_mock_rich_module():
@@ -600,8 +606,6 @@ print("FALLBACK_TEST_PASSED")
         This test forces the module to reload with mocked imports
         to execute the fallback assignment lines (48-56).
         """
-        import importlib
-        import types
 
         # Save the original module
         original_render = sys.modules.get("continuum_sdk.render")
@@ -652,8 +656,9 @@ class TestEdgeCases:
     def test_render_empty_markdown(self):
         """Test rendering empty markdown string."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -678,8 +683,9 @@ class TestEdgeCases:
     def test_render_table_single_row(self):
         """Test rendering table with single row."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -692,8 +698,9 @@ class TestEdgeCases:
     def test_render_table_single_column(self):
         """Test rendering table with single column."""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()

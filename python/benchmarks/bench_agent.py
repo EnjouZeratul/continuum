@@ -101,13 +101,13 @@ def bench_agent_run():
     return agent.run("test task", auto_start=False)
 
 
-def bench_agent_run():
-    """测试 Agent run 方法时间"""
+def bench_agent_chat():
+    """测试 Agent chat 方法时间"""
     from continuum_sdk import Agent
 
     agent = Agent()
     agent.start()
-    return agent.run("hello")
+    return agent.chat("hello")
 
 
 def bench_agent_with_config():

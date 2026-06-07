@@ -8,25 +8,23 @@ Tests for:
 5. Environment variable whitelist filtering
 """
 
-import os
-import sys
-import tempfile
 import shutil
+import tempfile
+
 import pytest
 
 from continuum_sdk.tools.bash import (
-    bash_execute,
-    bash_execute_sync,
-    BashTool,
-    ToolError,
-    DANGEROUS_ENV_VARS,
-    _validate_shell_mode,
-    _validate_command,
-    _can_parse_for_exec,
-    _build_safe_env,
     _INJECTION_RE,
     _SHELL_OPERATOR_RE,
     _SUBSTITUTION_RE,  # backward compat alias
+    DANGEROUS_ENV_VARS,
+    BashTool,
+    ToolError,
+    _build_safe_env,
+    _can_parse_for_exec,
+    _validate_command,
+    _validate_shell_mode,
+    bash_execute,
 )
 
 

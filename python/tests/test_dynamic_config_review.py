@@ -10,8 +10,6 @@
 
 import os
 import sys
-import warnings
-from pathlib import Path
 
 import pytest
 
@@ -39,7 +37,7 @@ class TestEnvVariablePriority:
 
     def test_continuum_model_override_provider_config(self, monkeypatch):
         """验证 CONTINUUM_MODEL 覆盖 provider 内置配置"""
-        from continuum_sdk.config.providers import get_default_model, BUILTIN_PROVIDERS
+        from continuum_sdk.config.providers import BUILTIN_PROVIDERS, get_default_model
 
         # 不设置 CONTINUUM_MODEL 时，应返回 provider 内置配置
         anthropic_default = BUILTIN_PROVIDERS["anthropic"].default_model
@@ -103,8 +101,6 @@ class TestFallbackMechanism:
         """验证 FALLBACK_PROVIDER_ORDER 顺序"""
         from continuum_sdk.config.providers import (
             FALLBACK_PROVIDER_ORDER,
-            get_default_model,
-            BUILTIN_PROVIDERS,
         )
 
         # 清理 CONTINUUM_MODEL
@@ -119,8 +115,8 @@ class TestFallbackMechanism:
 
     def test_fallback_logs_friendly(self, monkeypatch):
         """验证 fallback 日志友好"""
+
         from continuum_sdk.config.providers import get_default_model
-        import logging
 
         # 清理 CONTINUUM_MODEL
         monkeypatch.delenv("CONTINUUM_MODEL", raising=False)
@@ -144,7 +140,7 @@ class TestFallbackMechanism:
 
     def test_runtime_error_contains_guidance(self, monkeypatch):
         """验证最终 RuntimeError 包含配置指引"""
-        from continuum_sdk.config.providers import get_default_model, BUILTIN_PROVIDERS
+        from continuum_sdk.config.providers import BUILTIN_PROVIDERS, get_default_model
 
         # 临时清空 BUILTIN_PROVIDERS 来测试边界情况
         # (注意：这是破坏性测试，实际使用中不会发生)
@@ -168,7 +164,7 @@ class TestFallbackMechanism:
 
     def test_fallback_to_first_available_provider(self, monkeypatch):
         """验证回退到第一个可用的 provider"""
-        from continuum_sdk.config.providers import get_default_model, BUILTIN_PROVIDERS
+        from continuum_sdk.config.providers import BUILTIN_PROVIDERS, get_default_model
 
         monkeypatch.delenv("CONTINUUM_MODEL", raising=False)
 
@@ -210,7 +206,8 @@ class TestEnvSafety:
     def test_soft_constraint_warning(self, caplog):
         """验证软约束行为 - 非白名单变量记录警告但不抛出异常"""
         import logging
-        from continuum_sdk.env import get_str, DOCUMENTED_ENV_VARS
+
+        from continuum_sdk.env import get_str
 
         # 尝试访问不在白名单中的变量应该记录警告但不抛出异常
         with caplog.at_level(logging.WARNING):
@@ -243,7 +240,7 @@ class TestEnvSafety:
 
     def test_type_conversion_safe(self, monkeypatch):
         """验证类型转换安全"""
-        from continuum_sdk.env import get_int, get_bool, get_list
+        from continuum_sdk.env import get_bool, get_int
 
         # 设置无效的整数值
         monkeypatch.setenv("CONTINUUM_MAX_TOKENS", "not_a_number")
@@ -283,7 +280,7 @@ class TestEnvSafety:
 
     def test_continuum_prefix_handling(self, monkeypatch):
         """验证 CONTINUUM_ 前缀正确处理"""
-        from continuum_sdk.env import get_str, ENV_PREFIX
+        from continuum_sdk.env import ENV_PREFIX, get_str
 
         # 验证前缀
         assert ENV_PREFIX == "CONTINUUM_", f"Expected CONTINUUM_ prefix, got: {ENV_PREFIX}"
@@ -305,7 +302,7 @@ class TestConfigLoaderSecurity:
 
     def test_env_var_whitelist_in_loader(self):
         """验证 loader 中的环境变量白名单"""
-        from continuum_sdk.config.loader import ALLOWED_ENV_VARS, _get_env
+        from continuum_sdk.config.loader import _get_env
 
         # 尝试访问不在白名单中的变量
         # 新行为：静默返回 None，不发出警告

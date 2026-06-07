@@ -1,7 +1,5 @@
 """Tests for task completion detection module."""
 
-import os
-import sys
 
 import tempfile
 from datetime import datetime

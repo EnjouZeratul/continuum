@@ -345,7 +345,7 @@ class TestRunStreamBinding:
         # Verify we got some chunks (unless skipped)
         if chunks:
             # Last chunk should be final
-            final_chunks = [c for c in chunks if c.is_final]
+            [c for c in chunks if c.is_final]
             # There should be at least one final chunk or we hit limit
 
     @pytest.mark.asyncio
@@ -393,7 +393,7 @@ class TestRunStreamBinding:
         try:
             # Start iterating
             chunk_count = 0
-            async for chunk in stream_iter:
+            async for _chunk in stream_iter:
                 chunk_count += 1
 
                 # Abort after first chunk
@@ -437,7 +437,7 @@ class TestRunStreamBinding:
         # Test we can iterate
         iter_count = 0
         try:
-            async for chunk in async_iter:
+            async for _chunk in async_iter:
                 iter_count += 1
                 if iter_count > 3:
                     break
@@ -459,7 +459,7 @@ class TestRunStreamBinding:
 
         try:
             prev_iteration = -1
-            async for chunk in stream_iter:
+            async for _chunk in stream_iter:
                 # Check iteration increases
                 current = stream_iter.current_iteration()
                 assert isinstance(current, int)
@@ -519,12 +519,10 @@ class TestRunStreamBinding:
         stream_iter = runtime.run_stream("List files using glob", stream_config)
 
         try:
-            has_tool_calls = False
             async for chunk in stream_iter:
                 tool_calls = chunk.tool_calls_json  # attribute, not method
 
                 if tool_calls:
-                    has_tool_calls = True
                     # Should be valid JSON string
                     import json
                     data = json.loads(tool_calls)

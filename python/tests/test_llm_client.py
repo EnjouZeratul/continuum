@@ -11,12 +11,11 @@ LLM Client Mock 测试
 """
 
 import json
-import os
-import sys
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from continuum_sdk.config.providers import BUILTIN_PROVIDERS, get_default_model
 from continuum_sdk.llm.client import (
     AnthropicClient,
     CustomClient,
@@ -43,7 +42,6 @@ from continuum_sdk.llm.types import (
     TokenUsage,
     ToolDefinition,
 )
-from continuum_sdk.config.providers import get_default_model, BUILTIN_PROVIDERS
 
 # ==================== 客户端创建测试 ====================
 

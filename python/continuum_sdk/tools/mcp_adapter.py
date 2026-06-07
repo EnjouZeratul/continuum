@@ -23,16 +23,16 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
-from dataclasses import dataclass, field
-from functools import partial
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 from continuum_sdk.utils import generate_short_id
-from .types import ToolCategory, ToolError, ToolMeta, ToolResult
+
+from .types import ToolCategory, ToolMeta, ToolResult
 
 logger = logging.getLogger(__name__)
 

@@ -4,10 +4,9 @@ Tests for utility functions module.
 Tests all utility functions including ID generation.
 """
 
-import pytest
 import re
 
-from continuum_sdk.utils import generate_short_id, generate_prefixed_id
+from continuum_sdk.utils import generate_prefixed_id, generate_short_id
 
 
 class TestGenerateShortId:
@@ -176,7 +175,7 @@ class TestModuleExports:
 
     def test_import_from_module(self):
         """Test that functions can be imported from the module."""
-        from continuum_sdk.utils import generate_short_id, generate_prefixed_id
+        from continuum_sdk.utils import generate_prefixed_id, generate_short_id
 
         # Should be callable
         assert callable(generate_short_id)
@@ -210,7 +209,7 @@ class TestIdGenerationPatterns:
     def test_id_generation_in_loop(self):
         """Test generating many IDs in a loop."""
         task_ids = []
-        for i in range(50):
+        for _i in range(50):
             task_ids.append(generate_prefixed_id("task"))
 
         # All should be unique

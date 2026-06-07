@@ -16,10 +16,9 @@ LLM Integration Tests - 支持 Mock 和真实 API 调用
 """
 
 import os
-import sys
+from unittest.mock import MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from continuum_sdk.agent import Agent
 from continuum_sdk.llm import ChatResponse, LlmClient, Message, TokenUsage

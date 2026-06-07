@@ -1,18 +1,14 @@
 """Memory 单元测试"""
 
-import os
-import sys
 import tempfile
-import json
 from pathlib import Path
 
 import pytest
 
 from continuum_sdk.memory import Memory, MemoryEntry, MemoryTier, TierProxy
 from continuum_sdk.memory.storage import (
-    StorageBackend,
-    MemoryStorage,
     FileStorage,
+    MemoryStorage,
     SQLiteStorage,
 )
 
@@ -609,7 +605,7 @@ class TestFileStorage:
             corrupted_file.write_text("{ invalid json }")
 
             # Should not crash, just log warning
-            storage = FileStorage(tmpdir, session_id="test")
+            FileStorage(tmpdir, session_id="test")
             # File was attempted to load but corrupted
             assert "Failed to load" in caplog.text or True  # May or may not log depending on timing
 

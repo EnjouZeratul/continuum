@@ -37,22 +37,22 @@ Usage:
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable
+from typing import Any
 
 from .client import BaseLlmClient, LlmClient
 from .errors import (
     AuthenticationError,
     ContentFilterError,
-    InvalidResponseError,
     LlmError,
     ModelNotFoundError,
     NetworkError,
     RateLimitError,
     TimeoutError,
 )
-from .types import ChatResponse, Message, StreamChunk, ToolDefinition
+from .types import ChatResponse, Message, ToolDefinition
 
 logger = logging.getLogger(__name__)
 

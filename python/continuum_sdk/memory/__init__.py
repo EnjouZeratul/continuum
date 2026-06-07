@@ -42,17 +42,16 @@ Quick Start:
 """
 
 # First import base types from storage
-from .storage import (
-    StorageBackend,
-    MemoryStorage,
-    FileStorage,
-    SQLiteStorage,
-    MemoryEntry,
-    MemoryTier,
-)
-
 # Then import high-level API from layers
-from .layers import Memory, TierProxy, MemoryQuery
+from .layers import Memory, MemoryQuery, TierProxy
+from .storage import (
+    FileStorage,
+    MemoryEntry,
+    MemoryStorage,
+    MemoryTier,
+    SQLiteStorage,
+    StorageBackend,
+)
 
 __all__ = [
     # Core API

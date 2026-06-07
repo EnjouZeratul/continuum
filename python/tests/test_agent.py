@@ -15,25 +15,22 @@ Coverage areas:
 - Streaming support (run_stream, execute_stream)
 """
 
-import os
-import sys
 
 from unittest.mock import AsyncMock, MagicMock, patch
-import asyncio
 
 import pytest
 
 from continuum_sdk.agent import Agent, AgentConfig, AgentState
 from continuum_sdk.agent.runtime import create_agent
-from continuum_sdk.llm import (
-    ChatResponse,
-    TokenUsage,
-    StreamChunk,
-    AuthenticationError,
-    LlmError,
-)
 from continuum_sdk.config import Config
 from continuum_sdk.config.providers import get_default_model
+from continuum_sdk.llm import (
+    AuthenticationError,
+    ChatResponse,
+    LlmError,
+    StreamChunk,
+    TokenUsage,
+)
 
 
 class TestAgentConfig:
@@ -1057,7 +1054,6 @@ class TestRustBindingsCoverage:
 
         # Create a temporary module that simulates the import failure
         import types
-        import sys
 
         # Create a new module to execute the import code
         test_module = types.ModuleType('test_runtime_import')
@@ -1168,7 +1164,7 @@ except ImportError:
             # The coverage comes from the branch being exercised
             try:
                 # This will call line 494: return self._rust_agent.execute(task)
-                result = await agent.execute_async("test")
+                await agent.execute_async("test")
             except Exception:
                 # Expected to fail without real API setup, but line 494 is covered
                 pass

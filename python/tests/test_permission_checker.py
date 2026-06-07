@@ -10,18 +10,16 @@ Tests cover:
 """
 
 import os
-import sys
-import tempfile
 import shutil
-from datetime import datetime
+import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
 from continuum_sdk.security.permission_checker import (
-    PermissionChecker,
     Permission,
+    PermissionChecker,
     PermissionResult,
 )
 
@@ -267,7 +265,7 @@ class TestPermissionChecker:
         checker._cache_ttl = 0.0  # Immediate expiry
 
         file_path = os.path.join(temp_dir, "readable.txt")
-        result1 = checker.check(file_path, Permission.READ)
+        checker.check(file_path, Permission.READ)
 
         # Cache should be stale immediately
         # Check cache key
@@ -440,7 +438,7 @@ class TestPermissionCheckerErrorHandling:
         file_path = os.path.join(temp_dir, "file.txt")
         Path(file_path).write_text("content")
 
-        with patch.object(Path, 'stat', side_effect=IOError("IO error")):
+        with patch.object(Path, 'stat', side_effect=OSError("IO error")):
             perms = checker._get_permissions(Path(file_path))
             assert perms == 0o644
 
@@ -521,7 +519,7 @@ class TestPermissionCheckerCacheMechanism:
         checker._cache_ttl = 0.01  # Very short TTL
 
         file_path = os.path.join(temp_dir, "file.txt")
-        result1 = checker.check(file_path, Permission.READ)
+        checker.check(file_path, Permission.READ)
 
         # Wait for TTL to expire
         import time
@@ -537,7 +535,7 @@ class TestPermissionCheckerCacheMechanism:
 
         checker._get_permissions = counting_get_perms
 
-        result2 = checker.check(file_path, Permission.READ)
+        checker.check(file_path, Permission.READ)
 
         # Should have done a fresh check (call_count > 0)
         assert call_count[0] > 0
@@ -620,7 +618,6 @@ class TestPermissionCheckerCreatePermission:
     def temp_dir(self):
         """Create temp directory."""
         dir_path = tempfile.mkdtemp()
-        Path(dir_dir, "file.txt").write_text("content") if False else None  # Avoid unused
         yield dir_path
         shutil.rmtree(dir_path)
 

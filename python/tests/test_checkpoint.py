@@ -9,22 +9,20 @@ Tests for:
     - Error handling (invalid paths, corrupted data)
 """
 
-import importlib
 import json
-import os
 import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from continuum_sdk.agent.checkpoint import (
+    HAS_RUST_BINDING,
     CheckpointClient,
     CheckpointMeta,
     PythonCheckpointSystem,
-    HAS_RUST_BINDING,
 )
 
 
@@ -982,7 +980,7 @@ class TestCheckpointEdgeCases:
 
             # Mock the Path object's unlink method using patch on the module
             # This covers lines 305-307
-            with patch("pathlib.Path.unlink", side_effect=IOError("Disk error")):
+            with patch("pathlib.Path.unlink", side_effect=OSError("Disk error")):
                 result = system.delete("session_001", checkpoint_id)
                 assert result is False  # Should return False on IOError
 
@@ -1170,7 +1168,7 @@ class TestClearSession:
             client = CheckpointClient(storage_path=Path(tmpdir))
 
             # Create a checkpoint
-            checkpoint_id = client.save("session_001", {"data": "test"})
+            client.save("session_001", {"data": "test"})
 
             # Mock delete to fail for one checkpoint
             original_delete = client.delete

@@ -8,7 +8,6 @@ Comprehensive tests for theme.py covering:
 - Default value handling
 """
 
-import json
 import os
 import shutil
 import sys
@@ -975,7 +974,7 @@ class TestThemeManagerErrorHandling:
 
             manager = ThemeManager(config_path=config_path, auto_load=False)
             # Should not crash
-            result = manager.load()
+            manager.load()
             # Result depends on whether tomllib is available
         except ImportError:
             pytest.skip("theme module not available")
@@ -1067,7 +1066,7 @@ class TestTomlSupportFallback:
             importlib.reload(theme_module)
 
             # Module should still work
-            from continuum_sdk.config import ColorScheme, ThemeManager
+            from continuum_sdk.config import ThemeManager  # noqa: F401
 
             manager = ThemeManager(auto_load=False)
             assert manager is not None
@@ -1248,7 +1247,7 @@ class TestThemeManagerAdditionalBranches:
             # Create a custom theme object with a name not in presets
             manager._current_theme = ColorScheme(name="nonexistent_preset")
             manager._custom_colors["primary"] = "#FF0000"
-            setattr(manager._current_theme, "primary", "#FF0000")
+            manager._current_theme.primary = "#FF0000"
 
             # reset_color should handle when theme is not in PRESET_THEMES
             # In this case, it should NOT reset the color (no default available)
@@ -1261,7 +1260,7 @@ class TestThemeManagerAdditionalBranches:
     def test_load_with_unknown_theme_name(self, tmp_path):
         """Test load when theme name is not in presets - should keep default"""
         try:
-            import tomli_w
+            import tomli_w  # noqa: F401
 
             from continuum_sdk.config import ThemeManager
 
@@ -1286,7 +1285,7 @@ class TestThemeManagerAdditionalBranches:
     def test_load_with_custom_colors_data(self, tmp_path):
         """Test load with custom colors in config"""
         try:
-            import tomli_w
+            import tomli_w  # noqa: F401
 
             from continuum_sdk.config import ThemeManager
 
@@ -1313,7 +1312,7 @@ class TestThemeManagerAdditionalBranches:
     def test_save_with_tomli_w_available(self, tmp_path):
         """Test save when tomli_w is available"""
         try:
-            import tomli_w
+            import tomli_w  # noqa: F401
 
             from continuum_sdk.config import ThemeManager
 
@@ -1341,7 +1340,6 @@ class TestTomlImportFallbacks:
 
     def test_tomli_fallback_import(self):
         """Test that tomli is imported when tomllib is not available (lines 58-62)"""
-        import sys
         import importlib
 
         # Save current state
@@ -1379,9 +1377,8 @@ class TestTomlImportFallbacks:
 
     def test_tomllib_and_tomli_not_available(self):
         """Test when both tomllib and tomli are not available (line 62)"""
-        import sys
-        import importlib
         import builtins
+        import importlib
 
         # Save current state
         original_tomllib = sys.modules.get('tomllib')
@@ -1423,9 +1420,8 @@ class TestTomlImportFallbacks:
 
     def test_tomli_w_not_available(self):
         """Test when tomli_w is not available (lines 66-67)"""
-        import sys
-        import importlib
         import builtins
+        import importlib
 
         # Save current state
         original_tomli_w = sys.modules.get('tomli_w')

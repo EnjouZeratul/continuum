@@ -61,11 +61,11 @@ Export:
 
 import json
 import re
-from dataclasses import dataclass, field
+from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterator
 
 from .session import Message, MessageRole, Session
 
@@ -391,8 +391,7 @@ class HistoryBrowser:
             Message objects
         """
         messages = self.get_all(order)
-        for msg in messages:
-            yield msg
+        yield from messages
 
     def get_statistics(self) -> HistoryStatistics:
         """

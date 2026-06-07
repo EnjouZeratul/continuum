@@ -1,10 +1,9 @@
 """Tools unit tests - comprehensive coverage for continuum_sdk.tools module."""
 
-import os
-import sys
-
 import asyncio
+import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -13,57 +12,57 @@ import pytest
 
 # Import all public exports from __init__.py
 from continuum_sdk.tools import (
-    # Types
-    ToolResult,
-    ToolError,
-    ToolNotAvailableError,
-    ToolMeta,
-    ToolCategory,
-    # Bash
-    BashTool,
-    bash_execute,
-    bash_execute_sync,
-    validate_command,
-    # Read
-    ReadTool,
-    read_file,
-    detect_encoding,
-    # Write
-    WriteTool,
-    write_file,
-    # Edit
-    EditTool,
-    edit_file,
-    # File Search
-    GrepTool,
-    GlobTool,
-    grep,
-    glob,
-    # Web Search
-    WebSearchTool,
-    SearchEngine,
-    SearchResult,
-    SearchResponse,
-    web_search,
-    duckduckgo,
-    google,
-    bing,
-    # Custom tools
-    CustomTool,
-    ToolRegistry,
-    tool,
-    register_tool,
-    get_registry,
-    # BuiltinTools (unified)
-    BuiltinTools,
-    get_builtin_tools,
     # MCP (optional)
     _MCP_AVAILABLE,
-    MCPToolRegistry,
-    MCPTool,
-    ContinuumMCPAdapter,
-    create_mcp_registry,
     PREDEFINED_MCP_SERVERS,
+    # Bash
+    BashTool,
+    # BuiltinTools (unified)
+    BuiltinTools,
+    ContinuumMCPAdapter,
+    # Custom tools
+    CustomTool,
+    # Edit
+    EditTool,
+    GlobTool,
+    # File Search
+    GrepTool,
+    MCPTool,
+    MCPToolRegistry,
+    # Read
+    ReadTool,
+    SearchEngine,
+    SearchResponse,
+    SearchResult,
+    ToolCategory,
+    ToolError,
+    ToolMeta,
+    ToolNotAvailableError,
+    ToolRegistry,
+    # Types
+    ToolResult,
+    # Web Search
+    WebSearchTool,
+    # Write
+    WriteTool,
+    bash_execute,
+    bash_execute_sync,
+    bing,
+    create_mcp_registry,
+    detect_encoding,
+    duckduckgo,
+    edit_file,
+    get_builtin_tools,
+    get_registry,
+    glob,
+    google,
+    grep,
+    read_file,
+    register_tool,
+    tool,
+    validate_command,
+    web_search,
+    write_file,
 )
 
 
@@ -704,7 +703,6 @@ class TestCustomTool:
 
     def test_custom_tool_class_implementation(self):
         """Test implementing CustomTool directly via subclass."""
-        from continuum_sdk.tools import CustomTool
 
         class MyCustomTool(CustomTool):
             @property
@@ -962,7 +960,7 @@ class TestBashValidation:
             filepath = f.name
         try:
             # rm requires confirm=True
-            result = bash_execute_sync(f"rm {filepath}", confirm=True)
+            bash_execute_sync(f"rm {filepath}", confirm=True)
             # rm might return error exit code, but should not raise ToolError at policy level
             # Actually on Windows, rm is not a valid command
         except ToolError:
@@ -1188,7 +1186,6 @@ class TestModuleExports:
         """Test MCP import fallback behavior by simulating ImportError."""
         # This test covers lines 80-86 in __init__.py by forcing the ImportError path
         # We need to reload the module with mocked import
-        import sys
         import importlib
 
         # Mock mcp_adapter to raise ImportError

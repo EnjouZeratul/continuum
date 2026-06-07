@@ -228,7 +228,7 @@ class PythonCheckpointSystem:
             if temp_path.exists():
                 try:
                     temp_path.unlink()
-                except (OSError, IOError, PermissionError):
+                except (OSError, PermissionError):
                     pass
 
     def load(self, session_id: str, checkpoint_id: str | None = None) -> str | None:
@@ -258,11 +258,11 @@ class PythonCheckpointSystem:
             checkpoint_path = checkpoints[0]
 
         try:
-            with open(checkpoint_path, "r", encoding="utf-8") as f:
+            with open(checkpoint_path, encoding="utf-8") as f:
                 data = json.load(f)
             logger.debug(f"Loaded checkpoint from {checkpoint_path}")
             return json.dumps(data.get("state", data))
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.warning(f"Failed to load checkpoint: {e}")
             return None
 
@@ -282,7 +282,7 @@ class PythonCheckpointSystem:
                 # Extract checkpoint_id from filename
                 checkpoint_id = cp_file.stem
                 checkpoints.append(checkpoint_id)
-            except (OSError, IOError, PermissionError, UnicodeDecodeError):
+            except (OSError, PermissionError, UnicodeDecodeError):
                 continue
         return sorted(checkpoints)
 
@@ -302,7 +302,7 @@ class PythonCheckpointSystem:
                 checkpoint_path.unlink()
                 logger.debug(f"Deleted checkpoint {checkpoint_id}")
                 return True
-            except IOError as e:
+            except OSError as e:
                 logger.warning(f"Failed to delete checkpoint: {e}")
                 return False
         return False

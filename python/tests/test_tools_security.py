@@ -6,11 +6,10 @@ including SecurityContext, resolve_security, enforce_path, and record_audit.
 """
 
 import logging
-import os
 import shutil
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -23,8 +22,8 @@ from continuum_sdk.security import (
     PermissionChecker,
 )
 from continuum_sdk.tools._security import (
-    SecurityContext,
     _WARNED_NO_WORKSPACE,
+    SecurityContext,
     enforce_path,
     record_audit,
     resolve_security,

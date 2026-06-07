@@ -3,19 +3,15 @@ Tests for planner.py and self_correction.py edge cases to achieve 100% coverage.
 """
 
 import asyncio
-import json
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
-from continuum_sdk.agent.planner import Planner, Plan, Step, StepType, StepStatus
+from continuum_sdk.agent.planner import Planner, StepType
 from continuum_sdk.agent.self_correction import (
-    SelfCorrection,
     ErrorContext,
     ErrorType,
-    Correction,
     RecoveryStrategy,
+    SelfCorrection,
 )
-
 
 # ==================== Planner Edge Cases ====================
 

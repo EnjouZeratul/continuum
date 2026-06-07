@@ -32,16 +32,35 @@ Tools:
 __version__ = "1.0.0"
 
 # Unified API (recommended)
-from .api import Agent, Session, BuiltinTools, HAS_RUST_BINDING, get_implementation_preference
-
 # Core classes (legacy, same as api.Agent)
-from .agent import Agent as LegacyAgent, Session as LegacySession
+from .agent import Agent as LegacyAgent
+from .agent import Session as LegacySession
+from .api import HAS_RUST_BINDING, Agent, BuiltinTools, Session, get_implementation_preference
 from .config import (
     Config,
     ConfigLoader,
     get_default_model,
     list_providers,
     load_config,
+)
+
+# Unified errors (recommended)
+from .errors import (
+    AuthenticationError,
+    ConfigError,
+    ContinuumError,
+    ErrorContext,
+    RateLimitError,
+    SecurityError,
+    ToolExecutionError,
+    ValidationError,
+    config_error,
+    security_error,
+    tool_error,
+    validation_error,
+)
+from .errors import (
+    LLMError as UnifiedLLMError,
 )
 
 # LLM module (for advanced usage)
@@ -58,23 +77,6 @@ from .llm import (
     TokenUsage,
 )
 
-# Unified errors (recommended)
-from .errors import (
-    ContinuumError,
-    ErrorContext,
-    ConfigError,
-    ToolExecutionError,
-    LLMError as UnifiedLLMError,
-    AuthenticationError,
-    RateLimitError,
-    SecurityError,
-    ValidationError,
-    config_error,
-    tool_error,
-    validation_error,
-    security_error,
-)
-
 __all__ = [
     # Unified API (recommended)
     "Agent",
@@ -82,6 +84,9 @@ __all__ = [
     "BuiltinTools",
     "HAS_RUST_BINDING",
     "get_implementation_preference",
+    # Legacy aliases (for backward compatibility)
+    "LegacyAgent",
+    "LegacySession",
     # Config
     "Config",
     "ConfigLoader",
@@ -108,6 +113,7 @@ __all__ = [
     "RateLimitError",
     "SecurityError",
     "ValidationError",
+    "UnifiedLLMError",
     "config_error",
     "tool_error",
     "validation_error",

@@ -100,10 +100,10 @@ if TYPE_CHECKING:
 # Import Rust bindings (will be available after compilation)
 try:
     from sh_python import Agent as RustAgent
-    from sh_python import AgentRuntime as RustAgentRuntime
     from sh_python import AgentConfig as RustAgentConfig
-    from sh_python import AgentStreamIterator as RustStreamIterator
-    from sh_python import StreamChunk as RustStreamChunk
+    from sh_python import AgentRuntime as RustAgentRuntime
+    from sh_python import AgentStreamIterator as RustStreamIterator  # noqa: F401
+    from sh_python import StreamChunk as RustStreamChunk  # noqa: F401
 
     HAS_RUST_BINDINGS = True
 except ImportError:  # pragma: no cover
@@ -174,9 +174,10 @@ class AgentConfig:
     ):
         # Dynamically get default values from environment variables or providers config
         # Support third-party APIs and custom providers
-        import os
         import logging
-        from continuum_sdk.config.providers import get_default_model, get_default_base_url
+        import os
+
+        from continuum_sdk.config.providers import get_default_base_url, get_default_model
 
         self.name = name
         # Model default: priority: parameter > CONTINUUM_MODEL env > providers config
@@ -243,7 +244,6 @@ class AgentConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> AgentConfig:
-        from continuum_sdk.config.providers import get_default_model
 
         return cls(
             name=data.get("name", "default"),

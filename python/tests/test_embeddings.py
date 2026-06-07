@@ -8,15 +8,14 @@ Tests cover:
 - Error handling for various providers
 """
 
-import os
-import hashlib
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from continuum_sdk.rag.embeddings import (
-    Embeddings,
-    EmbeddingConfig,
     PREDEFINED_EMBEDDINGS,
+    EmbeddingConfig,
+    Embeddings,
 )
 
 
@@ -674,7 +673,6 @@ class TestNoHTTPClientWarning:
     def test_no_http_client_warning(self, monkeypatch):
         """Test warning when neither OpenAI SDK nor httpx available."""
         import sys
-        import importlib
 
         # Save original module
         orig_module = sys.modules.get("continuum_sdk.rag.embeddings")
@@ -695,12 +693,12 @@ class TestNoHTTPClientWarning:
                 import continuum_sdk.rag.embeddings as emb_module
 
                 # Verify both are False
-                assert emb_module._OPENAI_SDK_AVAILABLE == False
-                assert emb_module._HTTPX_AVAILABLE == False
+                assert not emb_module._OPENAI_SDK_AVAILABLE
+                assert not emb_module._HTTPX_AVAILABLE
 
                 # Now test the warning is logged
                 with patch.object(emb_module.logger, 'warning') as mock_warning:
-                    embeddings = emb_module.Embeddings(
+                    emb_module.Embeddings(
                         provider="openai",
                         model="text-embedding-3-small",
                         api_key="test-key",
@@ -726,7 +724,6 @@ class TestImportErrorHandling:
         """Test that _RUST_AVAILABLE is False when import fails."""
         # Re-import the module to test the import error path
         import sys
-        import importlib
 
         # Save original module
         orig_module = sys.modules.get("continuum_sdk.rag.embeddings")

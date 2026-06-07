@@ -5,8 +5,6 @@ history 模块的完整测试覆盖。
 """
 
 import json
-import os
-import sys
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -462,7 +460,7 @@ class TestHistoryBrowser:
         测试迭代消息。
         """
         count = 0
-        for msg in browser.iterate():
+        for _msg in browser.iterate():
             count += 1
         assert count == 6
 

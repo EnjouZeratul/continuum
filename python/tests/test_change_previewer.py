@@ -11,21 +11,20 @@ Tests cover:
 - Thread safety
 """
 
-import os
 import sys
 import threading
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from continuum_sdk.security.change_previewer import (
-    ChangePreviewer,
     Change,
+    ChangePreviewer,
     ChangeType,
-    RiskLevel,
     ConfirmationResult,
+    RiskLevel,
 )
 
 
@@ -440,7 +439,7 @@ class TestChangePreviewer:
             mock_confirm.return_value = ConfirmationResult(
                 approved=False, change=change, reason="test"
             )
-            result = previewer.confirm(change, force_confirm=True)
+            previewer.confirm(change, force_confirm=True)
             # Should call interactive confirm since force_confirm is True
             mock_confirm.assert_called_once()
 
@@ -463,7 +462,7 @@ class TestChangePreviewer:
             mock_interactive.return_value = ConfirmationResult(
                 approved=False, change=change, reason="fallback"
             )
-            result = previewer.confirm(change, force_confirm=True)
+            previewer.confirm(change, force_confirm=True)
             mock_interactive.assert_called_once()
 
     def test_confirm_batch(self):
@@ -644,7 +643,7 @@ class TestChangePreviewerEdgeCases:
         change = Change(change_type=ChangeType.CREATE, path="/file.py", content=long_content)
         preview = previewer.preview(change)
         # Should truncate to 500 chars in preview
-        assert len([l for l in preview.split('\n') if l.startswith('x')]) > 0
+        assert len([line for line in preview.split('\n') if line.startswith('x')]) > 0
 
     def test_diff_with_empty_old_content(self):
         """Test diff when old content is empty."""
@@ -815,7 +814,6 @@ class TestMissingCoverage:
 
         # Capture the output
         import io
-        import sys
         captured_output = io.StringIO()
         sys.stdout = captured_output
 
@@ -872,7 +870,6 @@ class TestMissingCoverage:
         previewer.set_custom_confirmer(lambda c: True)
 
         import io
-        import sys
         captured_output = io.StringIO()
         sys.stdout = captured_output
 
@@ -924,6 +921,6 @@ class TestMissingCoverage:
             finally:
                 sys.stdout = sys.__stdout__
 
-            output = captured_output.getvalue()
+            captured_output.getvalue()
             # Should have grouped all risk levels
             assert len(results) == 4

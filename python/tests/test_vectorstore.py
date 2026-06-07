@@ -1,16 +1,15 @@
 """VectorStore Tests"""
 
-import pytest
 from continuum_sdk.rag import (
-    InMemoryVectorStore,
     DistanceMetric,
+    InMemoryVectorStore,
     MetadataFilter,
-    VectorItem,
     SearchResult,
+    VectorItem,
     VectorStore,
     cosine_similarity,
-    euclidean_similarity,
     dot_product_similarity,
+    euclidean_similarity,
     manhattan_similarity,
 )
 

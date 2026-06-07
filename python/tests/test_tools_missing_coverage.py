@@ -6,29 +6,24 @@ Test file to achieve 100% coverage for:
 """
 
 import asyncio
-import json
-import os
-import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from continuum_sdk.tools import (
     BuiltinTools,
     CustomTool,
-    GrepTool,
     GlobTool,
-    ToolRegistry,
+    GrepTool,
     ToolError,
     ToolNotAvailableError,
-    grep,
-    glob,
+    ToolRegistry,
     get_builtin_tools,
+    glob,
+    grep,
 )
 from continuum_sdk.tools.builtin import HAS_RUST_BINDING, RustToolExecutor
-
 
 # ==================== search.py Missing Coverage ====================
 
@@ -73,7 +68,7 @@ class TestGrepMissingCoverage:
         """Line 135: Test content mode with head_limit reached."""
         # Create a file with many matches
         test_file = tmp_path / "test.py"
-        lines = ["def function_{}():\n".format(i) for i in range(300)]
+        lines = [f"def function_{i}():\n" for i in range(300)]
         test_file.write_text("".join(lines))
 
         # Search with small head_limit
@@ -636,7 +631,7 @@ class TestBuiltinToolsMissingCoverage:
 
     def test_toolmeta_post_init(self):
         """Line 146->exit: Test ToolMeta.__post_init__ sets default parameters."""
-        from continuum_sdk.tools import ToolMeta, ToolCategory
+        from continuum_sdk.tools import ToolCategory, ToolMeta
 
         # Create without parameters
         meta = ToolMeta(

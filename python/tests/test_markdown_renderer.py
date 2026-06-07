@@ -1,7 +1,5 @@
 """Markdown Renderer Tests"""
 
-import os
-import sys
 
 import pytest
 
@@ -20,7 +18,7 @@ class TestMarkdownRenderer:
     def test_renderer_creation(self):
         """Test renderer creation"""
         try:
-            from continuum_sdk.render import MarkdownRenderer, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer
             renderer = MarkdownRenderer(theme=CodeTheme.MONOKAI)
             assert renderer is not None
             assert renderer.theme == CodeTheme.MONOKAI
@@ -30,8 +28,9 @@ class TestMarkdownRenderer:
     def test_render_simple(self):
         """Test simple markdown rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -55,8 +54,9 @@ class TestMarkdownRenderer:
     def test_render_code_block(self):
         """Test code block rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -69,8 +69,9 @@ class TestMarkdownRenderer:
     def test_render_table(self):
         """Test table rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -84,8 +85,9 @@ class TestMarkdownRenderer:
     def test_render_heading(self):
         """Test heading rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -98,8 +100,9 @@ class TestMarkdownRenderer:
     def test_render_list(self):
         """Test list rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -113,8 +116,9 @@ class TestMarkdownRenderer:
     def test_render_blockquote(self):
         """Test blockquote rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -126,8 +130,9 @@ class TestMarkdownRenderer:
     def test_render_link(self):
         """Test link rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()
@@ -149,7 +154,7 @@ class TestMarkdownRenderer:
     def test_render_options(self):
         """Test RenderOptions"""
         try:
-            from continuum_sdk.render import RenderOptions, CodeTheme
+            from continuum_sdk.render import CodeTheme, RenderOptions
 
             options = RenderOptions(
                 code_theme=CodeTheme.MONOKAI,
@@ -165,7 +170,7 @@ class TestMarkdownRenderer:
     def test_set_theme(self):
         """Test theme setter"""
         try:
-            from continuum_sdk.render import MarkdownRenderer, CodeTheme
+            from continuum_sdk.render import CodeTheme, MarkdownRenderer
 
             renderer = MarkdownRenderer(theme=CodeTheme.MONOKAI)
             assert renderer.theme == CodeTheme.MONOKAI
@@ -191,8 +196,9 @@ class TestMarkdownRenderer:
     def test_render_markdown_function(self):
         """Test convenience function"""
         try:
-            from continuum_sdk.render import render_markdown
             from rich.console import Console
+
+            from continuum_sdk.render import render_markdown
 
             console = Console()
             render_markdown("# Test", console=console)
@@ -202,8 +208,9 @@ class TestMarkdownRenderer:
     def test_complex_markdown(self):
         """Test complex markdown rendering"""
         try:
-            from continuum_sdk.render import MarkdownRenderer
             from rich.console import Console
+
+            from continuum_sdk.render import MarkdownRenderer
 
             renderer = MarkdownRenderer()
             console = Console()

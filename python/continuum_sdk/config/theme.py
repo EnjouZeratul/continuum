@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -130,7 +130,7 @@ class ColorScheme:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, str]) -> "ColorScheme":
+    def from_dict(cls, data: dict[str, str]) -> ColorScheme:
         return cls(
             name=data.get("name", "custom"),
             primary=data.get("primary", "#4A90D9"),
@@ -467,7 +467,7 @@ class ThemeManager:
             logger.info(f"Saved theme to: {self._config_path}")
             return True
 
-        except (OSError, IOError, PermissionError) as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Failed to save theme: {e}")
             return False
 

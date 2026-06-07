@@ -157,7 +157,7 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
 
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
 
@@ -172,7 +172,7 @@ def euclidean_similarity(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
 
-    sum_sq = sum((x - y) ** 2 for x, y in zip(a, b))
+    sum_sq = sum((x - y) ** 2 for x, y in zip(a, b, strict=False))
     return 1.0 / (1.0 + math.sqrt(sum_sq))
 
 
@@ -181,7 +181,7 @@ def dot_product_similarity(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
 
-    return sum(x * y for x, y in zip(a, b))
+    return sum(x * y for x, y in zip(a, b, strict=False))
 
 
 def manhattan_similarity(a: list[float], b: list[float]) -> float:
@@ -189,7 +189,7 @@ def manhattan_similarity(a: list[float], b: list[float]) -> float:
     if len(a) != len(b):
         return 0.0
 
-    sum_abs = sum(abs(x - y) for x, y in zip(a, b))
+    sum_abs = sum(abs(x - y) for x, y in zip(a, b, strict=False))
     return 1.0 / (1.0 + sum_abs)
 
 

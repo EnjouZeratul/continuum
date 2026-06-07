@@ -1,8 +1,6 @@
 """Session 单元测试"""
 
-import os
 import sys
-
 from datetime import datetime
 
 import pytest
@@ -147,8 +145,8 @@ class TestSessionPersistence:
     @pytest.fixture
     def temp_dir(self):
         """创建临时目录"""
-        import tempfile
         import shutil
+        import tempfile
         dir_path = tempfile.mkdtemp()
         yield dir_path
         shutil.rmtree(dir_path)
@@ -197,7 +195,7 @@ class TestSessionPersistence:
     def test_save_to_default(self, temp_dir):
         """测试保存到默认目录"""
         # 使用临时目录作为默认目录
-        original_dir = Session.get_default_session_dir()
+        Session.get_default_session_dir()
 
         session = Session(id="default-test")
         session.add_user_message("Test")
@@ -308,8 +306,8 @@ class TestSessionRecover:
     @pytest.fixture
     def temp_dir(self):
         """Create temporary directory."""
-        import tempfile
         import shutil
+        import tempfile
         dir_path = tempfile.mkdtemp()
         yield dir_path
         shutil.rmtree(dir_path)
@@ -364,8 +362,8 @@ class TestSessionRecover:
 
     def test_recover_missing_required_fields(self, temp_dir):
         """Test recover with missing required fields."""
-        from pathlib import Path
         import json
+        from pathlib import Path
 
         checkpoint_path = Path(temp_dir) / "incomplete.json"
 
@@ -395,8 +393,8 @@ class TestSessionRecover:
 
     def test_recover_preserves_timestamps(self, temp_dir):
         """Test recover preserves message timestamps."""
-        from pathlib import Path
         from datetime import datetime
+        from pathlib import Path
 
         checkpoint_path = Path(temp_dir) / "timestamps.json"
 
@@ -437,7 +435,6 @@ class TestSessionExportImport:
 
     def test_from_dict(self):
         """Test from_dict deserialization."""
-        from datetime import datetime
 
         session = Session(id="dict-test")
         session.add_user_message("Test")
@@ -652,7 +649,6 @@ class TestSessionEdgeCases:
 
     def test_persistence_creates_parent_directories(self, tmp_path):
         """Test save creates parent directories."""
-        from pathlib import Path
 
         session = Session(id="nested-test")
         nested_path = tmp_path / "deeply" / "nested" / "dir" / "session.json"
@@ -668,7 +664,6 @@ class TestSessionEdgeCases:
 
     def test_load_with_utf8_encoding(self, tmp_path):
         """Test load handles UTF-8 encoding properly."""
-        from pathlib import Path
 
         session = Session(id="utf8-test")
         session.add_user_message("Hello 世界")
@@ -715,7 +710,6 @@ class TestRustBindings:
 
     def test_rust_session_properties(self):
         """Test session properties when Rust bindings are available."""
-        import sys
         from datetime import datetime
 
         # Create a mock sh_core module
@@ -784,7 +778,6 @@ class TestRustBindings:
 
     def test_rust_add_message_sync(self):
         """Test add_message syncs to Rust session."""
-        import sys
 
         class MockRustSession:
             def __init__(self, session_id):
@@ -835,7 +828,6 @@ class TestRustBindings:
 
     def test_rust_get_messages_conversion(self):
         """Test get_messages converts Rust messages to Python Message objects."""
-        import sys
 
         class MockRustSession:
             def __init__(self, session_id):
@@ -883,7 +875,6 @@ class TestRustBindings:
 
     def test_rust_get_messages_with_limit(self):
         """Test get_messages with limit when using Rust bindings."""
-        import sys
 
         class MockRustSession:
             def __init__(self, session_id):
@@ -929,7 +920,6 @@ class TestRustBindings:
 
     def test_rust_clear_messages(self):
         """Test clear_messages syncs to Rust."""
-        import sys
 
         class MockRustSession:
             def __init__(self, session_id):
@@ -975,7 +965,6 @@ class TestRustBindings:
 
     def test_rust_export(self):
         """Test export uses Rust binding."""
-        import sys
 
         class MockRustSession:
             def __init__(self, session_id):
@@ -1024,7 +1013,6 @@ class TestRustBindingsImportCheck:
 
     def test_has_rust_bindings_false(self):
         """Test that HAS_RUST_BINDINGS is False when sh_core not available."""
-        import sys
 
         # Ensure no mock sh_core is present
         if "sh_core" in sys.modules:

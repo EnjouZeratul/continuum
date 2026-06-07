@@ -59,11 +59,12 @@ import difflib
 import logging
 import os
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +288,7 @@ class ChangePreviewer:
             if path_obj.exists():
                 try:
                     old_content = path_obj.read_text(encoding="utf-8")
-                except (OSError, IOError, PermissionError, UnicodeDecodeError) as e:
+                except (OSError, PermissionError, UnicodeDecodeError) as e:
                     # Silent handling on read failure, old_content stays None
                     # diff will show as "new content" instead of "modified"
                     logger.debug(f"Failed to read old content for {path}: {e}")
@@ -312,7 +313,7 @@ class ChangePreviewer:
             Preview text
         """
         lines = []
-        lines.append(f"=== Change Preview ===")
+        lines.append("=== Change Preview ===")
         lines.append(f"Type: {change.change_type.value}")
         lines.append(f"Path: {change.path}")
         lines.append(f"Risk: {change.risk_level.value if change.risk_level else 'unknown'}")
@@ -353,7 +354,7 @@ class ChangePreviewer:
             lines.append(f"Source: {change.source_path}")
 
         lines.append("")
-        lines.append(f"=== End Preview ===")
+        lines.append("=== End Preview ===")
 
         return "\n".join(lines)
 

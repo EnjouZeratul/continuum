@@ -4,21 +4,20 @@ Retriever Tests - Coverage Enhancement
 Tests for retriever.py to improve coverage from 26% to 60%+.
 """
 
-import asyncio
 import pytest
 
 from continuum_sdk.rag.retriever import (
-    Document,
-    RetrievalResult,
     Chunk,
     ChunkPosition,
-    HybridWeights,
-    RetrieverEngine,
     DefaultRetrieverEngine,
-    MockEmbeddingModel,
+    Document,
     FixedSizeChunker,
+    HybridWeights,
+    MockEmbeddingModel,
     ParagraphChunker,
     RecursiveChunker,
+    RetrievalResult,
+    RetrieverEngine,
 )
 
 
@@ -254,7 +253,7 @@ class TestFixedSizeChunker:
         doc = Document(content=content, id="doc-1")
         chunks = chunker.chunk(doc)
         # Check overlap exists between consecutive chunks
-        for i in range(len(chunks) - 1):
+        for _i in range(len(chunks) - 1):
             # End of current should overlap with start of next
             pass  # Overlap validation depends on content
 

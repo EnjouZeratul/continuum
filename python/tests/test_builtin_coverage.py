@@ -127,7 +127,7 @@ class TestBuiltinToolsFallback:
                 path = f.name
 
             tools = BuiltinTools()
-            result = tools.edit_file(path, "old_text", "new_text")
+            tools.edit_file(path, "old_text", "new_text")
 
             # Verify edit happened
             with open(path) as f:
@@ -261,7 +261,7 @@ class TestBuiltinToolsExecute:
                 path = os.path.join(tmpdir, "exec_write.txt")
 
                 tools = BuiltinTools()
-                result = tools.execute("write_file", {"path": path, "content": "test"})
+                tools.execute("write_file", {"path": path, "content": "test"})
 
                 assert os.path.exists(path)
         finally:
@@ -281,7 +281,7 @@ class TestBuiltinToolsExecute:
                 path = f.name
 
             tools = BuiltinTools()
-            result = tools.execute("edit_file", {
+            tools.execute("edit_file", {
                 "path": path,
                 "old": "original",
                 "new": "modified",
@@ -431,10 +431,9 @@ class TestBuiltinToolsSingleton:
 
     def test_get_builtin_tools_singleton(self):
         """Test singleton creation"""
-        from continuum_sdk.tools.builtin import get_builtin_tools, _builtin_tools
-
         # Reset singleton
         import continuum_sdk.tools.builtin as builtin_module
+        from continuum_sdk.tools.builtin import get_builtin_tools
         builtin_module._builtin_tools = None
 
         tools1 = get_builtin_tools()
@@ -567,7 +566,7 @@ class TestBuiltinToolsWriteVariations:
                 path = os.path.join(tmpdir, "empty.txt")
 
                 tools = BuiltinTools()
-                result = tools.write_file(path, "")
+                tools.write_file(path, "")
 
                 # File should be created (empty or with newline)
                 assert os.path.exists(path)
@@ -676,7 +675,7 @@ class TestEditFileVariations:
 
             tools = BuiltinTools()
             # Test via execute with correct parameter keys (old/new for fallback)
-            result = tools.execute("edit_file", {
+            tools.execute("edit_file", {
                 "path": path,
                 "old": "original",
                 "new": "modified",

@@ -5,11 +5,9 @@ Tests MCPToolRegistry, MCPTool, and ContinuumMCPAdapter.
 Requires mcpadapt library for real tests.
 """
 
-import json
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from dataclasses import dataclass
-from typing import Any
 
 # Test imports
 from continuum_sdk.tools.types import ToolCategory, ToolMeta, ToolResult
@@ -767,7 +765,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             # Setup mocks
             mock_mcp = MagicMock()
@@ -816,7 +814,7 @@ class TestMCPToolRegistry:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), mock_mcp)
 
                 registry = MCPToolRegistry()
-                tools = registry.connect_stdio(
+                registry.connect_stdio(
                     name="test_server",
                     command="uvx",
                     args=["mcp-server-test"],
@@ -832,7 +830,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -870,7 +868,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -907,7 +905,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -945,7 +943,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -977,7 +975,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -1016,7 +1014,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -1046,7 +1044,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -1077,7 +1075,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPTool, MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client1 = MagicMock()
@@ -1125,7 +1123,7 @@ class TestMCPToolRegistry:
             "sys.modules",
             {"mcp": MagicMock(), "mcpadapt": MagicMock(), "mcpadapt.core": MagicMock()},
         ):
-            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry, MCPTool
+            from continuum_sdk.tools.mcp_adapter import MCPToolRegistry
 
             mock_mcpadapt = MagicMock()
             mock_client = MagicMock()
@@ -1223,7 +1221,7 @@ class TestCreateMCPRegistry:
                     return_value=[]
                 )
 
-                registry = create_mcp_registry()
+                create_mcp_registry()
 
                 # Should default to filesystem
                 mock_registry.connect_stdio.assert_called_once()
@@ -1243,7 +1241,7 @@ class TestCreateMCPRegistry:
                 mock_registry_class.return_value = mock_registry
                 mock_registry.connect_stdio = Mock(return_value=[])
 
-                registry = create_mcp_registry(["filesystem", "github"])
+                create_mcp_registry(["filesystem", "github"])
 
                 # Should call connect_stdio twice
                 assert mock_registry.connect_stdio.call_count == 2
@@ -1263,7 +1261,7 @@ class TestCreateMCPRegistry:
                 mock_registry_class.return_value = mock_registry
                 mock_registry.connect_stdio = Mock(return_value=[])
 
-                registry = create_mcp_registry(["unknown_server"])
+                create_mcp_registry(["unknown_server"])
 
                 # Should not call connect_stdio for unknown server
                 mock_registry.connect_stdio.assert_not_called()
@@ -1283,7 +1281,7 @@ class TestCreateMCPRegistry:
                 mock_registry_class.return_value = mock_registry
                 mock_registry.connect_stdio = Mock(return_value=[])
 
-                registry = create_mcp_registry(
+                create_mcp_registry(
                     servers=["filesystem"],
                     root_path="/custom/root"
                 )
@@ -1331,7 +1329,7 @@ class TestCreateMCPRegistry:
                 mock_registry_class.return_value = mock_registry
                 mock_registry.connect_stdio = Mock(return_value=[])
 
-                registry = create_mcp_registry(["github"])
+                create_mcp_registry(["github"])
 
                 # Check that env was passed
                 call_kwargs = mock_registry.connect_stdio.call_args
@@ -1346,11 +1344,11 @@ class TestModuleExports:
         """Test tools module exports MCP classes."""
         from continuum_sdk.tools import (
             _MCP_AVAILABLE,
-            MCPToolRegistry,
-            MCPTool,
-            ContinuumMCPAdapter,
-            create_mcp_registry,
             PREDEFINED_MCP_SERVERS,
+            ContinuumMCPAdapter,
+            MCPTool,
+            MCPToolRegistry,
+            create_mcp_registry,
         )
 
         # If mcpadapt is installed, these should be available

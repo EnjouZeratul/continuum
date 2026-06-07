@@ -134,7 +134,7 @@ def grep(
                 if output_mode == "content" and len(results) >= head_limit:
                     break
 
-        except (OSError, IOError, PermissionError, UnicodeDecodeError):
+        except (OSError, PermissionError, UnicodeDecodeError):
             continue  # Skip files that can't be read
 
     duration_ms = int((time.time() - start_time) * 1000)
@@ -237,7 +237,7 @@ def glob(
             metadata=metadata,
         )
 
-    except (OSError, IOError, PermissionError, ValueError) as e:
+    except (OSError, PermissionError, ValueError) as e:
         raise ToolError(
             call_id=call_id,
             name="glob",

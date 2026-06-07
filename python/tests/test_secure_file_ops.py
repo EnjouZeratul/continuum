@@ -9,7 +9,6 @@ Test coverage for:
 """
 
 import os
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -69,10 +68,9 @@ class TestSafeOpenRead:
         file_path.write_text("content")
 
         validator = PathValidator(project_root=tmp_path)
-        validate_func = make_validator_func(validator)
+        make_validator_func(validator)
 
         # Mock permission error on os.open
-        original_open = os.open
 
         def mock_os_open_permission(*args, **kwargs):
             raise PermissionError("Mock permission denied")

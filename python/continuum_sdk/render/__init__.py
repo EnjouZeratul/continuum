@@ -28,7 +28,7 @@ Custom Theme:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
@@ -38,11 +38,11 @@ logger = logging.getLogger(__name__)
 try:
     from rich.console import Console
     from rich.markdown import Markdown
+    from rich.style import Style
     from rich.syntax import Syntax
     from rich.table import Table
     from rich.text import Text
     from rich.theme import Theme
-    from rich.style import Style
 
     RICH_AVAILABLE = True
 except ImportError:

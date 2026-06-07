@@ -6,8 +6,8 @@ by using recorded HTTP interactions (cassettes).
 """
 
 import os
+
 import pytest
-import vcr
 
 # Cassette storage directory
 CASSETTE_DIR = os.path.join(os.path.dirname(__file__), "cassettes")

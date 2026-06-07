@@ -12,20 +12,31 @@ Provides capability-based security with:
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
 
 # Try to import Rust bindings if available
 try:
     from sh_python import (
-        PermissionManager as RustPermissionManagerBinding,
-        PermissionPolicy as RustPermissionPolicyBinding,
-        SecurityLevel as RustSecurityLevel,
-        PermissionDecision as RustPermissionDecision,
-        PermissionAction as RustPermissionAction,
         InteractivePermissionManager as RustInteractivePermissionManager,
+    )
+    from sh_python import (
+        PermissionAction as RustPermissionAction,
+    )
+    from sh_python import (
+        PermissionDecision as RustPermissionDecision,
+    )
+    from sh_python import (
+        PermissionManager as RustPermissionManagerBinding,
+    )
+    from sh_python import (
+        PermissionPolicy as RustPermissionPolicyBinding,
+    )
+    from sh_python import (
+        SecurityLevel as RustSecurityLevel,
     )
     HAS_BINDING = True
 except ImportError:
@@ -72,42 +83,42 @@ class PermissionAction:
     details: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def command_execute(cls, command: str, args: Optional[list[str]] = None) -> "PermissionAction":
+    def command_execute(cls, command: str, args: list[str] | None = None) -> PermissionAction:
         """Create a command execution action."""
         return cls(action_type="command_execute", details={"command": command, "args": args or []})
 
     @classmethod
-    def file_read(cls, path: str) -> "PermissionAction":
+    def file_read(cls, path: str) -> PermissionAction:
         """Create a file read action."""
         return cls(action_type="file_read", details={"path": path})
 
     @classmethod
-    def file_write(cls, path: str, content_preview: Optional[str] = None) -> "PermissionAction":
+    def file_write(cls, path: str, content_preview: str | None = None) -> PermissionAction:
         """Create a file write action."""
         return cls(action_type="file_write", details={"path": path, "content_preview": content_preview})
 
     @classmethod
-    def file_delete(cls, path: str) -> "PermissionAction":
+    def file_delete(cls, path: str) -> PermissionAction:
         """Create a file delete action."""
         return cls(action_type="file_delete", details={"path": path})
 
     @classmethod
-    def network_request(cls, url: str, method: str = "GET") -> "PermissionAction":
+    def network_request(cls, url: str, method: str = "GET") -> PermissionAction:
         """Create a network request action."""
         return cls(action_type="network_request", details={"url": url, "method": method})
 
     @classmethod
-    def env_access(cls, names: list[str]) -> "PermissionAction":
+    def env_access(cls, names: list[str]) -> PermissionAction:
         """Create an environment variable access action."""
         return cls(action_type="env_access", details={"names": names})
 
     @classmethod
-    def package_install(cls, packages: list[str]) -> "PermissionAction":
+    def package_install(cls, packages: list[str]) -> PermissionAction:
         """Create a package install action."""
         return cls(action_type="package_install", details={"packages": packages})
 
     @classmethod
-    def custom(cls, description: str) -> "PermissionAction":
+    def custom(cls, description: str) -> PermissionAction:
         """Create a custom action."""
         return cls(action_type="custom", details={"description": description})
 
@@ -152,7 +163,7 @@ class PermissionResponse:
 
     request_id: str
     decision: PermissionDecision
-    reason: Optional[str] = None
+    reason: str | None = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
     def is_allowed(self) -> bool:
@@ -186,22 +197,22 @@ class PermissionPolicy:
     max_audit_entries: int = 10000
 
     @classmethod
-    def trusted(cls) -> "PermissionPolicy":
+    def trusted(cls) -> PermissionPolicy:
         """Create a trusted policy (no prompts)."""
         return cls(level=SecurityLevel.TRUSTED)
 
     @classmethod
-    def standard(cls) -> "PermissionPolicy":
+    def standard(cls) -> PermissionPolicy:
         """Create a standard policy (prompt for dangerous actions)."""
         return cls(level=SecurityLevel.STANDARD)
 
     @classmethod
-    def strict(cls) -> "PermissionPolicy":
+    def strict(cls) -> PermissionPolicy:
         """Create a strict policy (prompt for everything)."""
         return cls(level=SecurityLevel.STRICT)
 
     @classmethod
-    def paranoid(cls) -> "PermissionPolicy":
+    def paranoid(cls) -> PermissionPolicy:
         """Create a paranoid policy (prompt for everything, log everything)."""
         return cls(level=SecurityLevel.PARANOID, audit_enabled=True)
 
@@ -223,12 +234,12 @@ class PermissionPolicy:
 class PermissionManager:
     """Central manager for the permission system."""
 
-    def __init__(self, policy: Optional[PermissionPolicy] = None):
+    def __init__(self, policy: PermissionPolicy | None = None):
         """Initialize the permission manager with the given policy."""
         self._policy = policy or PermissionPolicy()
         self._cache: dict[str, tuple[PermissionDecision, datetime]] = {}
         self._audit_log: list[dict[str, Any]] = []
-        self._prompt_callback: Optional[Callable[[PermissionRequest], PermissionResponse]] = None
+        self._prompt_callback: Callable[[PermissionRequest], PermissionResponse] | None = None
 
     def set_policy(self, policy: PermissionPolicy) -> None:
         """Update the security policy."""
@@ -250,7 +261,6 @@ class PermissionManager:
 
     def check_permission(self, request: PermissionRequest) -> PermissionResponse:
         """Check if an action is allowed, prompting if necessary."""
-        action_category = request.action.action_type
 
         # Check if path is blocked
         if request.action.action_type in ("file_read", "file_write", "file_delete"):
@@ -401,7 +411,7 @@ class PermissionManager:
             action=PermissionAction(action_type="file_read", details={"path": path}),
         )
 
-    def request_file_write(self, path: str, content_preview: Optional[str] = None) -> PermissionRequest:
+    def request_file_write(self, path: str, content_preview: str | None = None) -> PermissionRequest:
         """Create a permission request for file write."""
         import uuid
 

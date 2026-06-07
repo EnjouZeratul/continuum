@@ -17,10 +17,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
-from .vectorstore import DistanceMetric, InMemoryVectorStore, VectorItem
+from .vectorstore import InMemoryVectorStore
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    pass
 
 __all__ = [
     "Document",

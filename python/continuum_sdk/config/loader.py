@@ -88,7 +88,6 @@ ALLOWED_ENV_VARS = {
     "HUGGINGFACE_API_KEY",
     "HUGGINGFACE_EMBEDDING_MODEL",
     "OPENAI_EMBEDDING_MODEL",
-    "COHERE_API_KEY",
     "COHERE_EMBEDDING_MODEL",
     "LOCAL_EMBEDDING_MODEL",
     # Test support
@@ -597,7 +596,7 @@ class Config:
                 elif tomllib:
                     with open(path, "rb") as f:
                         return tomllib.load(f)
-        except (OSError, IOError, json.JSONDecodeError, FileNotFoundError) as e:
+        except (OSError, json.JSONDecodeError, FileNotFoundError) as e:
             print(f"Warning: Failed to load config from {path}: {e}")
 
         return {}

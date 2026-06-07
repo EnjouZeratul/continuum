@@ -8,10 +8,10 @@ Tests for the streaming response functionality:
 - Error handling
 """
 
-import pytest
 import asyncio
 from dataclasses import dataclass
-from typing import Any
+
+import pytest
 
 
 # Mock Rust StreamChunk for testing without compiled bindings

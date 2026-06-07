@@ -19,9 +19,9 @@ from unittest.mock import patch
 import pytest
 
 from continuum_sdk.config.providers import (
-    ApiFormat,
     BUILTIN_PROVIDERS,
     FALLBACK_PROVIDER_ORDER,
+    ApiFormat,
     ProviderInfo,
     ProviderType,
     get_api_format,
@@ -278,6 +278,7 @@ class TestGetDefaultModel:
         """Test default model from builtin config when no env var."""
         with patch.dict(os.environ, {}, clear=True):
             from importlib import reload
+
             import continuum_sdk.config.providers as providers_module
             reload(providers_module)
 
@@ -289,6 +290,7 @@ class TestGetDefaultModel:
         """Test default model for OpenAI provider."""
         with patch.dict(os.environ, {}, clear=True):
             from importlib import reload
+
             import continuum_sdk.config.providers as providers_module
             reload(providers_module)
 

@@ -12,11 +12,11 @@ import logging
 import sqlite3
 import threading
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -568,7 +568,6 @@ class SQLiteStorage(StorageBackend):
 
     def clear(self, tier: MemoryTier) -> int:
         """Clear specified tier"""
-        import json
 
         with self._lock:
             cursor = self._conn.cursor()
@@ -616,7 +615,6 @@ class SQLiteStorage(StorageBackend):
         self, tier: MemoryTier, query: str, limit: int = 10
     ) -> list[MemoryEntry]:
         """Search entries"""
-        import json
 
         with self._lock:
             cursor = self._conn.cursor()

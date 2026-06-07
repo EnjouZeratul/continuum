@@ -17,52 +17,101 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from .config.providers import get_default_model
 
 try:
     # Layer 0
     from sh_python import (
-        SecurityGateway as RustSecurityGatewayBinding,
-        PermissionManager as RustPermissionManagerBinding,
-        Permission as RustPermissionBinding,
-        Role as RustRoleBinding,
+        Agent as RustAgentBinding,
     )
-    # Layer 1
-    from sh_python import (
-        LlmClient as RustLlmClientBinding,
-        LlmRequestConfig as RustLlmRequestConfigBinding,
-        LlmResponse as RustLlmResponseBinding,
-        CostTracker as RustCostTrackerBinding,
-        UsageSnapshot as RustUsageSnapshotBinding,
-        CostEstimate as RustCostEstimateBinding,
-    )
+
     # Layer 2
     from sh_python import (
         AgentRuntime as RustAgentRuntimeBinding,
-        SessionManager as RustSessionManagerBinding,
-        CheckpointSystem as RustCheckpointSystemBinding,
-        Agent as RustAgentBinding,
-        Session as RustSessionBinding,
     )
-    # Layer 3
     from sh_python import (
-        ToolExecutor as RustToolExecutorBinding,
-        QueryEngine as RustQueryEngineBinding,
-        MemorySystem as RustMemorySystemBinding,
-        VectorStore as RustVectorStoreBinding,
-        VectorItem as RustVectorItemBinding,
-        SearchResult as RustSearchResultBinding,
-        RetrieverEngine as RustRetrieverEngineBinding,
+        AuditLogger as RustAuditLoggerBinding,
+    )
+    from sh_python import (
+        CheckpointSystem as RustCheckpointSystemBinding,
+    )
+    from sh_python import (
+        CostEstimate as RustCostEstimateBinding,
+    )
+    from sh_python import (
+        CostTracker as RustCostTrackerBinding,
+    )
+    from sh_python import (
         DocumentLoader as RustDocumentLoaderBinding,
-        TextSplitter as RustTextSplitterBinding,
+    )
+    from sh_python import (
         Embeddings as RustEmbeddingsBinding,
     )
+
+    # Layer 1
+    from sh_python import (
+        LlmClient as RustLlmClientBinding,
+    )
+    from sh_python import (
+        LlmRequestConfig as RustLlmRequestConfigBinding,
+    )
+    from sh_python import (
+        LlmResponse as RustLlmResponseBinding,
+    )
+
     # Layer 4
     from sh_python import (
         McpBridge as RustMcpBridgeBinding,
-        AuditLogger as RustAuditLoggerBinding,
+    )
+    from sh_python import (
+        MemorySystem as RustMemorySystemBinding,
+    )
+    from sh_python import (
+        Permission as RustPermissionBinding,
+    )
+    from sh_python import (
+        PermissionManager as RustPermissionManagerBinding,
+    )
+    from sh_python import (
+        QueryEngine as RustQueryEngineBinding,
+    )
+    from sh_python import (
+        RetrieverEngine as RustRetrieverEngineBinding,
+    )
+    from sh_python import (
+        Role as RustRoleBinding,
+    )
+    from sh_python import (
+        SearchResult as RustSearchResultBinding,
+    )
+    from sh_python import (
+        SecurityGateway as RustSecurityGatewayBinding,
+    )
+    from sh_python import (
+        Session as RustSessionBinding,
+    )
+    from sh_python import (
+        SessionManager as RustSessionManagerBinding,
+    )
+    from sh_python import (
+        TextSplitter as RustTextSplitterBinding,
+    )
+
+    # Layer 3
+    from sh_python import (
+        ToolExecutor as RustToolExecutorBinding,
+    )
+    from sh_python import (
+        UsageSnapshot as RustUsageSnapshotBinding,
+    )
+    from sh_python import (
+        VectorItem as RustVectorItemBinding,
+    )
+    from sh_python import (
+        VectorStore as RustVectorStoreBinding,
     )
 
     HAS_BINDING = True
@@ -144,7 +193,7 @@ class RustAgent:
         # Note: Rust binding tool registration may require additional setup
         logger.warning(f"Tool '{name}' registered but Rust binding tool setup is limited")
 
-    def create_session(self) -> "RustSession":
+    def create_session(self) -> RustSession:
         """Create a new session."""
         session_binding = self._agent.create_session()
         return RustSession.from_binding(session_binding)
@@ -160,7 +209,7 @@ class RustSession:
         self._session = RustSessionBinding(id=session_id)
 
     @classmethod
-    def from_binding(cls, binding: Any) -> "RustSession":
+    def from_binding(cls, binding: Any) -> RustSession:
         """Create from existing binding."""
         instance = cls.__new__(cls)
         instance._session = binding
@@ -435,15 +484,15 @@ class RustLlmClient:
     def send(
         self,
         messages: list[tuple[str, str]],
-        config: "RustLlmRequestConfig | None" = None,
-    ) -> "RustLlmResponse":
+        config: RustLlmRequestConfig | None = None,
+    ) -> RustLlmResponse:
         """Send messages and get response."""
         if config is None:
             config = RustLlmRequestConfig()
         response_binding = self._client.send(messages, config._config)
         return RustLlmResponse.from_binding(response_binding)
 
-    def send_message(self, message: str, config: "RustLlmRequestConfig | None" = None) -> "RustLlmResponse":
+    def send_message(self, message: str, config: RustLlmRequestConfig | None = None) -> RustLlmResponse:
         """Send a single message."""
         if config is None:
             config = RustLlmRequestConfig()
@@ -505,7 +554,7 @@ class RustLlmResponse:
         self._response = None
 
     @classmethod
-    def from_binding(cls, binding: Any) -> "RustLlmResponse":
+    def from_binding(cls, binding: Any) -> RustLlmResponse:
         """Create from existing binding."""
         instance = cls.__new__(cls)
         instance._response = binding
@@ -557,14 +606,14 @@ class RustCostTracker:
         """Record usage."""
         self._tracker.record_usage(model, input_tokens, output_tokens)
 
-    def get_current_usage(self) -> "RustUsageSnapshot":
+    def get_current_usage(self) -> RustUsageSnapshot:
         """Get current usage snapshot."""
         snapshot_binding = self._tracker.get_current_usage()
         return RustUsageSnapshot.from_binding(snapshot_binding)
 
     def estimate_next_step(
         self, model: str, estimated_input: int, estimated_output: int
-    ) -> "RustCostEstimate":
+    ) -> RustCostEstimate:
         """Estimate cost for next step."""
         estimate_binding = self._tracker.estimate_next_step(model, estimated_input, estimated_output)
         return RustCostEstimate.from_binding(estimate_binding)
@@ -591,7 +640,7 @@ class RustUsageSnapshot:
         self._snapshot = None
 
     @classmethod
-    def from_binding(cls, binding: Any) -> "RustUsageSnapshot":
+    def from_binding(cls, binding: Any) -> RustUsageSnapshot:
         """Create from existing binding."""
         instance = cls.__new__(cls)
         instance._snapshot = binding
@@ -627,7 +676,7 @@ class RustCostEstimate:
         self._estimate = None
 
     @classmethod
-    def from_binding(cls, binding: Any) -> "RustCostEstimate":
+    def from_binding(cls, binding: Any) -> RustCostEstimate:
         """Create from existing binding."""
         instance = cls.__new__(cls)
         instance._estimate = binding
@@ -1005,7 +1054,7 @@ class RustVectorItem:
         self._item = None
 
     @classmethod
-    def from_binding(cls, binding: Any) -> "RustVectorItem":
+    def from_binding(cls, binding: Any) -> RustVectorItem:
         """Create from existing binding."""
         instance = cls.__new__(cls)
         instance._item = binding
@@ -1037,7 +1086,7 @@ class RustSearchResult:
         self._result = None
 
     @classmethod
-    def from_binding(cls, binding: Any) -> "RustSearchResult":
+    def from_binding(cls, binding: Any) -> RustSearchResult:
         """Create from existing binding."""
         instance = cls.__new__(cls)
         instance._result = binding

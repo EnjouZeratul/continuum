@@ -5,10 +5,9 @@ Tests for the complete embedding pipeline using mock implementations.
 No external API keys or Rust features required.
 """
 
-import os
-import pytest
-from unittest.mock import MagicMock, patch
 import random
+
+import pytest
 
 
 class MockEmbeddingClient:

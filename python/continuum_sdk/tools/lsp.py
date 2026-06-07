@@ -17,11 +17,9 @@ LSP client integration.
 import re
 import time
 from pathlib import Path
-from typing import Any
 
 from ..utils import generate_short_id
 from .types import ToolError, ToolResult
-
 
 # Definition patterns by file extension
 DEFINITION_PATTERNS = {
@@ -144,7 +142,7 @@ def go_to_definition(
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
         lines = content.split("\n")
-    except (OSError, IOError, PermissionError, UnicodeDecodeError) as e:
+    except (OSError, PermissionError, UnicodeDecodeError) as e:
         raise ToolError(
             call_id=call_id,
             name="go_to_definition",
@@ -236,7 +234,7 @@ def go_to_definition(
                                 "symbol": symbol,
                             },
                         )
-        except (OSError, IOError, PermissionError):
+        except (OSError, PermissionError):
             continue
 
     duration_ms = int((time.time() - start_time) * 1000)
@@ -287,7 +285,7 @@ def find_references(
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
         lines = content.split("\n")
-    except (OSError, IOError, PermissionError, UnicodeDecodeError) as e:
+    except (OSError, PermissionError, UnicodeDecodeError) as e:
         raise ToolError(
             call_id=call_id,
             name="find_references",
@@ -343,7 +341,7 @@ def find_references(
                             "column": line_content.find(symbol) + 1,
                             "is_declaration": is_declaration,
                         })
-        except (OSError, IOError, PermissionError):
+        except (OSError, PermissionError):
             continue
 
     duration_ms = int((time.time() - start_time) * 1000)
@@ -411,7 +409,7 @@ def get_hover(
     try:
         content = path.read_text(encoding="utf-8", errors="replace")
         lines = content.split("\n")
-    except (OSError, IOError, PermissionError, UnicodeDecodeError) as e:
+    except (OSError, PermissionError, UnicodeDecodeError) as e:
         raise ToolError(
             call_id=call_id,
             name="get_hover",
@@ -555,7 +553,7 @@ def symbol_search(
                             "symbol": symbol,
                             "context": line_content.strip(),
                         })
-            except (OSError, IOError, PermissionError, UnicodeDecodeError):
+            except (OSError, PermissionError, UnicodeDecodeError):
                 continue
 
     duration_ms = int((time.time() - start_time) * 1000)

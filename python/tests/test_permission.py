@@ -3,24 +3,21 @@
 Tests for the permission checking and policy validation system.
 """
 
-import os
 import sys
-import tempfile
-import shutil
+from datetime import datetime, timedelta
+from unittest.mock import Mock
 
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
 
 from continuum_sdk.permission import (
-    SecurityLevel,
-    PermissionDecision,
+    InteractivePermissionManager,
     PermissionAction,
+    PermissionDecision,
+    PermissionManager,
+    PermissionPolicy,
     PermissionRequest,
     PermissionResponse,
-    PermissionPolicy,
-    PermissionManager,
-    InteractivePermissionManager,
+    SecurityLevel,
 )
 
 
@@ -391,7 +388,7 @@ class TestPermissionManager:
 
         # First request should call callback
         request1 = manager.request_file_read("/test/file.txt")
-        response1 = manager.check_permission(request1)
+        manager.check_permission(request1)
         assert callback.call_count == 1
 
         # Second identical request should use cache
@@ -427,7 +424,7 @@ class TestPermissionManager:
 
         # Auto-approve in trusted mode for logging
         manager.set_policy(PermissionPolicy.trusted())
-        response = manager.check_permission(request)
+        manager.check_permission(request)
 
         log = manager.get_audit_log()
         assert len(log) == 1
@@ -550,7 +547,7 @@ class TestPermissionManagerWithCallback:
 
         # First call
         request1 = manager.request_file_read("/test/file.txt")
-        response1 = manager.check_permission(request1)
+        manager.check_permission(request1)
         assert call_count[0] == 1
 
         # Second call should use cache (same action)
@@ -623,7 +620,7 @@ class TestEdgeCases:
             blocked_commands=[],
             blocked_urls=[]
         )
-        manager = PermissionManager(policy=policy)
+        PermissionManager(policy=policy)
 
         # Should not block anything
         assert not policy.is_path_blocked(".env")
@@ -774,8 +771,6 @@ class TestMissingCoverage:
     def test_rust_binding_import_fallback(self):
         """Test that import fallback sets bindings to None when sh_python unavailable."""
         # Re-import to test the fallback path
-        import importlib
-        import sys
 
         # The module already handles ImportError gracefully
         # We just need to verify the fallback values are set correctly
@@ -793,7 +788,6 @@ class TestMissingCoverage:
 
     def test_import_fallback_with_mock(self, monkeypatch):
         """Test import fallback by mocking ImportError."""
-        import sys
 
         # Save original module state
         original_permission = sys.modules.get('continuum_sdk.permission')
@@ -909,10 +903,10 @@ class TestMissingCoverage:
 
         # Multiple requests should all call callback (no caching)
         request1 = manager.request_file_read("/test/file.txt")
-        response1 = manager.check_permission(request1)
+        manager.check_permission(request1)
 
         request2 = manager.request_file_read("/test/file.txt")
-        response2 = manager.check_permission(request2)
+        manager.check_permission(request2)
 
         # Both should call callback since cache is disabled
         assert call_count[0] == 2

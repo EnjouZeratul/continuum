@@ -10,18 +10,14 @@ Test coverage for:
 - Error handling
 """
 
-import os
-import sys
 
-import shutil
-import tempfile
 from pathlib import Path
 
 import pytest
 
 from continuum_sdk.tools.file_ops import (
-    ListDirectoryTool,
     EditTool,
+    ListDirectoryTool,
     ReadTool,
     WriteTool,
     detect_encoding,
@@ -1126,9 +1122,8 @@ class TestSecureMode:
 
     def test_read_secure_mode_nonexistent_file(self, tmp_path: Path):
         """Test secure mode read handles nonexistent file."""
-        result = None
         with pytest.raises(ToolError) as exc_info:
-            result = read_file(
+            read_file(
                 str(tmp_path / "nonexistent.txt"),
                 secure_mode=True,
                 workspace=str(tmp_path)

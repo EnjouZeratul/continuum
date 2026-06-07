@@ -1,26 +1,25 @@
 """Security Module Tests"""
 
 import os
-import sys
-import tempfile
 import shutil
-
-import pytest
+import tempfile
 from pathlib import Path
 
+import pytest
+
 from continuum_sdk.security import (
-    PathValidator,
-    PathValidationResult,
-    ValidationResult,
-    PermissionChecker,
-    Permission,
     AuditLogger,
     AuditOperation,
     AuditResult,
+    Change,
     ChangePreviewer,
     ChangeType,
+    PathValidationResult,
+    PathValidator,
+    Permission,
+    PermissionChecker,
     RiskLevel,
-    Change,
+    ValidationResult,
 )
 
 
@@ -477,7 +476,6 @@ class TestPathValidator:
 
         # Create a symlink to a target that doesn't exist
         # This tests OSError/IOError/RuntimeError during resolve()
-        import tempfile as tf
 
         # Try to create a broken symlink
         link_path = Path(temp_dir) / "broken_link"
@@ -537,7 +535,7 @@ class TestPathValidator:
             result = validator.validate(long_path)
             # Should handle gracefully
             assert isinstance(result, ValidationResult)
-        except (OSError, IOError):
+        except OSError:
             # Exception is acceptable
             pass
 
@@ -622,7 +620,7 @@ class TestPathValidator:
 
         def mock_absolute(self):
             if "test_abs_error" in str(self):
-                raise IOError("Mocked absolute error")
+                raise OSError("Mocked absolute error")
             return original_absolute(self)
 
         with mock.patch.object(Path, 'absolute', mock_absolute):
@@ -632,7 +630,6 @@ class TestPathValidator:
 
     def test_path_contains_oserror(self, temp_dir):
         """Test _path_contains exception handling (lines 368-369)"""
-        import unittest.mock as mock
 
         validator = PathValidator(project_root=temp_dir)
 
@@ -802,7 +799,6 @@ class TestPathValidator:
 
     def test_parent_str_without_trailing_sep(self, temp_dir):
         """Test parent_str without trailing separator (line 364->367)"""
-        import unittest.mock as mock
 
         validator = PathValidator(project_root=temp_dir)
 
@@ -838,7 +834,6 @@ class TestPathValidator:
 
     def test_path_contains_exception_simulation(self, temp_dir):
         """Test _path_contains exception handling simulation (lines 368-369)"""
-        import unittest.mock as mock
 
         validator = PathValidator(project_root=temp_dir)
 

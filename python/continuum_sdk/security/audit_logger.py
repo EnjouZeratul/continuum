@@ -71,11 +71,12 @@ import os
 import re
 import threading
 from collections import deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -321,7 +322,7 @@ class AuditRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AuditRecord":
+    def from_dict(cls, data: dict[str, Any]) -> AuditRecord:
         return cls(
             id=data["id"],
             timestamp=datetime.fromisoformat(data["timestamp"]),
@@ -703,14 +704,14 @@ class AuditLogger:
 
             logger.info(f"Loaded {len(self._records)} audit records from {self._log_file}")
 
-        except (OSError, IOError, FileNotFoundError) as e:
+        except (OSError, FileNotFoundError) as e:
             logger.warning(f"Failed to load audit records: {e}")
 
     def _get_current_user(self) -> str:
         """Get current user"""
         try:
             return os.getlogin()
-        except (OSError, IOError, PermissionError):
+        except (OSError, PermissionError):
             return "unknown"
 
     def __iter__(self) -> Iterator[AuditRecord]:

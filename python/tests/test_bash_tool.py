@@ -12,7 +12,6 @@ Tests for continuum_sdk/tools/bash.py covering:
 - BashTool class methods
 """
 
-import asyncio
 import os
 import tempfile
 
@@ -35,7 +34,6 @@ from continuum_sdk.tools.bash import (
     validate_command_tokens,
 )
 from continuum_sdk.tools.types import ToolError
-
 
 # ==============================================================================
 # _split_glued_separators Tests
@@ -754,7 +752,6 @@ class TestEdgeCases:
         # This specifically tests the `if not tokens: continue` branch
         # where _extract_commands returns [[]] or similar
         # We already test empty string, let's test the code path more directly
-        from continuum_sdk.tools.bash import _COMMAND_SEPARATORS
 
         # Verify that if we somehow get an empty token list, it's skipped
         blocked, dangerous = validate_command_tokens("")

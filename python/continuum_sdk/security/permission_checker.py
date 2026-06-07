@@ -270,7 +270,7 @@ class PermissionChecker:
                 reason=f"Permission denied: {e}",
                 actual_permissions=actual_perms,
             )
-        except (OSError, IOError, PermissionError, RuntimeError) as e:
+        except (OSError, RuntimeError) as e:
             return PermissionResult(
                 has_permission=False,
                 permission=permission,
@@ -441,7 +441,7 @@ class PermissionChecker:
                     reason="Can delete file",
                     actual_permissions=self._get_permissions(path),
                 )
-            except (OSError, IOError, PermissionError):
+            except (OSError, PermissionError):
                 return PermissionResult(
                     has_permission=False,
                     permission=Permission.DELETE,
@@ -532,7 +532,7 @@ class PermissionChecker:
         """
         try:
             return stat.S_IMODE(path.stat().st_mode)
-        except (OSError, IOError, FileNotFoundError):
+        except (OSError, FileNotFoundError):
             return 0o644  # Default
 
     # Convenience methods

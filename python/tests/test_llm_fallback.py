@@ -11,9 +11,7 @@ Coverage:
 - Log message verification / 日志消息验证
 """
 
-import os
-import sys
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -32,7 +30,6 @@ from continuum_sdk.llm.fallback import (
     create_fallback_client,
 )
 from continuum_sdk.llm.types import ChatResponse, Message, TokenUsage
-
 
 # ==================== Fixtures ====================
 

@@ -1,14 +1,20 @@
 """Memory Storage 持久化测试"""
 
 import os
-import sys
-import tempfile
 import shutil
-
-import pytest
+import tempfile
 from pathlib import Path
 
-from continuum_sdk.memory import Memory, MemoryEntry, MemoryTier, MemoryStorage, FileStorage, SQLiteStorage
+import pytest
+
+from continuum_sdk.memory import (
+    FileStorage,
+    Memory,
+    MemoryEntry,
+    MemoryStorage,
+    MemoryTier,
+    SQLiteStorage,
+)
 
 
 class TestMemoryStorage:
@@ -127,7 +133,6 @@ class TestMemoryStorage:
 
     def test_flush_debug_log(self):
         """测试 flush 调试日志 (lines 175)"""
-        import logging
         storage = MemoryStorage()
         # 调用 flush 应该触发 logger.debug
         storage.flush()
@@ -226,7 +231,6 @@ class TestFileStorage:
 
     def test_corrupted_json_file_error_handling(self, temp_dir):
         """测试损坏的 JSON 文件错误处理 (lines 285-286)"""
-        import json
 
         # 创建一个损坏的 JSON 文件
         corrupted_file = Path(temp_dir, "test-session_working.json")
@@ -668,7 +672,7 @@ class TestStorageBackendAbstractMethods:
 
     def test_abstract_methods_pass_coverage(self):
         """Test abstract method pass statements are covered via concrete class."""
-        from continuum_sdk.memory.storage import StorageBackend, MemoryTier, MemoryEntry
+        from continuum_sdk.memory.storage import MemoryEntry, MemoryTier, StorageBackend
 
         # Create a minimal concrete implementation to test the pass statements
         class MinimalStorage(StorageBackend):

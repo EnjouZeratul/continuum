@@ -10,9 +10,8 @@ Tests that the function properly blocks:
 """
 
 import socket
-import sys
-import os
 from unittest import mock
+
 import pytest
 
 from continuum_sdk.python_impl import PythonMultimodalHandler
@@ -42,7 +41,7 @@ class TestSSRFPrivateIPRanges:
                 (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
             ]):
                 with pytest.raises(ValueError, match="private"):
-                    handler.encode_image_from_url(f"http://example.com/image.png")
+                    handler.encode_image_from_url("http://example.com/image.png")
 
     def test_private_range_172_16_block(self, handler):
         """172.16.0.0/12 should be blocked."""
@@ -56,7 +55,7 @@ class TestSSRFPrivateIPRanges:
                 (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
             ]):
                 with pytest.raises(ValueError, match="private"):
-                    handler.encode_image_from_url(f"http://example.com/image.png")
+                    handler.encode_image_from_url("http://example.com/image.png")
 
     def test_private_range_192_168_block(self, handler):
         """192.168.0.0/16 should be blocked."""
@@ -70,7 +69,7 @@ class TestSSRFPrivateIPRanges:
                 (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
             ]):
                 with pytest.raises(ValueError, match="private"):
-                    handler.encode_image_from_url(f"http://example.com/image.png")
+                    handler.encode_image_from_url("http://example.com/image.png")
 
 
 class TestSSRFLocalhost:

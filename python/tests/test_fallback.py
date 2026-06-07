@@ -4,12 +4,13 @@ Test fallback logic for provider configuration.
 测试提供商配置的回退逻辑。
 """
 
-import os
 import logging
+import os
 from unittest.mock import patch
 
 import pytest
 
+from continuum_sdk.config.loader import ALLOWED_ENV_VARS, Config, _get_env
 from continuum_sdk.config.providers import (
     BUILTIN_PROVIDERS,
     FALLBACK_PROVIDER_ORDER,
@@ -18,7 +19,6 @@ from continuum_sdk.config.providers import (
     get_provider_info,
     list_providers,
 )
-from continuum_sdk.config.loader import Config, _get_env, ALLOWED_ENV_VARS
 
 
 class TestProviderFallbackOrder:
@@ -89,6 +89,7 @@ class TestDefaultModelFallback:
         with patch.dict(os.environ, {}, clear=True):
             # Re-import to clear any cached env var
             from importlib import reload
+
             import continuum_sdk.config.providers as providers_module
             reload(providers_module)
 
@@ -427,7 +428,6 @@ class TestConfigModelFallback:
         """
         with patch.dict(os.environ, {}, clear=True):
             config = Config(provider="anthropic", api_key="test-key")
-            initial_model = config.model
 
             # Switch to openai
             config.use("openai")
@@ -528,6 +528,7 @@ class TestFallbackChain:
         with patch.dict(os.environ, {}, clear=True):
             # Re-import to clear cached values
             from importlib import reload
+
             import continuum_sdk.config.providers as providers_module
             reload(providers_module)
 

@@ -4,10 +4,8 @@ Intelligent Agent Tests
 Tests for task planning, self-correction, and progress tracking.
 """
 
-import os
-import sys
-
 import asyncio
+import os
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -2060,7 +2058,7 @@ class TestIntelligentAgentRecoveryStrategies:
                     description="Retry network call"
                 )
                 with patch.object(agent, "_execute_step", side_effect=flaky_execute):
-                    result = await agent.execute(plan)
+                    await agent.execute(plan)
 
         assert call_count >= 2  # First failed, then retried
 
@@ -2111,7 +2109,7 @@ class TestIntelligentAgentRecoveryStrategies:
                     modified_action="modified action with fix"
                 )
                 with patch.object(agent, "_execute_step", side_effect=track_execute):
-                    result = await agent.execute(plan)
+                    await agent.execute(plan)
 
         assert "modified action with fix" in executed_actions
 
@@ -2139,7 +2137,7 @@ class TestIntelligentAgentRecoveryStrategies:
                     description="Skip this step"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
-                    result = await agent.execute(plan)
+                    await agent.execute(plan)
 
         assert plan.steps[0].status == StepStatus.SKIPPED
 
@@ -2173,7 +2171,7 @@ class TestIntelligentAgentRecoveryStrategies:
                     description="Fatal error, abort"
                 )
                 with patch.object(agent, "_execute_step", side_effect=tracking_execute):
-                    result = await agent.execute(plan)
+                    await agent.execute(plan)
 
         # Only s1 should have been attempted
         assert "s1" in executed_steps
@@ -2209,7 +2207,7 @@ class TestIntelligentAgentRecoveryStrategies:
                     description="Need user input"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
-                    result = await agent.execute(plan, on_error=on_error_handler)
+                    await agent.execute(plan, on_error=on_error_handler)
 
         assert len(error_callbacks) > 0
         assert error_callbacks[0][0] == "s1"
@@ -2272,7 +2270,7 @@ class TestIntelligentAgentToolExecution:
             mock_grep.search = Mock(return_value=mock_result)
             MockGrepTool.return_value = mock_grep
 
-            result = await agent._execute_step(step)
+            await agent._execute_step(step)
             # Verify search was called with extracted pattern
             mock_grep.search.assert_called_once()
 
@@ -2295,7 +2293,7 @@ class TestIntelligentAgentToolExecution:
             mock_reader.read = Mock(return_value=mock_result)
             MockReadTool.return_value = mock_reader
 
-            result = await agent._execute_step(step)
+            await agent._execute_step(step)
             mock_reader.read.assert_called_with("auth.py")
 
     @pytest.mark.asyncio
@@ -2332,7 +2330,7 @@ class TestIntelligentAgentToolExecution:
             mock_reader.read = Mock(return_value=mock_result)
             MockReadTool.return_value = mock_reader
 
-            result = await agent._execute_step(step)
+            await agent._execute_step(step)
             # Should have extracted "config.yaml" from action
             mock_reader.read.assert_called_once()
 
@@ -2354,7 +2352,7 @@ class TestIntelligentAgentToolExecution:
             mock_bash.run = Mock(return_value=mock_result)
             MockBashTool.return_value = mock_bash
 
-            result = await agent._execute_step(step)
+            await agent._execute_step(step)
             mock_bash.run.assert_called_once()
             # Should run pytest
             call_args = mock_bash.run.call_args[0][0]
@@ -2594,7 +2592,7 @@ class TestIntelligentAgentErrorHandling:
 
         # Check that error was logged
         logs = agent.logger.to_dict()
-        error_logs = [l for l in logs if l.get("status") == "error"]
+        error_logs = [line for line in logs if line.get("status") == "error"]
         assert len(error_logs) > 0
 
     @pytest.mark.asyncio
@@ -2646,7 +2644,7 @@ class TestIntelligentAgentErrorHandling:
 
         # Check retry logs
         logs = agent.logger.to_dict()
-        retry_logs = [l for l in logs if l.get("status") == "retrying"]
+        retry_logs = [line for line in logs if line.get("status") == "retrying"]
         assert len(retry_logs) > 0
 
 
@@ -2693,7 +2691,7 @@ class TestIntelligentAgentAdditionalCoverage:
                     description="Retry"
                 )
                 with patch.object(agent, "_execute_step", side_effect=always_fails):
-                    result = await agent.execute(plan)
+                    await agent.execute(plan)
 
         # Should be marked FAILED, not stuck in RETRYING
         assert plan.steps[0].status == StepStatus.FAILED
@@ -2721,7 +2719,7 @@ class TestIntelligentAgentAdditionalCoverage:
                     modified_action="pip install foo"
                 )
                 with patch.object(agent, "_execute_step", side_effect=always_fails):
-                    result = await agent.execute(plan)
+                    await agent.execute(plan)
 
         assert plan.steps[0].status == StepStatus.FAILED
 
@@ -2753,7 +2751,7 @@ class TestIntelligentAgentAdditionalCoverage:
                     description="Ask user"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
-                    result = await agent.execute(plan, on_error=error_callback)
+                    await agent.execute(plan, on_error=error_callback)
 
         # Should have called error callback
         assert len(error_callback_calls) > 0
@@ -2815,7 +2813,7 @@ class TestIntelligentAgentAdditionalCoverage:
                     description="Ask"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
-                    result = await agent.execute(plan, on_error=tracking_callback)
+                    await agent.execute(plan, on_error=tracking_callback)
 
         # Should have been called
         assert "s1" in all_callback_calls

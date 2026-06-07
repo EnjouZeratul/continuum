@@ -110,10 +110,10 @@ except ImportError:  # pragma: no cover - tested with Rust binding available
         pass
 
 # Import Python fallback implementations
-from .file_ops import read_file, write_file, edit_file
-from .search import grep, glob
 from .bash import bash_execute_sync
-from .lsp import go_to_definition, find_references, get_hover, symbol_search
+from .file_ops import edit_file, read_file, write_file
+from .lsp import find_references, get_hover, go_to_definition, symbol_search
+from .search import grep
 from .types import ToolNotAvailableError
 
 

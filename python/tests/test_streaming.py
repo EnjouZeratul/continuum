@@ -4,13 +4,14 @@
 """
 
 import pytest
+
 from continuum_sdk.llm.streaming import (
-    SseParser,
-    SseEvent,
-    StreamState,
-    StreamEvent,
     CallbackStream,
     ContentBlockType,
+    SseEvent,
+    SseParser,
+    StreamEvent,
+    StreamState,
 )
 
 
@@ -435,7 +436,7 @@ class TestStreamState:
             },
             "choices": []
         }
-        events = state.ingest_openai(chunk_data)
+        state.ingest_openai(chunk_data)
 
         assert state.usage is not None
         assert state.usage.input_tokens == 10
@@ -712,7 +713,7 @@ class TestCallbackStream:
             data='{"id": "chatcmpl_1", "model": "gpt-4o", "choices": []}'
         )
 
-        events = stream.push_sse_event(sse_event, state, "openai")
+        stream.push_sse_event(sse_event, state, "openai")
 
         # 应该调用 ingest_openai
         assert state.message_started is True
@@ -734,7 +735,6 @@ class TestCallbackStream:
 
     def test_finish_with_content_block_delta_event(self):
         """测试 finish 中 content_block_delta 事件触发 on_chunk (lines 501-503)"""
-        from unittest.mock import MagicMock
 
         chunks_received: list[str] = []
 
@@ -750,7 +750,7 @@ class TestCallbackStream:
         )
         state.finish = lambda: [mock_event]
 
-        events = stream.finish(state)
+        stream.finish(state)
 
         # on_chunk should have been called with "final chunk"
         assert len(chunks_received) == 1
@@ -758,7 +758,6 @@ class TestCallbackStream:
 
     def test_finish_with_empty_content_in_delta(self):
         """测试 finish 中 content_block_delta 空内容不触发 on_chunk (line 502)"""
-        from unittest.mock import MagicMock
 
         chunks_received: list[str] = []
 
@@ -773,7 +772,7 @@ class TestCallbackStream:
         )
         state.finish = lambda: [mock_event]
 
-        events = stream.finish(state)
+        stream.finish(state)
 
         # on_chunk should NOT have been called (content is empty)
         assert len(chunks_received) == 0

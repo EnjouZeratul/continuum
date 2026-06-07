@@ -61,7 +61,7 @@ def detect_encoding(file_path: Path) -> str:
 
         # Fallback to utf-8 with errors='replace'
         return "utf-8"  # pragma: no cover - defensive fallback, all paths return earlier
-    except (OSError, IOError, UnicodeDecodeError):
+    except (OSError, UnicodeDecodeError):
         return "utf-8"
 
 
@@ -151,7 +151,7 @@ def read_file(
                 )
         except ToolError:
             raise
-        except (OSError, IOError, UnicodeDecodeError) as e:
+        except (OSError, UnicodeDecodeError) as e:
             file_path = Path(path).resolve()
             record_audit(sec, AuditOperation.READ, file_path, success=False, details=str(e))
             raise ToolError(
@@ -248,7 +248,7 @@ def read_file(
                 name="read",
                 message=f"Permission denied: {file_path}",
             )
-        except (OSError, IOError, UnicodeDecodeError) as e:
+        except (OSError, UnicodeDecodeError) as e:
             record_audit(sec, AuditOperation.READ, file_path, success=False,
                          details=str(e))
             raise ToolError(
@@ -397,7 +397,7 @@ def write_file(
             )
         except ToolError:
             raise
-        except (OSError, IOError, UnicodeEncodeError) as e:
+        except (OSError, UnicodeEncodeError) as e:
             file_path = Path(path).resolve()
             record_audit(sec, AuditOperation.WRITE, file_path, success=False, details=str(e))
             raise ToolError(
@@ -463,7 +463,7 @@ def write_file(
                 name="write",
                 message=f"Permission denied: {file_path}",
             )
-        except (OSError, IOError, UnicodeEncodeError) as e:
+        except (OSError, UnicodeEncodeError) as e:
             # Restore from backup if write failed
             if backup_path and backup_path.exists():
                 shutil.move(backup_path, file_path)
@@ -570,7 +570,7 @@ def edit_file(
     try:
         with open(file_path, encoding=encoding, errors="replace") as f:
             content = f.read()
-    except (OSError, IOError, PermissionError, UnicodeDecodeError) as e:
+    except (OSError, PermissionError, UnicodeDecodeError) as e:
         record_audit(sec, AuditOperation.MODIFY, file_path, success=False,
                      details=f"read failed: {e}")
         raise ToolError(
@@ -609,7 +609,7 @@ def edit_file(
     try:
         with open(file_path, "w", encoding=encoding) as f:
             f.write(new_content)
-    except (OSError, IOError, PermissionError, UnicodeEncodeError) as e:  # pragma: no cover - hard to trigger write errors
+    except (OSError, PermissionError, UnicodeEncodeError) as e:  # pragma: no cover - hard to trigger write errors
         # Restore from backup
         if backup:
             shutil.move(backup_path, file_path)
@@ -757,7 +757,7 @@ def list_directory(
             name="list_directory",
             message=f"Permission denied: {dir_path}",
         )
-    except (OSError, IOError) as e:
+    except OSError as e:
         record_audit(sec, AuditOperation.LIST, dir_path, success=False,
                      details=str(e))
         raise ToolError(

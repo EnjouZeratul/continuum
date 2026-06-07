@@ -89,11 +89,6 @@ from .change_previewer import (
     ConfirmationResult,
     RiskLevel,
 )
-from .secure_file_ops import (
-    safe_open_read,
-    safe_read_with_retry,
-    safe_write_atomic,
-)
 from .path_validator import (
     PathValidationResult,
     PathValidator,
@@ -103,6 +98,11 @@ from .permission_checker import (
     Permission,
     PermissionChecker,
     PermissionResult,
+)
+from .secure_file_ops import (
+    safe_open_read,
+    safe_read_with_retry,
+    safe_write_atomic,
 )
 
 __all__ = [

@@ -50,7 +50,6 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -222,7 +221,7 @@ class PathValidator:
                 resolved = path_obj.resolve()
             else:
                 resolved = path_obj.absolute()
-        except (OSError, IOError, RuntimeError) as e:
+        except (OSError, RuntimeError) as e:
             return ValidationResult(
                 is_valid=False,
                 result_type=PathValidationResult.INVALID_PATH,
@@ -366,7 +365,7 @@ class PathValidator:
                 parent_str += os.sep
 
             return child_str.startswith(parent_str) or child_str == parent_str_bare
-        except (OSError, IOError, ValueError):  # pragma: no cover - defensive code
+        except (OSError, ValueError):  # pragma: no cover - defensive code
             return False
 
     def add_allowed_path(self, path: str | Path) -> None:

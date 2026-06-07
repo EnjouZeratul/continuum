@@ -21,7 +21,6 @@ Error Hierarchy:
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -75,7 +74,7 @@ class ErrorContext:
         return dict(self._data)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ErrorContext":
+    def from_dict(cls, data: dict[str, Any]) -> ErrorContext:
         return cls(**data)
 
 

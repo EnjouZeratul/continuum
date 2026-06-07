@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
-from ..errors import SecurityError
 from ..security import (
     AuditLogger,
     AuditOperation,
@@ -333,7 +333,7 @@ def secure_file_write(
                 os.replace(temp_path, file_path)
             else:
                 os.rename(temp_path, file_path)
-        except (OSError, IOError) as e:
+        except OSError as e:
             temp_path.unlink(missing_ok=True)
             raise ToolError(
                 call_id=call_id,
@@ -377,7 +377,7 @@ def secure_file_write(
 
         logger.debug(f"Atomically wrote {len(content)} bytes to {file_path}")
 
-    except (OSError, IOError, PermissionError) as e:
+    except (OSError, PermissionError) as e:
         temp_path.unlink(missing_ok=True)
         if ctx.auditor is not None:
             ctx.auditor.log(

@@ -14,7 +14,6 @@ Features:
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
 
 try:
     import httpx
@@ -188,7 +187,7 @@ def _search_duckduckgo(query: str, max_results: int) -> SearchResponse:
 
     # Parse related topics
     topics = data.get("RelatedTopics", [])
-    for i, topic in enumerate(topics[:max_results - len(results)]):
+    for _i, topic in enumerate(topics[:max_results - len(results)]):
         text = topic.get("Text", "")
         first_url = topic.get("FirstURL", "")
         if text and first_url:

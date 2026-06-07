@@ -8,28 +8,24 @@ Tests:
     - Error handling
 """
 
-import os
-import sys
-from unittest import mock
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from continuum_sdk.tools.types import ToolError, ToolResult
 from continuum_sdk.tools.web import (
-    WebSearchTool,
     SearchEngine,
-    SearchResult,
     SearchResponse,
-    web_search,
-    duckduckgo,
-    google,
-    bing,
+    SearchResult,
+    WebSearchTool,
+    _search_bing,
     _search_duckduckgo,
     _search_google,
-    _search_bing,
+    bing,
+    duckduckgo,
+    google,
+    web_search,
 )
-from continuum_sdk.tools.types import ToolError, ToolResult
-
 
 # Sample mock responses
 MOCK_DUCKDUCKGO_RESPONSE = {

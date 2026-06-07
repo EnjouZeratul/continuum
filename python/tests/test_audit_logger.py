@@ -3,29 +3,26 @@
 Tests for continuum_sdk.security.audit_logger module.
 """
 
-import os
-import sys
-import tempfile
-import shutil
 import json
+import os
+import shutil
+import tempfile
 import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import patch
 
 import pytest
 
 from continuum_sdk.security.audit_logger import (
     AuditLogger,
     AuditOperation,
-    AuditResult,
     AuditRecord,
+    AuditResult,
     RateLimiter,
     sanitize_metadata,
     sanitize_string,
-    MAX_LOG_SIZE_MB,
-    MAX_BACKUP_COUNT,
 )
 
 
@@ -606,10 +603,10 @@ class TestAuditLoggerLog:
         records_per_thread = 100
 
         def log_operations():
-            for i in range(records_per_thread):
+            for _i in range(records_per_thread):
                 logger.log(
                     operation=AuditOperation.READ,
-                    path=f"/test/thread_file.py",
+                    path="/test/thread_file.py",
                     result=AuditResult.SUCCESS,
                 )
 
@@ -1052,7 +1049,7 @@ class TestAuditLoggerFilePersistence:
         assert os.path.exists(log_file)
 
         with open(log_file, encoding="utf-8") as f:
-            lines = [l.strip() for l in f if l.strip()]
+            lines = [line.strip() for line in f if line.strip()]
         assert len(lines) == 2
 
     def test_flush_without_log_file(self):
@@ -1189,7 +1186,7 @@ class TestAuditLoggerFilePersistence:
         Path(log_file).write_text("")
 
         # Mock open to raise IOError during loading
-        with patch('builtins.open', side_effect=IOError("Mocked IO error")):
+        with patch('builtins.open', side_effect=OSError("Mocked IO error")):
             # Should not raise, just log warning
             logger = AuditLogger(log_file=log_file)
             assert len(logger) == 0

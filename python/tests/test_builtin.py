@@ -8,7 +8,6 @@ Run: pytest python/tests/test_builtin.py -v --cov=continuum_sdk.tools --cov-repo
 
 import asyncio
 import os
-import sys
 import tempfile
 
 import pytest
@@ -1164,8 +1163,8 @@ class TestBuiltinTools:
 
     def test_execute_file_ops(self):
         """测试 execute 方法调用文件操作"""
-        import tempfile
         import os
+        import tempfile
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1184,8 +1183,8 @@ class TestBuiltinTools:
 
     def test_execute_search_ops(self):
         """测试 execute 方法调用搜索操作"""
-        import tempfile
         import os
+        import tempfile
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1203,8 +1202,8 @@ class TestBuiltinTools:
 
     def test_execute_edit_file(self):
         """测试 execute 方法调用 edit_file"""
-        import tempfile
         import os
+        import tempfile
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1290,8 +1289,8 @@ class TestBuiltinTools:
 
     def test_list_directory_with_files(self):
         """测试 list_directory 包含文件和目录"""
-        import tempfile
         import os
+        import tempfile
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:

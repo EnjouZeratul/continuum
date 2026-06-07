@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -494,7 +495,7 @@ class ImageInput:
         )
 
     @classmethod
-    def from_path(cls, path: str, media_type: str | None = None) -> "ImageInput":
+    def from_path(cls, path: str, media_type: str | None = None) -> ImageInput:
         """Create from file path."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
@@ -502,7 +503,7 @@ class ImageInput:
         return instance
 
     @classmethod
-    def from_url(cls, url: str) -> "ImageInput":
+    def from_url(cls, url: str) -> ImageInput:
         """Create from URL."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
@@ -510,7 +511,7 @@ class ImageInput:
         return instance
 
     @classmethod
-    def from_base64(cls, data: str, media_type: str = "image/jpeg") -> "ImageInput":
+    def from_base64(cls, data: str, media_type: str = "image/jpeg") -> ImageInput:
         """Create from base64 data."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
@@ -518,7 +519,7 @@ class ImageInput:
         return instance
 
     @classmethod
-    def from_bytes(cls, data: bytes, media_type: str = "image/jpeg") -> "ImageInput":
+    def from_bytes(cls, data: bytes, media_type: str = "image/jpeg") -> ImageInput:
         """Create from raw bytes."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
@@ -608,7 +609,7 @@ class PermissionManager:
         """Revoke role from user."""
         return self._manager.revoke(user_id, role_name)
 
-    def create_role(self, role: "Role") -> None:
+    def create_role(self, role: Role) -> None:
         """Create custom role."""
         return self._manager.create_role(role)
 
@@ -675,13 +676,13 @@ class Role:
         impl_type = impl or get_implementation_preference()
 
         if impl_type == "rust" and HAS_RUST_BINDING:
-            from .rust_impl import RustRole, RustPermission
+            from .rust_impl import RustPermission, RustRole
 
             perms = permissions or []
             rust_perms = [RustPermission(p.resource, p.action) for p in perms]
             self._role = RustRole(name, rust_perms)
         else:
-            from .python_impl import PythonRole, PythonPermission
+            from .python_impl import PythonPermission, PythonRole
 
             perms = permissions or []
             py_perms = [PythonPermission(p.resource, p.action) for p in perms]

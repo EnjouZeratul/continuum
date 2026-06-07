@@ -13,16 +13,9 @@ These tests are designed to fail when documented behavior diverges from implemen
 
 from __future__ import annotations
 
-import ast
-import os
-import re
-import subprocess
-import sys
 from pathlib import Path
-from typing import Any
 
 import pytest
-
 
 # =============================================================================
 # 1. Python Import Smoke Tests
@@ -451,7 +444,7 @@ class TestPackagingModes:
 
     def test_python_fallback_mode_detection(self):
         """Test that we can detect Rust binding availability."""
-        from continuum_sdk.api import HAS_RUST_BINDING, get_implementation_preference
+        from continuum_sdk.api import get_implementation_preference
 
         # Should return either "rust" or "python"
         pref = get_implementation_preference()
@@ -578,8 +571,9 @@ class TestAPIContracts:
 
     def test_vector_store_upsert_signature(self):
         """Test that VectorStore.upsert has correct signature."""
-        from continuum_sdk.rag import InMemoryVectorStore
         import inspect
+
+        from continuum_sdk.rag import InMemoryVectorStore
 
         sig = inspect.signature(InMemoryVectorStore.upsert)
         params = list(sig.parameters.keys())
@@ -591,8 +585,9 @@ class TestAPIContracts:
 
     def test_vector_store_search_signature(self):
         """Test that VectorStore.search has correct signature."""
-        from continuum_sdk.rag import InMemoryVectorStore
         import inspect
+
+        from continuum_sdk.rag import InMemoryVectorStore
 
         sig = inspect.signature(InMemoryVectorStore.search)
         params = list(sig.parameters.keys())
@@ -606,8 +601,9 @@ class TestAPIContracts:
 
     def test_dag_node_constructor_signature(self):
         """Test that Node constructor has correct signature."""
-        from continuum_sdk.workflow import Node
         import inspect
+
+        from continuum_sdk.workflow import Node
 
         sig = inspect.signature(Node)
         params = list(sig.parameters.keys())

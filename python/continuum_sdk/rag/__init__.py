@@ -45,8 +45,8 @@ RetrieverEngine:
 
 from .retriever import (
     Chunk,
-    ChunkPosition,
     ChunkingStrategy,
+    ChunkPosition,
     DefaultRetrieverEngine,
     Document,
     EmbeddingModel,

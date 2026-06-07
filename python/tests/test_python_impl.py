@@ -40,7 +40,6 @@ from continuum_sdk.python_impl import (
     TierProxy,
 )
 
-
 # ==============================================================================
 # PythonAgent Tests
 # ==============================================================================
@@ -258,7 +257,7 @@ class TestPythonBuiltinTools:
             path = f.name
 
         try:
-            result = tools.edit_file(path, "original", "modified")
+            tools.edit_file(path, "original", "modified")
             # Verify edit happened
             with open(path) as f:
                 content = f.read()
@@ -1957,7 +1956,6 @@ class TestPythonMultimodalHandler:
     def test_encode_image_from_url_too_many_redirects(self):
         """Test too many redirects error"""
         handler = PythonMultimodalHandler()
-        import urllib.error
 
         # Test by mocking _follow_redirects_safely to raise
         with mock.patch.object(handler, '_follow_redirects_safely', side_effect=ValueError("Too many redirects (max 5)")):
@@ -2271,7 +2269,7 @@ class TestPythonMultimodalHandler:
             path = f.name
 
         try:
-            result = handler.encode_image(path)
+            handler.encode_image(path)
             # Cache should have been populated
             assert len(handler._content_cache) > 0
         finally:
@@ -2572,7 +2570,7 @@ class TestImageInput:
 
     def test_image_input_to_base64_from_url_lazy(self):
         """Test to_base64 lazy loading from URL with content type detection"""
-        handler = PythonMultimodalHandler()
+        PythonMultimodalHandler()
 
         mock_response = BytesIO(b"fake_gif_data")
         mock_response.geturl = lambda: "http://example.com/image.gif"

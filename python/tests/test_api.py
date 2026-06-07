@@ -10,27 +10,25 @@ This module tests the unified API layer, covering:
 """
 
 import os
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from pathlib import Path
 import tempfile
-import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from continuum_sdk.api import (
+    HAS_RUST_BINDING,
     Agent,
     BuiltinTools,
-    QueryEngine,
+    ImageInput,
     MemorySystem,
     MultimodalHandler,
-    ImageInput,
-    PermissionManager,
     Permission,
+    PermissionManager,
+    QueryEngine,
     Role,
     Session,
     get_implementation_preference,
-    HAS_RUST_BINDING,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -222,7 +220,7 @@ class TestAgent:
     def test_init_with_provider(self, mock_python_agent):
         """Test Agent initialization with provider."""
         mock_class, mock_instance = mock_python_agent
-        agent = Agent(provider="openai")
+        Agent(provider="openai")
         mock_class.assert_called_once()
         # Check that provider was passed in kwargs
         call_kwargs = mock_class.call_args[1]
@@ -231,7 +229,7 @@ class TestAgent:
     def test_init_with_api_key(self, mock_python_agent):
         """Test Agent initialization with API key."""
         mock_class, mock_instance = mock_python_agent
-        agent = Agent(api_key="test-key")
+        Agent(api_key="test-key")
         call_kwargs = mock_class.call_args[1]
         assert call_kwargs.get("api_key") == "test-key"
 
@@ -263,7 +261,7 @@ class TestAgent:
         """Test Agent.run with additional kwargs."""
         mock_class, mock_instance = mock_python_agent
         agent = Agent()
-        result = agent.run("test task", timeout=30)
+        agent.run("test task", timeout=30)
         mock_instance.run.assert_called_once_with("test task", timeout=30)
 
     @pytest.mark.asyncio
@@ -341,7 +339,7 @@ class TestBuiltinTools:
         """Test BuiltinTools.read_file with offset and limit."""
         mock_class, mock_instance = mock_python_builtin_tools
         tools = BuiltinTools()
-        result = tools.read_file("test.txt", offset=10, limit=100)
+        tools.read_file("test.txt", offset=10, limit=100)
         mock_instance.read_file.assert_called_once_with("test.txt", 10, 100)
 
     def test_write_file(self, mock_python_builtin_tools):
@@ -527,7 +525,7 @@ class TestMemorySystem:
     def test_init_with_session_id(self, mock_python_memory_system):
         """Test MemorySystem initialization with session_id."""
         mock_class, mock_instance = mock_python_memory_system
-        memory = MemorySystem(session_id="my-session")
+        MemorySystem(session_id="my-session")
         mock_class.assert_called_once_with(session_id="my-session")
 
     def test_store(self, mock_python_memory_system):
@@ -786,7 +784,7 @@ class TestImageInput:
             mock_instance.source_type = "path"
             mock_py.return_value = mock_instance
 
-            img = ImageInput(path="test.jpg")
+            ImageInput(path="test.jpg")
             mock_py.assert_called_once()
 
     def test_init_with_url(self):
@@ -797,7 +795,7 @@ class TestImageInput:
             mock_instance.source_type = "url"
             mock_py.return_value = mock_instance
 
-            img = ImageInput(url="http://example.com/img.png")
+            ImageInput(url="http://example.com/img.png")
             mock_py.assert_called_once()
 
     def test_init_with_base64(self):
@@ -808,7 +806,7 @@ class TestImageInput:
             mock_instance.source_type = "base64"
             mock_py.return_value = mock_instance
 
-            img = ImageInput(base64_data="abc123", media_type="image/png")
+            ImageInput(base64_data="abc123", media_type="image/png")
             mock_py.assert_called_once()
 
     def test_from_path(self):
@@ -830,7 +828,7 @@ class TestImageInput:
             mock_instance = MagicMock()
             mock_py.from_path.return_value = mock_instance
 
-            img = ImageInput.from_path("test.jpg", media_type="image/png")
+            ImageInput.from_path("test.jpg", media_type="image/png")
             mock_py.from_path.assert_called_once_with("test.jpg", "image/png")
 
     def test_from_url(self):
@@ -839,7 +837,7 @@ class TestImageInput:
             mock_instance = MagicMock()
             mock_py.from_url.return_value = mock_instance
 
-            img = ImageInput.from_url("http://example.com/img.png")
+            ImageInput.from_url("http://example.com/img.png")
             mock_py.from_url.assert_called_once_with("http://example.com/img.png")
 
     def test_from_base64(self):
@@ -848,7 +846,7 @@ class TestImageInput:
             mock_instance = MagicMock()
             mock_py.from_base64.return_value = mock_instance
 
-            img = ImageInput.from_base64("abc123", media_type="image/png")
+            ImageInput.from_base64("abc123", media_type="image/png")
             mock_py.from_base64.assert_called_once_with("abc123", "image/png")
 
     def test_from_bytes(self):
@@ -858,7 +856,7 @@ class TestImageInput:
             mock_py.from_bytes.return_value = mock_instance
 
             data = b"\x89PNG\r\n\x1a\n"
-            img = ImageInput.from_bytes(data, media_type="image/png")
+            ImageInput.from_bytes(data, media_type="image/png")
             mock_py.from_bytes.assert_called_once_with(data, "image/png")
 
     def test_to_base64(self):
@@ -1050,7 +1048,7 @@ class TestRole:
     def test_init_with_permissions(self):
         """Test Role initialization with permissions."""
         with patch("continuum_sdk.python_impl.PythonRole") as mock_py, \
-             patch("continuum_sdk.python_impl.PythonPermission") as mock_perm:
+             patch("continuum_sdk.python_impl.PythonPermission"):
             mock_role_instance = MagicMock()
             mock_role_instance.name = "custom"
             mock_perm_instance1 = MagicMock()
@@ -1068,7 +1066,7 @@ class TestRole:
     def test_permissions_property(self):
         """Test Role.permissions property."""
         with patch("continuum_sdk.python_impl.PythonRole") as mock_py, \
-             patch("continuum_sdk.python_impl.PythonPermission") as mock_perm:
+             patch("continuum_sdk.python_impl.PythonPermission"):
             mock_role_instance = MagicMock()
             mock_role_instance.name = "custom"
             mock_perm_instance = MagicMock()
@@ -1077,8 +1075,7 @@ class TestRole:
             mock_role_instance.permissions = [mock_perm_instance]
             mock_py.return_value = mock_role_instance
 
-            role = Role("custom")
-            perms = role.permissions
+            Role("custom")
             # The permissions property wraps the Python permissions
 
     def test_repr(self):
@@ -1295,7 +1292,7 @@ class TestEdgeCases:
         mock_class, mock_instance = mock_python_memory_system
         mock_instance.query.return_value = []
         memory = MemorySystem()
-        result = memory.query("test", limit=0)
+        memory.query("test", limit=0)
         mock_instance.query.assert_called_once_with("test", None, 0)
 
     def test_permission_manager_empty_user_id(self, mock_python_permission_manager):
@@ -1391,7 +1388,7 @@ class TestRustBindingPaths:
             mock_instance.run.return_value = "rust result"
             mock_rust_agent.return_value = mock_instance
 
-            agent = Agent(impl="rust")
+            Agent(impl="rust")
             # Should have used RustAgent
             mock_rust_agent.assert_called_once()
 
@@ -1441,7 +1438,7 @@ class TestRustBindingPaths:
             mock_instance = MagicMock()
             mock_py.return_value = mock_instance
 
-            handler = MultimodalHandler(impl="rust")
+            MultimodalHandler(impl="rust")
             # Should still use Python implementation
             mock_py.assert_called_once()
 
@@ -1467,7 +1464,7 @@ class TestRustBindingPaths:
             mock_instance.action = "read"
             mock_rust_perm.return_value = mock_instance
 
-            perm = Permission("session", "read", impl="rust")
+            Permission("session", "read", impl="rust")
             mock_rust_perm.assert_called_once_with("session", "read")
 
     def test_role_with_rust_binding_available(self):
@@ -1475,13 +1472,13 @@ class TestRustBindingPaths:
         with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
              patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
              patch("continuum_sdk.rust_impl.RustRole") as mock_rust_role, \
-             patch("continuum_sdk.rust_impl.RustPermission") as mock_rust_perm:
+             patch("continuum_sdk.rust_impl.RustPermission"):
             mock_instance = MagicMock()
             mock_instance.name = "custom"
             mock_instance.permissions = []
             mock_rust_role.return_value = mock_instance
 
-            role = Role("custom", [], impl="rust")
+            Role("custom", [], impl="rust")
             mock_rust_role.assert_called_once()
 
 
@@ -1494,8 +1491,7 @@ class TestRustBindingModuleImport:
         # Simulate the _continuum module being available
         with patch.dict(sys.modules, {"continuum_sdk._continuum": MagicMock()}):
             # Re-import the api module to test the import path
-            import importlib
-            import continuum_sdk.api
+            pass
             # The import would succeed on first try
 
     def test_sh_python_import_success(self):
@@ -1525,7 +1521,7 @@ class TestMultimodalHandlerRustPath:
             mock_py.return_value = mock_instance
 
             # Even with Rust bindings, MultimodalHandler uses Python
-            handler = MultimodalHandler(impl="rust")
+            MultimodalHandler(impl="rust")
             # Verify Python implementation was called (both branches use Python)
             assert mock_py.call_count >= 1
 

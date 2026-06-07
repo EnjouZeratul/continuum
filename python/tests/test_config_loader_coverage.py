@@ -10,18 +10,17 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 
 from continuum_sdk.config.loader import (
-    Config,
-    ProviderConfig,
-    ConfigLoader,
-    load_config,
-    get_user_config_dir,
-    _get_env,
     ALLOWED_ENV_VARS,
+    Config,
+    ConfigLoader,
+    ProviderConfig,
+    _get_env,
+    get_user_config_dir,
+    load_config,
 )
 
 
@@ -389,7 +388,7 @@ class TestConfigEdgeCases:
             path = f.name
 
         try:
-            config = Config.from_file(path)
+            Config.from_file(path)
             # The expansion should work for whitelisted patterns
             # but may not for arbitrary vars
         finally:
@@ -577,7 +576,7 @@ class TestConfigFileLoading:
             # TOMLDecodeError is a ValueError, not caught by the exception handler
             # This test documents current behavior - the error propagates
             with pytest.raises(ValueError):  # TOMLDecodeError is subclass of ValueError
-                config_data = Config._load_file(Path(path))
+                Config._load_file(Path(path))
         finally:
             os.unlink(path)
 
@@ -794,7 +793,6 @@ class TestTomllibImportFallback:
         # This test simulates the import fallback scenario
         # We need to temporarily manipulate sys.modules to trigger the fallback
 
-        import sys
         import importlib
 
         # Save current state
@@ -832,7 +830,6 @@ class TestTomllibImportFallback:
 
     def test_both_imports_fail(self):
         """Test when both tomllib and tomli are not available (line 121)"""
-        import sys
         import importlib
 
         # Save current state
