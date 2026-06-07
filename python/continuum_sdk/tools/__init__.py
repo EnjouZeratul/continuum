@@ -76,6 +76,7 @@ try:
         MCPToolRegistry,
         create_mcp_registry,
     )
+
     _MCP_AVAILABLE = True
 except ImportError:
     _MCP_AVAILABLE = False

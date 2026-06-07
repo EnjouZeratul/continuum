@@ -38,6 +38,7 @@ try:
     from sh_python import (
         SecurityLevel as RustSecurityLevel,
     )
+
     HAS_BINDING = True
 except ImportError:
     HAS_BINDING = False
@@ -83,9 +84,14 @@ class PermissionAction:
     details: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def command_execute(cls, command: str, args: list[str] | None = None) -> PermissionAction:
+    def command_execute(
+        cls, command: str, args: list[str] | None = None
+    ) -> PermissionAction:
         """Create a command execution action."""
-        return cls(action_type="command_execute", details={"command": command, "args": args or []})
+        return cls(
+            action_type="command_execute",
+            details={"command": command, "args": args or []},
+        )
 
     @classmethod
     def file_read(cls, path: str) -> PermissionAction:
@@ -93,9 +99,14 @@ class PermissionAction:
         return cls(action_type="file_read", details={"path": path})
 
     @classmethod
-    def file_write(cls, path: str, content_preview: str | None = None) -> PermissionAction:
+    def file_write(
+        cls, path: str, content_preview: str | None = None
+    ) -> PermissionAction:
         """Create a file write action."""
-        return cls(action_type="file_write", details={"path": path, "content_preview": content_preview})
+        return cls(
+            action_type="file_write",
+            details={"path": path, "content_preview": content_preview},
+        )
 
     @classmethod
     def file_delete(cls, path: str) -> PermissionAction:
@@ -105,7 +116,9 @@ class PermissionAction:
     @classmethod
     def network_request(cls, url: str, method: str = "GET") -> PermissionAction:
         """Create a network request action."""
-        return cls(action_type="network_request", details={"url": url, "method": method})
+        return cls(
+            action_type="network_request", details={"url": url, "method": method}
+        )
 
     @classmethod
     def env_access(cls, names: list[str]) -> PermissionAction:
@@ -168,7 +181,10 @@ class PermissionResponse:
 
     def is_allowed(self) -> bool:
         """Check if this response allows the action."""
-        return self.decision in (PermissionDecision.ALLOW, PermissionDecision.ALLOW_ONCE)
+        return self.decision in (
+            PermissionDecision.ALLOW,
+            PermissionDecision.ALLOW_ONCE,
+        )
 
     def should_remember(self) -> bool:
         """Check if this decision should be remembered."""
@@ -181,16 +197,29 @@ class PermissionPolicy:
 
     level: SecurityLevel = SecurityLevel.STANDARD
     trusted_paths: list[str] = field(default_factory=list)
-    blocked_paths: list[str] = field(default_factory=lambda: [
-        ".env", ".env.local", "**/credentials.json", "**/secrets.json",
-        "~/.ssh/id_rsa", "~/.ssh/id_ed25519", "/etc/shadow", "/etc/passwd",
-    ])
+    blocked_paths: list[str] = field(
+        default_factory=lambda: [
+            ".env",
+            ".env.local",
+            "**/credentials.json",
+            "**/secrets.json",
+            "~/.ssh/id_rsa",
+            "~/.ssh/id_ed25519",
+            "/etc/shadow",
+            "/etc/passwd",
+        ]
+    )
     trusted_urls: list[str] = field(default_factory=list)
     blocked_urls: list[str] = field(default_factory=list)
     trusted_commands: list[str] = field(default_factory=list)
-    blocked_commands: list[str] = field(default_factory=lambda: [
-        "rm -rf /", "rm -rf ~", "mkfs", "dd if=/dev/zero",
-    ])
+    blocked_commands: list[str] = field(
+        default_factory=lambda: [
+            "rm -rf /",
+            "rm -rf ~",
+            "mkfs",
+            "dd if=/dev/zero",
+        ]
+    )
     enable_cache: bool = True
     cache_expire_seconds: int = 3600
     audit_enabled: bool = True
@@ -239,7 +268,9 @@ class PermissionManager:
         self._policy = policy or PermissionPolicy()
         self._cache: dict[str, tuple[PermissionDecision, datetime]] = {}
         self._audit_log: list[dict[str, Any]] = []
-        self._prompt_callback: Callable[[PermissionRequest], PermissionResponse] | None = None
+        self._prompt_callback: (
+            Callable[[PermissionRequest], PermissionResponse] | None
+        ) = None
 
     def set_policy(self, policy: PermissionPolicy) -> None:
         """Update the security policy."""
@@ -296,7 +327,9 @@ class PermissionManager:
 
         # Auto-approve for trusted level
         if self._policy.level == SecurityLevel.TRUSTED:
-            response = PermissionResponse(request_id=request.id, decision=PermissionDecision.ALLOW)
+            response = PermissionResponse(
+                request_id=request.id, decision=PermissionDecision.ALLOW
+            )
             self._log_audit(request, response, from_cache=False)
             return response
 
@@ -390,7 +423,9 @@ class PermissionManager:
         return (len(self._cache), len(self._cache))
 
     # Convenience methods for creating requests
-    def request_command(self, command: str, args: list[str] = None) -> PermissionRequest:
+    def request_command(
+        self, command: str, args: list[str] = None
+    ) -> PermissionRequest:
         """Create a permission request for command execution."""
         import uuid
 
@@ -411,7 +446,9 @@ class PermissionManager:
             action=PermissionAction(action_type="file_read", details={"path": path}),
         )
 
-    def request_file_write(self, path: str, content_preview: str | None = None) -> PermissionRequest:
+    def request_file_write(
+        self, path: str, content_preview: str | None = None
+    ) -> PermissionRequest:
         """Create a permission request for file write."""
         import uuid
 

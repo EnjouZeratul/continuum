@@ -33,44 +33,98 @@ logger = logging.getLogger(__name__)
 # Commands that may never run.
 BLOCKED_COMMANDS = {
     # Privilege escalation
-    "sudo", "su", "doas",
+    "sudo",
+    "su",
+    "doas",
     # Shell interpreters (shell-of-shell bypass)
-    "bash", "sh", "zsh", "fish", "dash", "ksh", "csh", "tcsh",
-    "cmd", "cmd.exe", "powershell", "pwsh",
+    "bash",
+    "sh",
+    "zsh",
+    "fish",
+    "dash",
+    "ksh",
+    "csh",
+    "tcsh",
+    "cmd",
+    "cmd.exe",
+    "powershell",
+    "pwsh",
     # Shell-builtins for arbitrary code execution
-    "eval", "exec",
+    "eval",
+    "exec",
     # Network backdoors / data exfiltration
-    "mkfifo", "nc", "ncat", "netcat", "telnet", "curl", "wget",
+    "mkfifo",
+    "nc",
+    "ncat",
+    "netcat",
+    "telnet",
+    "curl",
+    "wget",
     # Script execution (out-of-band code)
-    "python", "python3", "perl", "ruby", "node", "php",
+    "python",
+    "python3",
+    "perl",
+    "ruby",
+    "node",
+    "php",
     # Encoding / obfuscation
-    "base64", "openssl", "xxd",
+    "base64",
+    "openssl",
+    "xxd",
     # Container escape
-    "docker", "kubectl",
+    "docker",
+    "kubectl",
     # Process manipulation
-    "kill", "pkill", "killall",
+    "kill",
+    "pkill",
+    "killall",
 }
 
 # Commands allowed only with explicit `confirm=True`.
 DANGEROUS_COMMANDS = {
-    "rm", "rmdir", "del", "format", "mkfs", "dd",
-    "shutdown", "reboot", "poweroff",
-    "chmod", "chown",
-    "git",          # git push / git reset / git checkout etc. — require confirm
-    "npm",          # npm publish
-    "pip",          # pip upload / pip install
+    "rm",
+    "rmdir",
+    "del",
+    "format",
+    "mkfs",
+    "dd",
+    "shutdown",
+    "reboot",
+    "poweroff",
+    "chmod",
+    "chown",
+    "git",  # git push / git reset / git checkout etc. — require confirm
+    "npm",  # npm publish
+    "pip",  # pip upload / pip install
     "ssh-keygen",
-    "env", "nice", "nohup", "xargs", "chroot", "ionice", "strace", "time",
+    "env",
+    "nice",
+    "nohup",
+    "xargs",
+    "chroot",
+    "ionice",
+    "strace",
+    "time",
     "find",
 }
 
 # Environment variables propagated to subprocesses by default.
 SAFE_ENV_KEYS = {
-    "PATH", "HOME", "USER", "USERNAME", "LOGNAME",
-    "TEMP", "TMP", "TMPDIR",
-    "LANG", "LC_ALL", "LC_CTYPE",
-    "SYSTEMROOT", "WINDIR",  # required for Windows subprocess to find DLLs
-    "COMSPEC", "PATHEXT",
+    "PATH",
+    "HOME",
+    "USER",
+    "USERNAME",
+    "LOGNAME",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "SYSTEMROOT",
+    "WINDIR",  # required for Windows subprocess to find DLLs
+    "COMSPEC",
+    "PATHEXT",
 }
 
 # Shell metacharacters that introduce a new command token list.
@@ -81,20 +135,20 @@ import re as _re
 
 # Injection patterns - always forbidden (even with allow_shell=True)
 _INJECTION_RE = _re.compile(
-    r'\$\('      # $(...) command substitution - injection
-    r'|`'        # `...` backtick substitution - injection
-    r'|<\('      # <(...) process substitution - injection
-    r'|>\('      # >(...) process substitution - injection
-    r'|%0[aA]'   # %0a URL-encoded newline - injection
-    r'|%00'      # %00 URL-encoded null byte - injection
+    r"\$\("  # $(...) command substitution - injection
+    r"|`"  # `...` backtick substitution - injection
+    r"|<\("  # <(...) process substitution - injection
+    r"|>\("  # >(...) process substitution - injection
+    r"|%0[aA]"  # %0a URL-encoded newline - injection
+    r"|%00"  # %00 URL-encoded null byte - injection
 )
 
 # Shell operators - conditionally forbidden (only when allow_shell=False)
 _SHELL_OPERATOR_RE = _re.compile(
-    r'\|\s*\|'   # || operator
-    r'|&&'       # && operator
-    r'|\|'       # | operator (must come after ||)
-    r'|;'        # ; separator
+    r"\|\s*\|"  # || operator
+    r"|&&"  # && operator
+    r"|\|"  # | operator (must come after ||)
+    r"|;"  # ; separator
 )
 
 # Backward compat: _SUBSTITUTION_RE is now the injection pattern
@@ -207,7 +261,9 @@ def _extract_commands(command: str) -> list[list[str]]:
     current: list[str] = []
     for tok in tokens:
         if tok in _COMMAND_SEPARATORS:
-            if current:  # pragma: no branch - defensive check, separators always come after tokens
+            if (
+                current
+            ):  # pragma: no branch - defensive check, separators always come after tokens
                 commands.append(current)
                 current = []
         else:
@@ -274,9 +330,7 @@ def _build_safe_env(user_env: dict[str, str] | None, inherit: bool) -> dict[str,
         # Filter out dangerous environment variables from user-provided env
         for key, value in user_env.items():
             if key.upper() in DANGEROUS_ENV_VARS:
-                logger.warning(
-                    f"Blocked dangerous environment variable: {key}"
-                )
+                logger.warning(f"Blocked dangerous environment variable: {key}")
                 continue
             env[key] = value
     return env
@@ -349,7 +403,10 @@ def _validate_shell_mode(command: str) -> tuple[bool, str]:
     """
     # First check for injection patterns (always blocked)
     if _INJECTION_RE.search(command):
-        return False, "Command contains forbidden injection patterns ($(), ``, <(), >(), %0a, %00)"
+        return (
+            False,
+            "Command contains forbidden injection patterns ($(), ``, <(), >(), %0a, %00)",
+        )
 
     # Check if command can be parsed for exec
     if _can_parse_for_exec(command):
@@ -402,8 +459,13 @@ async def bash_execute(
     # Command validation (injection + shell operators)
     is_valid, error = _validate_command(command, allow_shell)
     if not is_valid:
-        record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                     details=f"validation error: {error}")
+        record_audit(
+            sec,
+            AuditOperation.EXECUTE,
+            command,
+            success=False,
+            details=f"validation error: {error}",
+        )
         raise ToolError(call_id=call_id, name="bash", message=error)
 
     # Policy check (blocked/dangerous commands)
@@ -411,14 +473,18 @@ async def bash_execute(
         blocked, dangerous = validate_command_tokens(command)
     except ToolError as e:
         e.call_id = call_id
-        record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                     details=f"parse error: {e.message}")
+        record_audit(
+            sec,
+            AuditOperation.EXECUTE,
+            command,
+            success=False,
+            details=f"parse error: {e.message}",
+        )
         raise
 
     if blocked:
         msg = f"Blocked command token(s): {', '.join(sorted(set(blocked)))}"
-        record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                     details=msg)
+        record_audit(sec, AuditOperation.EXECUTE, command, success=False, details=msg)
         raise ToolError(call_id=call_id, name="bash", message=msg)
 
     if dangerous and not confirm:
@@ -438,10 +504,16 @@ async def bash_execute(
         if not shell_allowed:
             # This shouldn't happen since _validate_command already passed,
             # but handle it defensively
-            record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                         details=f"shell mode denied: {shell_reason}")
+            record_audit(
+                sec,
+                AuditOperation.EXECUTE,
+                command,
+                success=False,
+                details=f"shell mode denied: {shell_reason}",
+            )
             raise ToolError(
-                call_id=call_id, name="bash",
+                call_id=call_id,
+                name="bash",
                 message=f"Shell mode denied: {shell_reason}",
             )
         logger.info(f"Shell mode enabled: {shell_reason}")
@@ -450,8 +522,12 @@ async def bash_execute(
     if working_dir is not None:
         if sec.enabled:
             cwd_path = enforce_path(
-                sec, working_dir, Permission.READ,
-                AuditOperation.EXECUTE, call_id, "bash",
+                sec,
+                working_dir,
+                Permission.READ,
+                AuditOperation.EXECUTE,
+                call_id,
+                "bash",
             )
         else:
             cwd_path = Path(working_dir).expanduser().resolve()
@@ -459,10 +535,16 @@ async def bash_execute(
         cwd_path = Path.cwd()
 
     if not cwd_path.exists():
-        record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                     details=f"cwd not found: {cwd_path}")
+        record_audit(
+            sec,
+            AuditOperation.EXECUTE,
+            command,
+            success=False,
+            details=f"cwd not found: {cwd_path}",
+        )
         raise ToolError(
-            call_id=call_id, name="bash",
+            call_id=call_id,
+            name="bash",
             message=f"Working directory not found: {cwd_path}",
         )
 
@@ -490,14 +572,21 @@ async def bash_execute(
 
         try:
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout,
+                proc.communicate(),
+                timeout=timeout,
             )
         except asyncio.TimeoutError:
             proc.kill()
-            record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                         details=f"timed out after {timeout}s")
+            record_audit(
+                sec,
+                AuditOperation.EXECUTE,
+                command,
+                success=False,
+                details=f"timed out after {timeout}s",
+            )
             raise ToolError(
-                call_id=call_id, name="bash",
+                call_id=call_id,
+                name="bash",
                 message=f"Command timed out after {timeout}s",
             )
 
@@ -507,7 +596,9 @@ async def bash_execute(
         stderr_str = stderr.decode("utf-8", errors="replace")
 
         record_audit(
-            sec, AuditOperation.EXECUTE, command,
+            sec,
+            AuditOperation.EXECUTE,
+            command,
             success=(proc.returncode == 0),
             details=f"exit_code={proc.returncode}",
             metadata={
@@ -524,29 +615,45 @@ async def bash_execute(
             if stdout_str:
                 content += f"Output: {stdout_str}"
             return ToolResult(
-                call_id=call_id, name="bash",
+                call_id=call_id,
+                name="bash",
                 content=content.strip(),
-                is_error=True, duration_ms=duration_ms,
+                is_error=True,
+                duration_ms=duration_ms,
             )
 
         return ToolResult(
-            call_id=call_id, name="bash",
+            call_id=call_id,
+            name="bash",
             content=stdout_str or "(no output)",
-            is_error=False, duration_ms=duration_ms,
+            is_error=False,
+            duration_ms=duration_ms,
         )
 
     except FileNotFoundError as e:
-        record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                     details=f"command not found: {e}")
+        record_audit(
+            sec,
+            AuditOperation.EXECUTE,
+            command,
+            success=False,
+            details=f"command not found: {e}",
+        )
         raise ToolError(
-            call_id=call_id, name="bash",
+            call_id=call_id,
+            name="bash",
             message=f"Command not found: {command.split()[0]}",
         ) from e
-    except (subprocess.SubprocessError, OSError, PermissionError) as e:  # pragma: no cover - hard to trigger these errors in tests
-        record_audit(sec, AuditOperation.EXECUTE, command, success=False,
-                     details=str(e))
+    except (
+        subprocess.SubprocessError,
+        OSError,
+        PermissionError,
+    ) as e:  # pragma: no cover - hard to trigger these errors in tests
+        record_audit(
+            sec, AuditOperation.EXECUTE, command, success=False, details=str(e)
+        )
         raise ToolError(
-            call_id=call_id, name="bash",
+            call_id=call_id,
+            name="bash",
             message=f"Execution failed: {e}",
         ) from e
 
@@ -564,12 +671,19 @@ def bash_execute_sync(
     allow_shell: bool = False,
 ) -> ToolResult:
     """Execute a bash command synchronously."""
-    return asyncio.run(bash_execute(
-        command, timeout, working_dir, env,
-        confirm=confirm, inherit_env=inherit_env,
-        workspace=workspace, security_config=security_config,
-        allow_shell=allow_shell,
-    ))
+    return asyncio.run(
+        bash_execute(
+            command,
+            timeout,
+            working_dir,
+            env,
+            confirm=confirm,
+            inherit_env=inherit_env,
+            workspace=workspace,
+            security_config=security_config,
+            allow_shell=allow_shell,
+        )
+    )
 
 
 class BashTool:

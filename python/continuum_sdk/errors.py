@@ -193,7 +193,9 @@ class ContinuumError(Exception):
         return "\n".join(parts)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(message={self.message!r}, code={self.code!r})"
+        return (
+            f"{self.__class__.__name__}(message={self.message!r}, code={self.code!r})"
+        )
 
 
 class ConfigError(ContinuumError):
@@ -255,7 +257,9 @@ class ToolExecutionError(ContinuumError):
             if tool_args:
                 context["tool_args"] = tool_args
 
-        super().__init__(message=message, code=code, timestamp=timestamp, context=context)
+        super().__init__(
+            message=message, code=code, timestamp=timestamp, context=context
+        )
         self.tool_name = tool_name
         self.tool_args = tool_args or {}
 
@@ -295,7 +299,9 @@ class LLMError(ContinuumError):
         if isinstance(context, dict) and provider:
             context["provider"] = provider
 
-        super().__init__(message=message, code=code, timestamp=timestamp, context=context)
+        super().__init__(
+            message=message, code=code, timestamp=timestamp, context=context
+        )
         self.provider = provider
 
     def __str__(self) -> str:
@@ -442,13 +448,16 @@ class ValidationError(ContinuumError):
             if valid_range:
                 context["valid_range"] = valid_range
 
-        super().__init__(message=message, code=code, timestamp=timestamp, context=context)
+        super().__init__(
+            message=message, code=code, timestamp=timestamp, context=context
+        )
         self.field = field
         self.value = value
         self.valid_range = valid_range
 
 
 # Convenience functions for creating common errors
+
 
 def config_error(
     message: str,

@@ -51,7 +51,9 @@ def _ensure_mcpadapt():
 
             _mcpadapt = (MCPAdapt, ToolAdapter)
             _mcp = mcp
-        except ImportError as e:  # pragma: no cover - depends on whether mcpadapt is installed
+        except (
+            ImportError
+        ) as e:  # pragma: no cover - depends on whether mcpadapt is installed
             raise ImportError(
                 "MCPAdapt is required for MCP tool integration. "
                 "Install with: pip install mcpadapt"
@@ -185,7 +187,7 @@ class ContinuumMCPAdapter:
             requires_confirmation: Whether tools require confirmation by default
             dangerous_tools: Set of tool names that are considered dangerous
         """
-        (MCPAdapt, ToolAdapter) = _ensure_mcpadapt()[0]
+        MCPAdapt, ToolAdapter = _ensure_mcpadapt()[0]
         self._ToolAdapter = ToolAdapter
         self.category = category
         self.requires_confirmation = requires_confirmation
@@ -271,7 +273,7 @@ class MCPToolRegistry:
         Args:
             timeout: Connection timeout in seconds
         """
-        (MCPAdapt, _) = _ensure_mcpadapt()[0]
+        MCPAdapt, _ = _ensure_mcpadapt()[0]
         self._MCPAdapt = MCPAdapt
         self._mcp = _ensure_mcpadapt()[1]
         self.timeout = timeout
@@ -322,9 +324,7 @@ class MCPToolRegistry:
         mcp_tools = [t for t in tools if isinstance(t, MCPTool)]
         self._tools[name] = mcp_tools
 
-        logger.info(
-            f"Connected to MCP server '{name}' with {len(mcp_tools)} tools"
-        )
+        logger.info(f"Connected to MCP server '{name}' with {len(mcp_tools)} tools")
         return mcp_tools
 
     def connect_sse(
@@ -356,9 +356,7 @@ class MCPToolRegistry:
         mcp_tools = [t for t in tools if isinstance(t, MCPTool)]
         self._tools[name] = mcp_tools
 
-        logger.info(
-            f"Connected to SSE MCP server '{name}' with {len(mcp_tools)} tools"
-        )
+        logger.info(f"Connected to SSE MCP server '{name}' with {len(mcp_tools)} tools")
         return mcp_tools
 
     def connect_websocket(
@@ -444,7 +442,13 @@ class MCPToolRegistry:
                 mcp_tools = [t for t in tools if isinstance(t, MCPTool)]
                 self._tools[name] = mcp_tools
                 logger.debug(f"Refreshed {len(mcp_tools)} tools from '{name}'")
-            except (ValueError, TypeError, KeyError, RuntimeError, ConnectionError) as e:
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                RuntimeError,
+                ConnectionError,
+            ) as e:
                 logger.warning(f"Failed to refresh tools from '{name}': {e}")
 
     def close(self, connection: str | None = None) -> None:

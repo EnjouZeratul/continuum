@@ -1165,12 +1165,15 @@ class TestBuiltinTools:
         """测试 execute 方法调用文件操作"""
         import os
         import tempfile
+
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # 测试 write_file via execute
             filepath = os.path.join(tmpdir, "test_execute.txt")
-            result = tools.execute("write_file", {"path": filepath, "content": "test content"})
+            result = tools.execute(
+                "write_file", {"path": filepath, "content": "test content"}
+            )
             assert "Success" in result or "wrote" in result.lower()
 
             # 测试 read_file via execute
@@ -1185,6 +1188,7 @@ class TestBuiltinTools:
         """测试 execute 方法调用搜索操作"""
         import os
         import tempfile
+
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1204,6 +1208,7 @@ class TestBuiltinTools:
         """测试 execute 方法调用 edit_file"""
         import os
         import tempfile
+
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1211,12 +1216,16 @@ class TestBuiltinTools:
             tools.write_file(filepath, "Hello World")
 
             # edit_file 使用 old_string/new_string 参数名
-            result = tools.execute("edit_file", {
-                "path": filepath,
-                "old_string": "World",
-                "new_string": "Python"
-            })
-            assert "Replace" in result or "occurrence" in result.lower() or "Python" in result or result != ""
+            result = tools.execute(
+                "edit_file",
+                {"path": filepath, "old_string": "World", "new_string": "Python"},
+            )
+            assert (
+                "Replace" in result
+                or "occurrence" in result.lower()
+                or "Python" in result
+                or result != ""
+            )
 
             # 验证修改成功
             content = tools.read_file(filepath)
@@ -1236,6 +1245,7 @@ class TestBuiltinTools:
 
     def test_execute_unknown_tool_key_error_from_executor_is_normalized(self):
         """测试 Rust executor 未知工具错误被归一化"""
+
         class MissingToolExecutor:
             def execute(self, name, args):
                 raise KeyError(f"Tool not found: {name}")
@@ -1247,6 +1257,7 @@ class TestBuiltinTools:
 
     def test_execute_unknown_tool_runtime_error_from_executor_is_normalized(self):
         """测试 Rust executor RuntimeError 未知工具错误被归一化"""
+
         class MissingToolExecutor:
             def execute(self, name, args):
                 raise RuntimeError(f"Tool not found: {name}")
@@ -1291,6 +1302,7 @@ class TestBuiltinTools:
         """测试 list_directory 包含文件和目录"""
         import os
         import tempfile
+
         tools = BuiltinTools()
 
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -109,6 +109,7 @@ except ImportError:  # pragma: no cover - tested with Rust binding available
     class RustToolExecutor:  # pragma: no cover
         pass
 
+
 # Import Python fallback implementations
 from .bash import bash_execute_sync
 from .file_ops import edit_file, read_file, write_file
@@ -250,9 +251,17 @@ class BuiltinTools:
     def _fallback_tools(self) -> set[str]:
         """Tools available via Python fallback."""
         return {
-            "read_file", "write_file", "edit_file", "list_directory",
-            "grep", "glob", "bash",
-            "go_to_definition", "find_references", "get_hover", "symbol_search",
+            "read_file",
+            "write_file",
+            "edit_file",
+            "list_directory",
+            "grep",
+            "glob",
+            "bash",
+            "go_to_definition",
+            "find_references",
+            "get_hover",
+            "symbol_search",
         }
 
     # ==================== File Operations ====================
@@ -323,7 +332,9 @@ class BuiltinTools:
             List of entries with name, type (file/dir)
         """
         if self._executor:
-            result = self._executor.execute("list_directory", json.dumps({"path": path}))
+            result = self._executor.execute(
+                "list_directory", json.dumps({"path": path})
+            )
             try:
                 return json.loads(result)
             except json.JSONDecodeError:
@@ -331,17 +342,20 @@ class BuiltinTools:
 
         # Python fallback using pathlib
         from pathlib import Path
+
         dir_path = Path(path).expanduser().resolve()
         if not dir_path.exists():
             return [{"error": f"Directory not found: {dir_path}"}]
 
         entries = []
         for entry in dir_path.iterdir():
-            entries.append({
-                "name": entry.name,
-                "type": "dir" if entry.is_dir() else "file",
-                "path": str(entry),
-            })
+            entries.append(
+                {
+                    "name": entry.name,
+                    "type": "dir" if entry.is_dir() else "file",
+                    "path": str(entry),
+                }
+            )
         return sorted(entries, key=lambda e: (e["type"], e["name"]))
 
     # ==================== Search ====================
@@ -381,6 +395,7 @@ class BuiltinTools:
 
         # Python fallback (rename to avoid shadowing)
         from .search import glob as glob_search
+
         result = glob_search(pattern, path)
         return result.content
 
@@ -407,7 +422,9 @@ class BuiltinTools:
 
         # Python fallback
         timeout_sec = (timeout_ms / 1000) if timeout_ms else 120.0
-        result = bash_execute_sync(command, timeout=timeout_sec, working_dir=working_dir)
+        result = bash_execute_sync(
+            command, timeout=timeout_sec, working_dir=working_dir
+        )
         return result.content
 
     # ==================== LSP Tools ====================
@@ -433,13 +450,15 @@ class BuiltinTools:
             Definition location
         """
         if self._executor:
-            args = json.dumps({
-                "file": file_path,
-                "line": line,
-                "column": column,
-                "symbol": symbol,
-                "search_dir": search_dir,
-            })
+            args = json.dumps(
+                {
+                    "file": file_path,
+                    "line": line,
+                    "column": column,
+                    "symbol": symbol,
+                    "search_dir": search_dir,
+                }
+            )
             return self._executor.execute("go_to_definition", args)
 
         # Python fallback
@@ -469,18 +488,22 @@ class BuiltinTools:
             List of reference locations
         """
         if self._executor:
-            args = json.dumps({
-                "file": file_path,
-                "line": line,
-                "column": column,
-                "symbol": symbol,
-                "search_dir": search_dir,
-                "include_declaration": include_declaration,
-            })
+            args = json.dumps(
+                {
+                    "file": file_path,
+                    "line": line,
+                    "column": column,
+                    "symbol": symbol,
+                    "search_dir": search_dir,
+                    "include_declaration": include_declaration,
+                }
+            )
             return self._executor.execute("find_references", args)
 
         # Python fallback
-        result = find_references(file_path, line, column, symbol, search_dir, include_declaration)
+        result = find_references(
+            file_path, line, column, symbol, search_dir, include_declaration
+        )
         return result.content
 
     def get_hover(self, file_path: str, line: int, column: int) -> str:
@@ -495,11 +518,13 @@ class BuiltinTools:
             Hover information
         """
         if self._executor:
-            args = json.dumps({
-                "file": file_path,
-                "line": line,
-                "column": column,
-            })
+            args = json.dumps(
+                {
+                    "file": file_path,
+                    "line": line,
+                    "column": column,
+                }
+            )
             return self._executor.execute("get_hover", args)
 
         # Python fallback
@@ -523,11 +548,13 @@ class BuiltinTools:
             Matching symbols
         """
         if self._executor:
-            args = json.dumps({
-                "pattern": pattern,
-                "search_dir": search_dir,
-                "file_pattern": file_pattern,
-            })
+            args = json.dumps(
+                {
+                    "pattern": pattern,
+                    "search_dir": search_dir,
+                    "file_pattern": file_pattern,
+                }
+            )
             return self._executor.execute("symbol_search", args)
 
         # Python fallback
@@ -587,7 +614,9 @@ class BuiltinTools:
 
         # Python fallback routing
         if name == "read_file":
-            return self.read_file(args.get("path"), args.get("offset"), args.get("limit"))
+            return self.read_file(
+                args.get("path"), args.get("offset"), args.get("limit")
+            )
         elif name == "write_file":
             return self.write_file(args.get("path"), args.get("content"))
         elif name == "edit_file":
@@ -603,7 +632,9 @@ class BuiltinTools:
         elif name == "glob":
             return self.glob(args.get("pattern"), args.get("path"))
         elif name == "bash":
-            return self.bash(args.get("command"), args.get("timeout_ms"), args.get("working_dir"))
+            return self.bash(
+                args.get("command"), args.get("timeout_ms"), args.get("working_dir")
+            )
         elif name == "go_to_definition":
             result = go_to_definition(
                 args.get("file"),
@@ -624,7 +655,9 @@ class BuiltinTools:
             )
             return result.content
         elif name == "get_hover":
-            result = get_hover(args.get("file"), args.get("line", 1), args.get("column", 1))
+            result = get_hover(
+                args.get("file"), args.get("line", 1), args.get("column", 1)
+            )
             return result.content
         elif name == "symbol_search":
             result = symbol_search(

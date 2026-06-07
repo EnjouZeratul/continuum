@@ -92,8 +92,7 @@ class TestPathValidator:
         allowed_dir = tempfile.mkdtemp()
         try:
             validator = PathValidator(
-                project_root=temp_dir,
-                allowed_paths=[allowed_dir]
+                project_root=temp_dir, allowed_paths=[allowed_dir]
             )
             result = validator.validate(os.path.join(allowed_dir, "cache"))
             assert result.is_valid
@@ -106,10 +105,7 @@ class TestPathValidator:
         denied_dir = os.path.join(temp_dir, "blocked")
         os.makedirs(denied_dir, exist_ok=True)
 
-        validator = PathValidator(
-            project_root=temp_dir,
-            denied_paths=["blocked"]
-        )
+        validator = PathValidator(project_root=temp_dir, denied_paths=["blocked"])
         result = validator.validate(os.path.join(temp_dir, "blocked", "file.txt"))
         assert not result.is_valid
         assert result.result_type == PathValidationResult.DENIED_PATH
@@ -301,7 +297,18 @@ class TestPathValidator:
         assert result.is_valid
 
         # Try to escape via deep traversal
-        escape_path = str(deep_path / ".." / ".." / ".." / ".." / ".." / ".." / ".." / "etc" / "passwd")
+        escape_path = str(
+            deep_path
+            / ".."
+            / ".."
+            / ".."
+            / ".."
+            / ".."
+            / ".."
+            / ".."
+            / "etc"
+            / "passwd"
+        )
         result = validator.validate(escape_path)
         assert not result.is_valid
 
@@ -442,7 +449,10 @@ class TestPathValidator:
         """Test validator with nonexistent project root"""
         # Should not raise, but log warning
         validator = PathValidator(project_root="/nonexistent/path/that/does/not/exist")
-        assert validator.project_root == Path("/nonexistent/path/that/does/not/exist").resolve()
+        assert (
+            validator.project_root
+            == Path("/nonexistent/path/that/does/not/exist").resolve()
+        )
 
     def test_path_validator_default_cwd(self):
         """Test PathValidator uses cwd when no project_root given"""
@@ -455,11 +465,14 @@ class TestPathValidator:
 
         # Test with path that causes issues in Path constructor
         # On Windows, certain characters are invalid
-        if os.name == 'nt':
+        if os.name == "nt":
             # Windows doesn't allow certain characters in paths
             result = validator.validate("CON")  # Reserved name
             # Should either handle gracefully or reject
-            assert result.result_type in (PathValidationResult.VALID, PathValidationResult.INVALID_PATH)
+            assert result.result_type in (
+                PathValidationResult.VALID,
+                PathValidationResult.INVALID_PATH,
+            )
         else:
             # On Unix, test null byte which causes ValueError
             try:
@@ -493,7 +506,7 @@ class TestPathValidator:
 
     def test_dangerous_system_dir_on_windows(self, temp_dir):
         """Test Windows dangerous system paths (line 265)"""
-        if os.name != 'nt':
+        if os.name != "nt":
             pytest.skip("Windows-specific test")
 
         validator = PathValidator(project_root=temp_dir)
@@ -511,7 +524,7 @@ class TestPathValidator:
 
     def test_non_windows_path_comparison(self, temp_dir):
         """Test non-Windows path comparison (lines 358-359)"""
-        if os.name == 'nt':
+        if os.name == "nt":
             # On Windows, test the Windows code path is covered
             validator = PathValidator(project_root=temp_dir)
             result = validator.validate("src/file.py")
@@ -584,7 +597,7 @@ class TestPathValidator:
             return original_path(path_arg)
 
         # Patch Path.__new__ to simulate error
-        with mock.patch('pathlib.Path.__new__', side_effect=mock_path_init):
+        with mock.patch("pathlib.Path.__new__", side_effect=mock_path_init):
             result = validator.validate("invalid_path_test")
             # Should catch the error and return INVALID_PATH
             # Or it might pass through if the mock doesn't work as expected
@@ -604,7 +617,7 @@ class TestPathValidator:
                 raise OSError("Mocked resolve error")
             return original_resolve(self, strict=strict)
 
-        with mock.patch.object(Path, 'resolve', mock_resolve):
+        with mock.patch.object(Path, "resolve", mock_resolve):
             result = validator.validate("test_error.py")
             assert result.result_type == PathValidationResult.INVALID_PATH
             assert "Cannot resolve path" in result.reason
@@ -623,7 +636,7 @@ class TestPathValidator:
                 raise OSError("Mocked absolute error")
             return original_absolute(self)
 
-        with mock.patch.object(Path, 'absolute', mock_absolute):
+        with mock.patch.object(Path, "absolute", mock_absolute):
             result = validator.validate("test_abs_error.py")
             assert result.result_type == PathValidationResult.INVALID_PATH
             assert "Cannot resolve path" in result.reason
@@ -675,7 +688,8 @@ class TestPathValidator:
         # Force a comparison that goes through the else branch
         # by checking if the resolved path starts with project root
         import platform
-        if platform.system() != 'Windows':
+
+        if platform.system() != "Windows":
             # On Unix, verify case-sensitive comparison
             result_upper = validator.validate("SRC/FILE.PY")
             # Should still be valid (inside project) but different resolved path
@@ -689,7 +703,7 @@ class TestPathValidator:
 
         validator = PathValidator(
             project_root=temp_dir,
-            denied_paths=[str(denied_dir.resolve())]  # Absolute path
+            denied_paths=[str(denied_dir.resolve())],  # Absolute path
         )
 
         result = validator.validate(str(denied_dir / "file.txt"))
@@ -699,20 +713,14 @@ class TestPathValidator:
     def test_sensitive_file_allow_flag(self, temp_dir):
         """Test allow_sensitive_files flag (line 249->262)"""
         # Test with allow_sensitive_files=True
-        validator = PathValidator(
-            project_root=temp_dir,
-            allow_sensitive_files=True
-        )
+        validator = PathValidator(project_root=temp_dir, allow_sensitive_files=True)
 
         # This should be allowed when flag is True
         result = validator.validate(str(Path(temp_dir) / ".env"))
         assert result.is_valid
 
         # Test with allow_sensitive_files=False (default)
-        validator2 = PathValidator(
-            project_root=temp_dir,
-            allow_sensitive_files=False
-        )
+        validator2 = PathValidator(project_root=temp_dir, allow_sensitive_files=False)
 
         result2 = validator2.validate(str(Path(temp_dir) / ".env"))
         assert not result2.is_valid
@@ -725,8 +733,7 @@ class TestPathValidator:
             other_dir = tempfile.mkdtemp()
             try:
                 validator = PathValidator(
-                    project_root=temp_dir,
-                    allowed_paths=[allowed_dir]
+                    project_root=temp_dir, allowed_paths=[allowed_dir]
                 )
 
                 # Path in allowed_dir should be valid
@@ -765,7 +772,7 @@ class TestPathValidator:
 
         # Create a mock that will cause an exception during path comparison
         # We'll patch os.name to cause different behavior
-        with mock.patch('os.name', 'nt'):
+        with mock.patch("os.name", "nt"):
             # Force Windows path comparison
             result = validator.validate("test.py")
             assert result.is_valid
@@ -792,7 +799,7 @@ class TestPathValidator:
         validator = PathValidator(project_root=temp_dir)
 
         # Mock os.name to be 'posix' to trigger Unix path comparison
-        with mock.patch('os.name', 'posix'):
+        with mock.patch("os.name", "posix"):
             result = validator.validate("src/file.py")
             assert result.is_valid
             # This should trigger the non-Windows path comparison branch
@@ -824,8 +831,7 @@ class TestPathValidator:
 
         # Use relative path in denied_paths
         validator = PathValidator(
-            project_root=temp_dir,
-            denied_paths=["blocked"]  # Relative path
+            project_root=temp_dir, denied_paths=["blocked"]  # Relative path
         )
 
         result = validator.validate(str(denied_file))
@@ -879,10 +885,7 @@ class TestPermissionChecker:
     def test_can_read_existing_file(self, temp_dir):
         """Test reading existing file"""
         checker = PermissionChecker()
-        result = checker.check(
-            os.path.join(temp_dir, "readable.txt"),
-            Permission.READ
-        )
+        result = checker.check(os.path.join(temp_dir, "readable.txt"), Permission.READ)
         assert result.has_permission
 
     def test_can_read_nonexistent_file(self):
@@ -907,8 +910,7 @@ class TestPermissionChecker:
         """Test create permission"""
         checker = PermissionChecker()
         result = checker.check(
-            os.path.join(temp_dir, "new_file.txt"),
-            Permission.CREATE
+            os.path.join(temp_dir, "new_file.txt"), Permission.CREATE
         )
         assert result.has_permission
 
@@ -941,7 +943,7 @@ class TestAuditLogger:
         record = logger.log(
             operation=AuditOperation.READ,
             path="/test/file.py",
-            result=AuditResult.SUCCESS
+            result=AuditResult.SUCCESS,
         )
         assert record is not None
         assert len(logger) == 1
@@ -1038,9 +1040,7 @@ class TestChangePreviewer:
         """Test creating change"""
         previewer = ChangePreviewer()
         change = previewer.create_change(
-            change_type=ChangeType.WRITE,
-            path="/test/file.py",
-            content="test content"
+            change_type=ChangeType.WRITE, path="/test/file.py", content="test content"
         )
         assert change.change_type == ChangeType.WRITE
         assert change.path == "/test/file.py"
@@ -1056,9 +1056,7 @@ class TestChangePreviewer:
         """Test preview output"""
         previewer = ChangePreviewer()
         change = previewer.create_change(
-            ChangeType.WRITE,
-            "/file.py",
-            content="new content"
+            ChangeType.WRITE, "/file.py", content="new content"
         )
         preview = previewer.preview(change)
         assert "Change Preview" in preview
@@ -1068,8 +1066,7 @@ class TestChangePreviewer:
         """Test diff generation"""
         previewer = ChangePreviewer()
         diff = previewer.diff(
-            old_content="original\nline",
-            new_content="modified\nline"
+            old_content="original\nline", new_content="modified\nline"
         )
         assert "---" in diff
         assert "+++" in diff
@@ -1077,10 +1074,7 @@ class TestChangePreviewer:
     def test_auto_confirm_low_risk(self):
         """Test auto-confirm for low risk"""
         previewer = ChangePreviewer(auto_confirm_low=True)
-        change = Change(
-            change_type=ChangeType.READ,
-            path="/file.py"
-        )
+        change = Change(change_type=ChangeType.READ, path="/file.py")
         # Auto-approve should return True
         assert previewer.confirm(change, auto_approve=True)
 
@@ -1181,7 +1175,7 @@ class TestPathValidatorMissingCoverage:
             denied_paths=[
                 str(other_denied.resolve()),  # Won't match first
                 str(denied_dir.resolve()),  # Will match second
-            ]
+            ],
         )
 
         # This path is in denied_dir, not other_denied
@@ -1196,8 +1190,7 @@ class TestPathValidatorMissingCoverage:
         denied_dir.mkdir()
 
         validator = PathValidator(
-            project_root=temp_dir,
-            denied_paths=["blocked"]  # Relative path
+            project_root=temp_dir, denied_paths=["blocked"]  # Relative path
         )
 
         result = validator.validate(str(denied_dir / "file.txt"))
@@ -1220,6 +1213,6 @@ class TestPathValidatorMissingCoverage:
 
         # Create a scenario where path comparison might raise an exception
         # by mocking os.name to force Windows path handling
-        with mock.patch('os.name', 'nt'):
+        with mock.patch("os.name", "nt"):
             result = validator.validate("test.py")
             assert result.is_valid  # Should handle exception gracefully

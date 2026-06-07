@@ -26,7 +26,7 @@ class TestGenerateShortId:
         """Test that the ID contains only lowercase hex characters."""
         result = generate_short_id()
         # Should only contain characters 0-9 and a-f
-        assert all(c in '0123456789abcdef' for c in result)
+        assert all(c in "0123456789abcdef" for c in result)
 
     def test_is_lowercase(self):
         """Test that the ID is lowercase."""
@@ -46,7 +46,7 @@ class TestGenerateShortId:
         """
         result = generate_short_id()
         # Should match pattern: 8 lowercase hex characters
-        pattern = re.compile(r'^[0-9a-f]{8}$')
+        pattern = re.compile(r"^[0-9a-f]{8}$")
         assert pattern.match(result) is not None
 
     def test_derived_from_uuid4(self):
@@ -60,7 +60,7 @@ class TestGenerateShortId:
         # We can't verify it's actually from UUID4, but we can verify
         # the format is consistent with taking the first 8 hex chars
         assert len(result) == 8
-        assert all(c in '0123456789abcdef' for c in result)
+        assert all(c in "0123456789abcdef" for c in result)
 
 
 class TestGeneratePrefixedId:
@@ -104,7 +104,7 @@ class TestGeneratePrefixedId:
         """Test that the ID part after prefix is valid hex."""
         result = generate_prefixed_id("task")
         short_id = result.split("_")[1]
-        assert all(c in '0123456789abcdef' for c in short_id)
+        assert all(c in "0123456789abcdef" for c in short_id)
 
     def test_uniqueness(self):
         """Test that multiple calls generate different IDs."""
@@ -139,7 +139,7 @@ class TestGeneratePrefixedId:
         assert result.startswith("my_task_")
         # The last 8 characters should be the short_id
         short_id = result[-8:]
-        assert all(c in '0123456789abcdef' for c in short_id)
+        assert all(c in "0123456789abcdef" for c in short_id)
 
     def test_format_matches_rust_implementation(self):
         """Test that the format matches the Rust implementation.
@@ -148,7 +148,7 @@ class TestGeneratePrefixedId:
         where short_id is 8 lowercase hex characters.
         """
         result = generate_prefixed_id("task")
-        pattern = re.compile(r'^task_[0-9a-f]{8}$')
+        pattern = re.compile(r"^task_[0-9a-f]{8}$")
         assert pattern.match(result) is not None
 
     def test_integration_with_generate_short_id(self):
@@ -159,7 +159,7 @@ class TestGeneratePrefixedId:
 
         # Should have same properties as generate_short_id()
         assert len(short_id) == 8
-        assert all(c in '0123456789abcdef' for c in short_id)
+        assert all(c in "0123456789abcdef" for c in short_id)
 
 
 class TestModuleExports:
@@ -228,7 +228,7 @@ class TestIdGenerationPatterns:
 
             # Short ID should always be 8 hex chars
             assert len(short_id) == 8
-            assert all(c in '0123456789abcdef' for c in short_id)
+            assert all(c in "0123456789abcdef" for c in short_id)
 
             # Prefixed ID should be prefix + underscore + 8 hex chars
             assert prefixed_id.startswith("test_")

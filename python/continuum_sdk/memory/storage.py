@@ -470,32 +470,38 @@ class SQLiteStorage(StorageBackend):
             cursor = self._conn.cursor()
 
             # Insert or replace
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO memories
                 (id, tier, session_id, content, metadata, created_at, last_accessed, access_count, importance)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                entry.id,
-                tier.value,
-                self._session_id,
-                entry.content,
-                json.dumps(entry.metadata),
-                entry.created_at.isoformat(),
-                entry.last_accessed.isoformat(),
-                entry.access_count,
-                entry.importance,
-            ))
+            """,
+                (
+                    entry.id,
+                    tier.value,
+                    self._session_id,
+                    entry.content,
+                    json.dumps(entry.metadata),
+                    entry.created_at.isoformat(),
+                    entry.last_accessed.isoformat(),
+                    entry.access_count,
+                    entry.importance,
+                ),
+            )
 
             # Update full-text search index
             if self._enable_fts:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO memories_fts (id, content, metadata)
                     VALUES (?, ?, ?)
-                """, (
-                    entry.id,
-                    entry.content,
-                    json.dumps(entry.metadata),
-                ))
+                """,
+                    (
+                        entry.id,
+                        entry.content,
+                        json.dumps(entry.metadata),
+                    ),
+                )
 
             if self._auto_commit:
                 self._conn.commit()
@@ -504,19 +510,25 @@ class SQLiteStorage(StorageBackend):
         """Load memory entry"""
         with self._lock:
             cursor = self._conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM memories
                 WHERE tier = ? AND session_id = ? AND id = ?
-            """, (tier.value, self._session_id, entry_id))
+            """,
+                (tier.value, self._session_id, entry_id),
+            )
 
             row = cursor.fetchone()
             if row:
                 # Update access info
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE memories
                     SET last_accessed = ?, access_count = access_count + 1
                     WHERE id = ?
-                """, (_utc_now().isoformat(), entry_id))
+                """,
+                    (_utc_now().isoformat(), entry_id),
+                )
 
                 if self._auto_commit:  # pragma: no branch
                     self._conn.commit()
@@ -528,11 +540,14 @@ class SQLiteStorage(StorageBackend):
         """Load all entries in specified tier"""
         with self._lock:
             cursor = self._conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM memories
                 WHERE tier = ? AND session_id = ?
                 ORDER BY created_at DESC
-            """, (tier.value, self._session_id))
+            """,
+                (tier.value, self._session_id),
+            )
 
             return [self._row_to_entry(row) for row in cursor.fetchall()]
 
@@ -542,24 +557,33 @@ class SQLiteStorage(StorageBackend):
             cursor = self._conn.cursor()
 
             # Check if exists
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id FROM memories
                 WHERE tier = ? AND session_id = ? AND id = ?
-            """, (tier.value, self._session_id, entry_id))
+            """,
+                (tier.value, self._session_id, entry_id),
+            )
 
             if not cursor.fetchone():
                 return False
 
             # Delete
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM memories WHERE id = ?
-            """, (entry_id,))
+            """,
+                (entry_id,),
+            )
 
             # Delete full-text search index
             if self._enable_fts:  # pragma: no branch
-                cursor.execute("""
+                cursor.execute(
+                    """
                     DELETE FROM memories_fts WHERE id = ?
-                """, (entry_id,))
+                """,
+                    (entry_id,),
+                )
 
             if self._auto_commit:  # pragma: no branch
                 self._conn.commit()
@@ -573,10 +597,13 @@ class SQLiteStorage(StorageBackend):
             cursor = self._conn.cursor()
 
             # Get list of IDs to delete
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id FROM memories
                 WHERE tier = ? AND session_id = ?
-            """, (tier.value, self._session_id))
+            """,
+                (tier.value, self._session_id),
+            )
 
             ids = [row["id"] for row in cursor.fetchall()]
             count = len(ids)
@@ -586,15 +613,21 @@ class SQLiteStorage(StorageBackend):
 
             # Delete main table records
             placeholders = ",".join("?" * len(ids))
-            cursor.execute(f"""
+            cursor.execute(
+                f"""
                 DELETE FROM memories WHERE id IN ({placeholders})
-            """, ids)
+            """,
+                ids,
+            )
 
             # Delete full-text search index
             if self._enable_fts:  # pragma: no branch
-                cursor.execute(f"""
+                cursor.execute(
+                    f"""
                     DELETE FROM memories_fts WHERE id IN ({placeholders})
-                """, ids)
+                """,
+                    ids,
+                )
 
             if self._auto_commit:  # pragma: no branch
                 self._conn.commit()
@@ -605,10 +638,13 @@ class SQLiteStorage(StorageBackend):
         """Get entry count"""
         with self._lock:
             cursor = self._conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(*) FROM memories
                 WHERE tier = ? AND session_id = ?
-            """, (tier.value, self._session_id))
+            """,
+                (tier.value, self._session_id),
+            )
             return cursor.fetchone()[0]
 
     def search(
@@ -621,23 +657,29 @@ class SQLiteStorage(StorageBackend):
 
             if self._enable_fts:
                 # Use full-text search
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT m.* FROM memories m
                     JOIN memories_fts fts ON m.id = fts.id
                     WHERE m.tier = ? AND m.session_id = ?
                     AND memories_fts MATCH ?
                     ORDER BY m.importance DESC
                     LIMIT ?
-                """, (tier.value, self._session_id, query, limit))
+                """,
+                    (tier.value, self._session_id, query, limit),
+                )
             else:
                 # Use LIKE search
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT * FROM memories
                     WHERE tier = ? AND session_id = ?
                     AND content LIKE ?
                     ORDER BY importance DESC
                     LIMIT ?
-                """, (tier.value, self._session_id, f"%{query}%", limit))
+                """,
+                    (tier.value, self._session_id, f"%{query}%", limit),
+                )
 
             return [self._row_to_entry(row) for row in cursor.fetchall()]
 
@@ -685,18 +727,21 @@ class SQLiteStorage(StorageBackend):
             stats["total_records"] = cursor.fetchone()[0]
 
             # Record count per tier
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tier, COUNT(*) as count
                 FROM memories
                 WHERE session_id = ?
                 GROUP BY tier
-            """, (self._session_id,))
+            """,
+                (self._session_id,),
+            )
 
-            stats["by_tier"] = {
-                row["tier"]: row["count"] for row in cursor.fetchall()
-            }
+            stats["by_tier"] = {row["tier"]: row["count"] for row in cursor.fetchall()}
 
             # Database size
-            stats["db_size_bytes"] = self._db_path.stat().st_size if self._db_path.exists() else 0
+            stats["db_size_bytes"] = (
+                self._db_path.stat().st_size if self._db_path.exists() else 0
+            )
 
             return stats

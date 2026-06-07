@@ -289,7 +289,9 @@ class AnthropicClient(BaseLlmClient):
                     self.provider,
                 )
 
-            async for line in response.aiter_lines():  # pragma: no branch  # pragma: no branch
+            async for (
+                line
+            ) in response.aiter_lines():  # pragma: no branch  # pragma: no branch
                 if not line.startswith("data: "):
                     continue
 
@@ -826,10 +828,16 @@ class LlmClient:
         elif api_format_lower == "openai":
             # OpenAI format: works for OpenAI, Together, Groq, DeepSeek, etc.
             # Get the corresponding default model based on provider name
-            provider_for_default = provider if provider in ("openai", "deepseek", "together", "groq", "azure") else "openai"
+            provider_for_default = (
+                provider
+                if provider in ("openai", "deepseek", "together", "groq", "azure")
+                else "openai"
+            )
             return OpenAIClient(
                 api_key=api_key,
-                base_url=base_url or get_default_base_url(provider_for_default) or "https://api.openai.com/v1",
+                base_url=base_url
+                or get_default_base_url(provider_for_default)
+                or "https://api.openai.com/v1",
                 default_model=model or get_default_model(provider_for_default),
                 **kwargs,
             )

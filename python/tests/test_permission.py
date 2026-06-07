@@ -160,9 +160,7 @@ class TestPermissionRequest:
         """Test creating a permission request"""
         action = PermissionAction.file_read("/test/file.txt")
         request = PermissionRequest(
-            id="test-123",
-            action=action,
-            context={"user": "test"}
+            id="test-123", action=action, context={"user": "test"}
         )
         assert request.id == "test-123"
         assert request.action == action
@@ -182,8 +180,7 @@ class TestPermissionResponse:
     def test_response_allowed(self):
         """Test allowed response"""
         response = PermissionResponse(
-            request_id="test-123",
-            decision=PermissionDecision.ALLOW
+            request_id="test-123", decision=PermissionDecision.ALLOW
         )
         assert response.is_allowed() is True
         assert response.should_remember() is True
@@ -193,7 +190,7 @@ class TestPermissionResponse:
         response = PermissionResponse(
             request_id="test-123",
             decision=PermissionDecision.DENY,
-            reason="Blocked by policy"
+            reason="Blocked by policy",
         )
         assert response.is_allowed() is False
         assert response.should_remember() is True
@@ -202,15 +199,13 @@ class TestPermissionResponse:
     def test_response_once(self):
         """Test one-time responses"""
         allow_once = PermissionResponse(
-            request_id="test",
-            decision=PermissionDecision.ALLOW_ONCE
+            request_id="test", decision=PermissionDecision.ALLOW_ONCE
         )
         assert allow_once.is_allowed() is True
         assert allow_once.should_remember() is False
 
         deny_once = PermissionResponse(
-            request_id="test",
-            decision=PermissionDecision.DENY_ONCE
+            request_id="test", decision=PermissionDecision.DENY_ONCE
         )
         assert deny_once.is_allowed() is False
         assert deny_once.should_remember() is False
@@ -274,17 +269,13 @@ class TestPermissionPolicy:
 
     def test_is_path_blocked_custom(self):
         """Test custom blocked paths"""
-        policy = PermissionPolicy(
-            blocked_paths=["/custom/blocked", "secrets/"]
-        )
+        policy = PermissionPolicy(blocked_paths=["/custom/blocked", "secrets/"])
         assert policy.is_path_blocked("/custom/blocked/file.txt") is True
         assert policy.is_path_blocked("secrets/api_key.txt") is True
 
     def test_is_path_trusted(self):
         """Test path trusting check"""
-        policy = PermissionPolicy(
-            trusted_paths=["/home/user/project", "/tmp/safe"]
-        )
+        policy = PermissionPolicy(trusted_paths=["/home/user/project", "/tmp/safe"])
         assert policy.is_path_trusted("/home/user/project/file.txt") is True
         assert policy.is_path_trusted("/tmp/safe/cache") is True
         assert policy.is_path_trusted("/etc/config") is False
@@ -328,10 +319,11 @@ class TestPermissionManager:
     def test_prompt_callback(self):
         """Test prompt callback setting"""
         manager = PermissionManager()
-        callback = Mock(return_value=PermissionResponse(
-            request_id="test",
-            decision=PermissionDecision.ALLOW
-        ))
+        callback = Mock(
+            return_value=PermissionResponse(
+                request_id="test", decision=PermissionDecision.ALLOW
+            )
+        )
         manager.set_prompt_callback(callback)
         assert manager._prompt_callback == callback
 
@@ -367,23 +359,23 @@ class TestPermissionManager:
 
     def test_blocked_url_denied(self):
         """Test that blocked URLs are denied"""
-        manager = PermissionManager(policy=PermissionPolicy(
-            blocked_urls=["malicious.com"]
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(blocked_urls=["malicious.com"])
+        )
         request = manager.request_network("https://malicious.com/api")
         response = manager.check_permission(request)
         assert not response.is_allowed()
 
     def test_cache_usage(self):
         """Test permission caching"""
-        callback = Mock(return_value=PermissionResponse(
-            request_id="test",
-            decision=PermissionDecision.ALLOW
-        ))
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            enable_cache=True
-        ))
+        callback = Mock(
+            return_value=PermissionResponse(
+                request_id="test", decision=PermissionDecision.ALLOW
+            )
+        )
+        manager = PermissionManager(
+            policy=PermissionPolicy(level=SecurityLevel.STANDARD, enable_cache=True)
+        )
         manager.set_prompt_callback(callback)
 
         # First request should call callback
@@ -445,11 +437,13 @@ class TestPermissionManager:
     def test_audit_log_max_entries(self):
         """Test audit log max entries limit"""
         max_entries = 5
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.TRUSTED,
-            audit_enabled=True,
-            max_audit_entries=max_entries
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(
+                level=SecurityLevel.TRUSTED,
+                audit_enabled=True,
+                max_audit_entries=max_entries,
+            )
+        )
 
         # Add more than max entries
         for i in range(max_entries + 3):
@@ -497,10 +491,10 @@ class TestPermissionManagerWithCallback:
 
     def test_callback_approves(self):
         """Test callback approving request"""
+
         def approve_callback(request):
             return PermissionResponse(
-                request_id=request.id,
-                decision=PermissionDecision.ALLOW
+                request_id=request.id, decision=PermissionDecision.ALLOW
             )
 
         manager = PermissionManager(policy=PermissionPolicy.standard())
@@ -512,11 +506,12 @@ class TestPermissionManagerWithCallback:
 
     def test_callback_denies(self):
         """Test callback denying request"""
+
         def deny_callback(request):
             return PermissionResponse(
                 request_id=request.id,
                 decision=PermissionDecision.DENY,
-                reason="User denied"
+                reason="User denied",
             )
 
         manager = PermissionManager(policy=PermissionPolicy.standard())
@@ -534,15 +529,16 @@ class TestPermissionManagerWithCallback:
         def counting_callback(request):
             call_count[0] += 1
             return PermissionResponse(
-                request_id=request.id,
-                decision=PermissionDecision.ALLOW
+                request_id=request.id, decision=PermissionDecision.ALLOW
             )
 
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            enable_cache=True,
-            cache_expire_seconds=3600
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(
+                level=SecurityLevel.STANDARD,
+                enable_cache=True,
+                cache_expire_seconds=3600,
+            )
+        )
         manager.set_prompt_callback(counting_callback)
 
         # First call
@@ -562,11 +558,13 @@ class TestCacheExpiration:
 
     def test_expired_cache_entry(self):
         """Test that expired cache entries are not used"""
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            enable_cache=True,
-            cache_expire_seconds=0  # Immediate expiration
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(
+                level=SecurityLevel.STANDARD,
+                enable_cache=True,
+                cache_expire_seconds=0,  # Immediate expiration
+            )
+        )
 
         # Add expired entry to cache
         old_time = datetime.utcnow() - timedelta(seconds=10)
@@ -583,10 +581,11 @@ class TestMultipleActions:
 
     def test_network_request_check(self):
         """Test network request permission"""
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            blocked_urls=["malicious.com"]
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(
+                level=SecurityLevel.STANDARD, blocked_urls=["malicious.com"]
+            )
+        )
 
         # Blocked URL should be denied even without callback
         request = manager.request_network("https://malicious.com/api")
@@ -616,9 +615,7 @@ class TestEdgeCases:
     def test_empty_blocked_lists(self):
         """Test policy with empty blocked lists"""
         policy = PermissionPolicy(
-            blocked_paths=[],
-            blocked_commands=[],
-            blocked_urls=[]
+            blocked_paths=[], blocked_commands=[], blocked_urls=[]
         )
         PermissionManager(policy=policy)
 
@@ -629,9 +626,7 @@ class TestEdgeCases:
     def test_empty_trusted_lists(self):
         """Test policy with empty trusted lists"""
         policy = PermissionPolicy(
-            trusted_paths=[],
-            trusted_urls=[],
-            trusted_commands=[]
+            trusted_paths=[], trusted_urls=[], trusted_commands=[]
         )
         assert not policy.is_path_trusted("/any/path")
 
@@ -672,6 +667,7 @@ class TestEdgeCases:
 
     def test_callback_exception_handling(self):
         """Test handling of callback exceptions"""
+
         def failing_callback(request):
             raise ValueError("Callback error")
 
@@ -685,14 +681,18 @@ class TestEdgeCases:
 
     def test_system_access_action_description(self):
         """Test system_access action type description"""
-        action = PermissionAction(action_type="system_access", details={"resource": "cpu"})
+        action = PermissionAction(
+            action_type="system_access", details={"resource": "cpu"}
+        )
         desc = action.description()
         assert "system resource" in desc.lower()
         assert "cpu" in desc
 
     def test_unknown_action_type_description(self):
         """Test unknown action type falls back to custom description"""
-        action = PermissionAction(action_type="unknown_type", details={"description": "Custom desc"})
+        action = PermissionAction(
+            action_type="unknown_type", details={"description": "Custom desc"}
+        )
         desc = action.description()
         assert desc == "Custom desc"
 
@@ -735,10 +735,9 @@ class TestEdgeCases:
 
     def test_audit_disabled(self):
         """Test that audit logging can be disabled"""
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.TRUSTED,
-            audit_enabled=False
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(level=SecurityLevel.TRUSTED, audit_enabled=False)
+        )
 
         request = manager.request_file_read("/test/file.txt")
         manager.check_permission(request)
@@ -749,19 +748,14 @@ class TestEdgeCases:
     def test_permission_response_timestamp(self):
         """Test that response timestamp is auto-generated"""
         response = PermissionResponse(
-            request_id="test",
-            decision=PermissionDecision.ALLOW
+            request_id="test", decision=PermissionDecision.ALLOW
         )
         assert isinstance(response.timestamp, datetime)
 
     def test_permission_request_with_batchable(self):
         """Test batchable flag in request"""
         action = PermissionAction.file_read("/test.txt")
-        request = PermissionRequest(
-            id="test",
-            action=action,
-            batchable=True
-        )
+        request = PermissionRequest(id="test", action=action, batchable=True)
         assert request.batchable is True
 
 
@@ -790,28 +784,29 @@ class TestMissingCoverage:
         """Test import fallback by mocking ImportError."""
 
         # Save original module state
-        original_permission = sys.modules.get('continuum_sdk.permission')
-        original_continuum_sdk = sys.modules.get('continuum_sdk')
+        original_permission = sys.modules.get("continuum_sdk.permission")
+        original_continuum_sdk = sys.modules.get("continuum_sdk")
 
         # Mock the import to raise ImportError
         import builtins
+
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
-            if name == 'sh_python' or name.startswith('sh_python.'):
+            if name == "sh_python" or name.startswith("sh_python."):
                 raise ImportError("Mocked: sh_python not available")
             return original_import(name, *args, **kwargs)
 
         # Remove cached modules
-        if 'continuum_sdk.permission' in sys.modules:
-            del sys.modules['continuum_sdk.permission']
-        if 'continuum_sdk' in sys.modules:
-            del sys.modules['continuum_sdk']
-        if 'sh_python' in sys.modules:
-            del sys.modules['sh_python']
+        if "continuum_sdk.permission" in sys.modules:
+            del sys.modules["continuum_sdk.permission"]
+        if "continuum_sdk" in sys.modules:
+            del sys.modules["continuum_sdk"]
+        if "sh_python" in sys.modules:
+            del sys.modules["sh_python"]
 
         # Apply mock
-        monkeypatch.setattr(builtins, '__import__', mock_import)
+        monkeypatch.setattr(builtins, "__import__", mock_import)
 
         # Re-import permission module
         from continuum_sdk import permission
@@ -826,11 +821,11 @@ class TestMissingCoverage:
         assert permission.RustInteractivePermissionManager is None
 
         # Restore original modules
-        monkeypatch.setattr(builtins, '__import__', original_import)
+        monkeypatch.setattr(builtins, "__import__", original_import)
         if original_permission:
-            sys.modules['continuum_sdk.permission'] = original_permission
+            sys.modules["continuum_sdk.permission"] = original_permission
         if original_continuum_sdk:
-            sys.modules['continuum_sdk'] = original_continuum_sdk
+            sys.modules["continuum_sdk"] = original_continuum_sdk
 
     def test_command_blocking_exact_match(self):
         """Test command blocking with exact match."""
@@ -842,10 +837,10 @@ class TestMissingCoverage:
 
     def test_command_blocking_different_command(self):
         """Test that non-blocked commands work with callback."""
+
         def approve_callback(request):
             return PermissionResponse(
-                request_id=request.id,
-                decision=PermissionDecision.ALLOW
+                request_id=request.id, decision=PermissionDecision.ALLOW
             )
 
         manager = PermissionManager(policy=PermissionPolicy.standard())
@@ -857,9 +852,7 @@ class TestMissingCoverage:
 
     def test_url_blocking_check(self):
         """Test URL blocking with substring match."""
-        manager = PermissionManager(policy=PermissionPolicy(
-            blocked_urls=["evil.com"]
-        ))
+        manager = PermissionManager(policy=PermissionPolicy(blocked_urls=["evil.com"]))
 
         request = manager.request_network("https://evil.com/api/data")
         response = manager.check_permission(request)
@@ -868,16 +861,17 @@ class TestMissingCoverage:
 
     def test_url_non_blocked(self):
         """Test non-blocked URL goes to callback."""
+
         def approve_callback(request):
             return PermissionResponse(
-                request_id=request.id,
-                decision=PermissionDecision.ALLOW
+                request_id=request.id, decision=PermissionDecision.ALLOW
             )
 
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            blocked_urls=["evil.com"]
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(
+                level=SecurityLevel.STANDARD, blocked_urls=["evil.com"]
+            )
+        )
         manager.set_prompt_callback(approve_callback)
 
         request = manager.request_network("https://good.com/api")
@@ -891,14 +885,12 @@ class TestMissingCoverage:
         def counting_callback(request):
             call_count[0] += 1
             return PermissionResponse(
-                request_id=request.id,
-                decision=PermissionDecision.ALLOW
+                request_id=request.id, decision=PermissionDecision.ALLOW
             )
 
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            enable_cache=False
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(level=SecurityLevel.STANDARD, enable_cache=False)
+        )
         manager.set_prompt_callback(counting_callback)
 
         # Multiple requests should all call callback (no caching)
@@ -918,14 +910,12 @@ class TestMissingCoverage:
         def counting_callback(request):
             call_count[0] += 1
             return PermissionResponse(
-                request_id=request.id,
-                decision=PermissionDecision.ALLOW_ONCE
+                request_id=request.id, decision=PermissionDecision.ALLOW_ONCE
             )
 
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            enable_cache=True
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(level=SecurityLevel.STANDARD, enable_cache=True)
+        )
         manager.set_prompt_callback(counting_callback)
 
         # ALLOW_ONCE should not be cached
@@ -950,10 +940,9 @@ class TestMissingCoverage:
 
     def test_cache_key_env_access(self):
         """Test cache key generation for env_access action."""
-        manager = PermissionManager(policy=PermissionPolicy(
-            level=SecurityLevel.STANDARD,
-            enable_cache=True
-        ))
+        manager = PermissionManager(
+            policy=PermissionPolicy(level=SecurityLevel.STANDARD, enable_cache=True)
+        )
 
         # Create action directly
         action = PermissionAction.env_access(["HOME", "PATH"])

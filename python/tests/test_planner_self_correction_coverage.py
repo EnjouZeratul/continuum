@@ -143,7 +143,10 @@ class TestSelfCorrectionPatternBasedWithGroups:
         # Should have formatted the action with the captured module name
         assert proposal is not None
         assert proposal.modified_action is not None
-        assert "nonexistent_module" in proposal.modified_action or "pip install" in proposal.modified_action
+        assert (
+            "nonexistent_module" in proposal.modified_action
+            or "pip install" in proposal.modified_action
+        )
 
     def test_pattern_based_correction_formats_path(self):
         """Test pattern-based correction with file path."""
@@ -181,6 +184,7 @@ class TestSelfCorrectionPatternBasedWithGroups:
 
         # Temporarily patch COMMON_FIXES to have a pattern without groups
         import continuum_sdk.agent.self_correction as sc_module
+
         original_fixes = sc_module.SelfCorrection.COMMON_FIXES.copy()
 
         # Add a pattern that matches but has no groups
@@ -217,7 +221,7 @@ class TestSelfCorrectionLLMJSONParsing:
         mock_client = AsyncMock()
         mock_response = Mock()
         # Return valid JSON object
-        mock_response.content = '''{"strategy": "retry", "description": "Transient error", "confidence": 0.8}'''
+        mock_response.content = """{"strategy": "retry", "description": "Transient error", "confidence": 0.8}"""
         mock_client.chat = AsyncMock(return_value=mock_response)
 
         correction = SelfCorrection(llm_client=mock_client)
@@ -237,7 +241,9 @@ class TestSelfCorrectionLLMJSONParsing:
         """Test LLM-based correction with context parameter."""
         mock_client = AsyncMock()
         mock_response = Mock()
-        mock_response.content = '{"strategy": "skip", "description": "Non-critical", "confidence": 0.7}'
+        mock_response.content = (
+            '{"strategy": "skip", "description": "Non-critical", "confidence": 0.7}'
+        )
         mock_client.chat = AsyncMock(return_value=mock_response)
 
         correction = SelfCorrection(llm_client=mock_client)

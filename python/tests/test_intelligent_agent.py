@@ -1959,7 +1959,9 @@ class TestIntelligentAgentMaxIterations:
     @pytest.mark.asyncio
     async def test_execution_respects_max_iterations(self):
         """Test that execution stops at max_iterations limit."""
-        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS, max_iterations=2)
+        agent = IntelligentAgent(
+            api_key="test-key", mode=AgentMode.AUTONOMOUS, max_iterations=2
+        )
         mock_client = AsyncMock()
         mock_response = Mock()
         mock_response.content = "Done"
@@ -1970,10 +1972,34 @@ class TestIntelligentAgentMaxIterations:
         # Create a plan with steps that depend on each other
         steps = [
             Step(id="s1", type=StepType.ANALYZE, description="A1", action="a1"),
-            Step(id="s2", type=StepType.ANALYZE, description="A2", action="a2", dependencies=["s1"]),
-            Step(id="s3", type=StepType.ANALYZE, description="A3", action="a3", dependencies=["s2"]),
-            Step(id="s4", type=StepType.ANALYZE, description="A4", action="a4", dependencies=["s3"]),
-            Step(id="s5", type=StepType.ANALYZE, description="A5", action="a5", dependencies=["s4"]),
+            Step(
+                id="s2",
+                type=StepType.ANALYZE,
+                description="A2",
+                action="a2",
+                dependencies=["s1"],
+            ),
+            Step(
+                id="s3",
+                type=StepType.ANALYZE,
+                description="A3",
+                action="a3",
+                dependencies=["s2"],
+            ),
+            Step(
+                id="s4",
+                type=StepType.ANALYZE,
+                description="A4",
+                action="a4",
+                dependencies=["s3"],
+            ),
+            Step(
+                id="s5",
+                type=StepType.ANALYZE,
+                description="A5",
+                action="a5",
+                dependencies=["s4"],
+            ),
         ]
         plan = Plan(id="limit-plan", task="test limit", steps=steps)
 
@@ -2015,7 +2041,13 @@ class TestIntelligentAgentRecoveryStrategies:
         """Test RETRY strategy causes step retry."""
         agent = self._make_agent_with_correction()
         steps = [
-            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=2),
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="Analyze",
+                action="analyze",
+                max_retries=2,
+            ),
         ]
         plan = Plan(id="retry-test", task="retry", steps=steps)
 
@@ -2031,7 +2063,8 @@ class TestIntelligentAgentRecoveryStrategies:
         # Mock get_pending_steps to include RETRYING steps
         def patched_get_pending():
             completed_ids = {
-                s.id for s in plan.steps
+                s.id
+                for s in plan.steps
                 if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED)
             }
             result = []
@@ -2046,16 +2079,13 @@ class TestIntelligentAgentRecoveryStrategies:
         plan.get_pending_steps = patched_get_pending
 
         # Make analyze_error return NETWORK error (suggests RETRY)
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.NETWORK,
-                message="Network timeout",
-                step_id="s1"
+                error_type=ErrorType.NETWORK, message="Network timeout", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.RETRY,
-                    description="Retry network call"
+                    strategy=RecoveryStrategy.RETRY, description="Retry network call"
                 )
                 with patch.object(agent, "_execute_step", side_effect=flaky_execute):
                     await agent.execute(plan)
@@ -2067,7 +2097,13 @@ class TestIntelligentAgentRecoveryStrategies:
         """Test RETRY_MODIFIED strategy updates step action."""
         agent = self._make_agent_with_correction()
         steps = [
-            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="original action", max_retries=2),
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="Analyze",
+                action="original action",
+                max_retries=2,
+            ),
         ]
         plan = Plan(id="modified-test", task="modified", steps=steps)
 
@@ -2082,7 +2118,8 @@ class TestIntelligentAgentRecoveryStrategies:
         # Mock get_pending_steps to include RETRYING steps
         def patched_get_pending():
             completed_ids = {
-                s.id for s in plan.steps
+                s.id
+                for s in plan.steps
                 if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED)
             }
             result = []
@@ -2096,17 +2133,17 @@ class TestIntelligentAgentRecoveryStrategies:
 
         plan.get_pending_steps = patched_get_pending
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
                 error_type=ErrorType.IMPORT,
                 message="No module named 'requests'",
-                step_id="s1"
+                step_id="s1",
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
                     strategy=RecoveryStrategy.RETRY_MODIFIED,
                     description="Install and retry",
-                    modified_action="modified action with fix"
+                    modified_action="modified action with fix",
                 )
                 with patch.object(agent, "_execute_step", side_effect=track_execute):
                     await agent.execute(plan)
@@ -2118,23 +2155,26 @@ class TestIntelligentAgentRecoveryStrategies:
         """Test SKIP strategy marks step as skipped."""
         agent = self._make_agent_with_correction()
         steps = [
-            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=0),
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="Analyze",
+                action="analyze",
+                max_retries=0,
+            ),
         ]
         plan = Plan(id="skip-test", task="skip", steps=steps)
 
         async def failing_execute(step):
             raise ValueError("Non-critical error")
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.VALUE,
-                message="Non-critical error",
-                step_id="s1"
+                error_type=ErrorType.VALUE, message="Non-critical error", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.SKIP,
-                    description="Skip this step"
+                    strategy=RecoveryStrategy.SKIP, description="Skip this step"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
                     await agent.execute(plan)
@@ -2146,8 +2186,20 @@ class TestIntelligentAgentRecoveryStrategies:
         """Test ABORT strategy stops execution immediately."""
         agent = self._make_agent_with_correction()
         steps = [
-            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=0),
-            Step(id="s2", type=StepType.EDIT, description="Edit", action="edit", dependencies=["s1"]),
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="Analyze",
+                action="analyze",
+                max_retries=0,
+            ),
+            Step(
+                id="s2",
+                type=StepType.EDIT,
+                description="Edit",
+                action="edit",
+                dependencies=["s1"],
+            ),
         ]
         plan = Plan(id="abort-test", task="abort", steps=steps)
 
@@ -2159,16 +2211,13 @@ class TestIntelligentAgentRecoveryStrategies:
                 raise PermissionError("Access denied")
             return "success"
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.PERMISSION,
-                message="Access denied",
-                step_id="s1"
+                error_type=ErrorType.PERMISSION, message="Access denied", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.ABORT,
-                    description="Fatal error, abort"
+                    strategy=RecoveryStrategy.ABORT, description="Fatal error, abort"
                 )
                 with patch.object(agent, "_execute_step", side_effect=tracking_execute):
                     await agent.execute(plan)
@@ -2182,7 +2231,13 @@ class TestIntelligentAgentRecoveryStrategies:
         """Test ASK_USER strategy invokes on_error callback."""
         agent = self._make_agent_with_correction()
         steps = [
-            Step(id="s1", type=StepType.ANALYZE, description="Analyze", action="analyze", max_retries=0),
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="Analyze",
+                action="analyze",
+                max_retries=0,
+            ),
         ]
         plan = Plan(id="ask-test", task="ask", steps=steps)
 
@@ -2195,16 +2250,15 @@ class TestIntelligentAgentRecoveryStrategies:
         async def failing_execute(step):
             raise FileNotFoundError("config.yml not found")
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
                 error_type=ErrorType.NOT_FOUND,
                 message="config.yml not found",
-                step_id="s1"
+                step_id="s1",
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.ASK_USER,
-                    description="Need user input"
+                    strategy=RecoveryStrategy.ASK_USER, description="Need user input"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
                     await agent.execute(plan, on_error=on_error_handler)
@@ -2242,7 +2296,7 @@ class TestIntelligentAgentToolExecution:
         )
 
         # Mock the GrepTool at the import location
-        with patch('continuum_sdk.tools.GrepTool') as MockGrepTool:
+        with patch("continuum_sdk.tools.GrepTool") as MockGrepTool:
             mock_grep = Mock()
             mock_result = Mock()
             mock_result.content = "Found 3 matches"
@@ -2263,7 +2317,7 @@ class TestIntelligentAgentToolExecution:
             action='find "error_handler"',
         )
 
-        with patch('continuum_sdk.tools.GrepTool') as MockGrepTool:
+        with patch("continuum_sdk.tools.GrepTool") as MockGrepTool:
             mock_grep = Mock()
             mock_result = Mock()
             mock_result.content = "Found"
@@ -2286,7 +2340,7 @@ class TestIntelligentAgentToolExecution:
             target="auth.py",
         )
 
-        with patch('continuum_sdk.tools.ReadTool') as MockReadTool:
+        with patch("continuum_sdk.tools.ReadTool") as MockReadTool:
             mock_reader = Mock()
             mock_result = Mock()
             mock_result.content = "file contents"
@@ -2323,7 +2377,7 @@ class TestIntelligentAgentToolExecution:
             target=None,
         )
 
-        with patch('continuum_sdk.tools.ReadTool') as MockReadTool:
+        with patch("continuum_sdk.tools.ReadTool") as MockReadTool:
             mock_reader = Mock()
             mock_result = Mock()
             mock_result.content = "config"
@@ -2345,7 +2399,7 @@ class TestIntelligentAgentToolExecution:
             action="run tests",
         )
 
-        with patch('continuum_sdk.tools.BashTool') as MockBashTool:
+        with patch("continuum_sdk.tools.BashTool") as MockBashTool:
             mock_bash = Mock()
             mock_result = Mock()
             mock_result.content = "All tests passed"
@@ -2401,7 +2455,9 @@ class TestIntelligentAgentCallbackExceptions:
         def bad_callback(step):
             raise TypeError("Bad callback")
 
-        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+        with patch.object(
+            agent, "_execute_step", new_callable=AsyncMock, return_value="ok"
+        ):
             # Should not crash, exception is handled
             result = await agent.execute(plan, on_step_start=bad_callback)
             assert result is not None
@@ -2416,7 +2472,9 @@ class TestIntelligentAgentCallbackExceptions:
         def bad_callback(step):
             raise ValueError("Bad complete callback")
 
-        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+        with patch.object(
+            agent, "_execute_step", new_callable=AsyncMock, return_value="ok"
+        ):
             # Should not crash
             result = await agent.execute(plan, on_step_complete=bad_callback)
             assert result is not None
@@ -2425,7 +2483,15 @@ class TestIntelligentAgentCallbackExceptions:
     async def test_on_error_callback_exception_handled(self):
         """Test that on_error callback exceptions are caught."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            )
+        ]
         plan = Plan(id="test", task="test", steps=steps)
 
         def bad_error_callback(step, error_ctx):
@@ -2450,8 +2516,7 @@ class TestIntelligentAgentEdgeCases:
         """Test agent creation with progress callback."""
         events = []
         agent = IntelligentAgent(
-            api_key="test-key",
-            on_progress=lambda e: events.append(e)
+            api_key="test-key", on_progress=lambda e: events.append(e)
         )
         assert agent.tracker is not None
         assert len(agent.tracker.callbacks) == 1
@@ -2471,7 +2536,9 @@ class TestIntelligentAgentEdgeCases:
         plan = await agent.plan("fix bug")
         agent.current_plan = plan
 
-        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+        with patch.object(
+            agent, "_execute_step", new_callable=AsyncMock, return_value="ok"
+        ):
             # Execute without passing plan - should use current_plan
             result = await agent.execute()
             assert result is not None
@@ -2520,8 +2587,20 @@ class TestIntelligentAgentEdgeCases:
         agent.planner.llm_client = mock_client
 
         steps = [
-            Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0),
-            Step(id="s2", type=StepType.EDIT, description="E", action="e", dependencies=["s1"]),
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            ),
+            Step(
+                id="s2",
+                type=StepType.EDIT,
+                description="E",
+                action="e",
+                dependencies=["s1"],
+            ),
         ]
         plan = Plan(id="block-test", task="block", steps=steps)
 
@@ -2581,7 +2660,15 @@ class TestIntelligentAgentErrorHandling:
     async def test_error_logs_to_step_logger(self):
         """Test that errors are logged to StepLogger."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            )
+        ]
         plan = Plan(id="log-test", task="log", steps=steps)
 
         async def failing_execute(step):
@@ -2599,7 +2686,15 @@ class TestIntelligentAgentErrorHandling:
     async def test_retrying_status_logs_attempt(self):
         """Test that RETRYING status logs retry attempt."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=2)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=2,
+            )
+        ]
         plan = Plan(id="retry-log-test", task="retry", steps=steps)
 
         call_count = 0
@@ -2614,7 +2709,8 @@ class TestIntelligentAgentErrorHandling:
         # Mock get_pending_steps to include RETRYING steps
         def patched_get_pending():
             completed_ids = {
-                s.id for s in plan.steps
+                s.id
+                for s in plan.steps
                 if s.status in (StepStatus.COMPLETED, StepStatus.SKIPPED)
             }
             result = []
@@ -2628,16 +2724,13 @@ class TestIntelligentAgentErrorHandling:
 
         plan.get_pending_steps = patched_get_pending
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.NETWORK,
-                message="Network error",
-                step_id="s1"
+                error_type=ErrorType.NETWORK, message="Network error", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.RETRY,
-                    description="Retry"
+                    strategy=RecoveryStrategy.RETRY, description="Retry"
                 )
                 with patch.object(agent, "_execute_step", side_effect=retry_execute):
                     await agent.execute(plan)
@@ -2673,22 +2766,27 @@ class TestIntelligentAgentAdditionalCoverage:
     async def test_retry_exhausted_marks_failed(self):
         """Test that exhausting retries marks step as FAILED."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            )
+        ]
         plan = Plan(id="exhaust-test", task="exhaust", steps=steps)
 
         async def always_fails(step):
             raise ConnectionError("Always fails")
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.NETWORK,
-                message="Network error",
-                step_id="s1"
+                error_type=ErrorType.NETWORK, message="Network error", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.RETRY,
-                    description="Retry"
+                    strategy=RecoveryStrategy.RETRY, description="Retry"
                 )
                 with patch.object(agent, "_execute_step", side_effect=always_fails):
                     await agent.execute(plan)
@@ -2700,23 +2798,29 @@ class TestIntelligentAgentAdditionalCoverage:
     async def test_retry_modified_exhausted_marks_failed(self):
         """Test that exhausting RETRY_MODIFIED marks step as FAILED."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            )
+        ]
         plan = Plan(id="modified-exhaust-test", task="modified exhaust", steps=steps)
 
         async def always_fails(step):
             raise ImportError("No module")
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.IMPORT,
-                message="No module",
-                step_id="s1"
+                error_type=ErrorType.IMPORT, message="No module", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
                     strategy=RecoveryStrategy.RETRY_MODIFIED,
                     description="Install module",
-                    modified_action="pip install foo"
+                    modified_action="pip install foo",
                 )
                 with patch.object(agent, "_execute_step", side_effect=always_fails):
                     await agent.execute(plan)
@@ -2727,7 +2831,15 @@ class TestIntelligentAgentAdditionalCoverage:
     async def test_ask_user_on_error_returns_true_continues(self):
         """Test ASK_USER with on_error returning True continues execution."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            )
+        ]
         plan = Plan(id="ask-continue-test", task="ask continue", steps=steps)
 
         error_callback_calls = []
@@ -2739,16 +2851,13 @@ class TestIntelligentAgentAdditionalCoverage:
         async def failing_execute(step):
             raise FileNotFoundError("Missing file")
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.NOT_FOUND,
-                message="Missing file",
-                step_id="s1"
+                error_type=ErrorType.NOT_FOUND, message="Missing file", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.ASK_USER,
-                    description="Ask user"
+                    strategy=RecoveryStrategy.ASK_USER, description="Ask user"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
                     await agent.execute(plan, on_error=error_callback)
@@ -2760,7 +2869,15 @@ class TestIntelligentAgentAdditionalCoverage:
     async def test_on_error_callback_exception_during_ask_user(self):
         """Test that on_error exception during ASK_USER is handled."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            )
+        ]
         plan = Plan(id="ask-exception-test", task="ask exception", steps=steps)
 
         def bad_error_callback(step, error_ctx):
@@ -2769,16 +2886,13 @@ class TestIntelligentAgentAdditionalCoverage:
         async def failing_execute(step):
             raise FileNotFoundError("Missing")
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.NOT_FOUND,
-                message="Missing",
-                step_id="s1"
+                error_type=ErrorType.NOT_FOUND, message="Missing", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.ASK_USER,
-                    description="Ask"
+                    strategy=RecoveryStrategy.ASK_USER, description="Ask"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
                     # Should not crash
@@ -2789,7 +2903,15 @@ class TestIntelligentAgentAdditionalCoverage:
     async def test_on_error_called_after_ask_user_continue(self):
         """Test on_error is called after ASK_USER returns True (continue)."""
         agent = self._make_agent()
-        steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a", max_retries=0)]
+        steps = [
+            Step(
+                id="s1",
+                type=StepType.ANALYZE,
+                description="A",
+                action="a",
+                max_retries=0,
+            )
+        ]
         plan = Plan(id="double-callback-test", task="double callback", steps=steps)
 
         all_callback_calls = []
@@ -2801,16 +2923,13 @@ class TestIntelligentAgentAdditionalCoverage:
         async def failing_execute(step):
             raise PermissionError("Access denied")
 
-        with patch.object(agent.correction, 'analyze_error') as mock_analyze:
+        with patch.object(agent.correction, "analyze_error") as mock_analyze:
             mock_analyze.return_value = ErrorContext(
-                error_type=ErrorType.PERMISSION,
-                message="Access denied",
-                step_id="s1"
+                error_type=ErrorType.PERMISSION, message="Access denied", step_id="s1"
             )
-            with patch.object(agent.correction, 'propose_correction') as mock_propose:
+            with patch.object(agent.correction, "propose_correction") as mock_propose:
                 mock_propose.return_value = Correction(
-                    strategy=RecoveryStrategy.ASK_USER,
-                    description="Ask"
+                    strategy=RecoveryStrategy.ASK_USER, description="Ask"
                 )
                 with patch.object(agent, "_execute_step", side_effect=failing_execute):
                     await agent.execute(plan, on_error=tracking_callback)
@@ -2826,7 +2945,9 @@ class TestIntelligentAgentAdditionalCoverage:
         steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
         plan = Plan(id="interactive-test", task="interactive", steps=steps)
 
-        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+        with patch.object(
+            agent, "_execute_step", new_callable=AsyncMock, return_value="ok"
+        ):
             result = await agent.execute(plan)
 
         assert result is not None
@@ -2839,7 +2960,9 @@ class TestIntelligentAgentAdditionalCoverage:
         steps = [Step(id="s1", type=StepType.ANALYZE, description="A", action="a")]
         plan = Plan(id="step-test", task="step", steps=steps)
 
-        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+        with patch.object(
+            agent, "_execute_step", new_callable=AsyncMock, return_value="ok"
+        ):
             result = await agent.execute(plan)
 
         assert result is not None
@@ -2890,7 +3013,9 @@ class TestIntelligentAgentAdditionalCoverage:
         def proceed_callback(step):
             return True  # Proceed with execution
 
-        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+        with patch.object(
+            agent, "_execute_step", new_callable=AsyncMock, return_value="ok"
+        ):
             result = await agent.execute(plan, on_step_start=proceed_callback)
 
         assert result is not None
@@ -2902,7 +3027,13 @@ class TestIntelligentAgentAdditionalCoverage:
         agent = self._make_agent()
         steps = [
             Step(id="s1", type=StepType.ANALYZE, description="A", action="a"),
-            Step(id="s2", type=StepType.EDIT, description="B", action="b", dependencies=["s1"]),
+            Step(
+                id="s2",
+                type=StepType.EDIT,
+                description="B",
+                action="b",
+                dependencies=["s1"],
+            ),
         ]
         plan = Plan(id="wait-test", task="wait", steps=steps)
 
@@ -2925,7 +3056,7 @@ class TestIntelligentAgentAdditionalCoverage:
             call_count += 1
             return f"result-{call_count}"
 
-        with patch('asyncio.sleep', side_effect=track_sleep):
+        with patch("asyncio.sleep", side_effect=track_sleep):
             with patch.object(agent, "_execute_step", side_effect=controlled_execute):
                 result = await agent.execute(plan)
 
@@ -2945,7 +3076,9 @@ class TestMaxIterationsWarning:
         """Test that execution logs warning when hitting max_iterations.
         测试当达到 max_iterations 时执行记录警告。
         """
-        agent = IntelligentAgent(api_key="test-key", mode=AgentMode.AUTONOMOUS, max_iterations=1)
+        agent = IntelligentAgent(
+            api_key="test-key", mode=AgentMode.AUTONOMOUS, max_iterations=1
+        )
         mock_client = AsyncMock()
         mock_response = Mock()
         mock_response.content = "Done"
@@ -2956,12 +3089,26 @@ class TestMaxIterationsWarning:
         # Create a plan with multiple steps but max_iterations=1
         steps = [
             Step(id="s1", type=StepType.ANALYZE, description="A1", action="a1"),
-            Step(id="s2", type=StepType.ANALYZE, description="A2", action="a2", dependencies=["s1"]),
-            Step(id="s3", type=StepType.ANALYZE, description="A3", action="a3", dependencies=["s2"]),
+            Step(
+                id="s2",
+                type=StepType.ANALYZE,
+                description="A2",
+                action="a2",
+                dependencies=["s1"],
+            ),
+            Step(
+                id="s3",
+                type=StepType.ANALYZE,
+                description="A3",
+                action="a3",
+                dependencies=["s2"],
+            ),
         ]
         plan = Plan(id="limit-warning-plan", task="test warning", steps=steps)
 
-        with patch.object(agent, "_execute_step", new_callable=AsyncMock, return_value="ok"):
+        with patch.object(
+            agent, "_execute_step", new_callable=AsyncMock, return_value="ok"
+        ):
             with patch("continuum_sdk.agent.intelligent.logger") as mock_logger:
                 result = await agent.execute(plan)
 
@@ -2969,7 +3116,8 @@ class TestMaxIterationsWarning:
                 assert result is not None
                 # The warning should be logged after hitting the limit
                 warning_calls = [
-                    call for call in mock_logger.warning.call_args_list
+                    call
+                    for call in mock_logger.warning.call_args_list
                     if "max_iterations" in str(call)
                 ]
                 assert len(warning_calls) > 0

@@ -65,7 +65,9 @@ def mock_python_builtin_tools():
         mock_instance.grep.return_value = "grep results"
         mock_instance.glob.return_value = "glob results"
         mock_instance.bash.return_value = "bash output"
-        mock_instance.list_tools.return_value = [{"name": "read", "description": "Read file"}]
+        mock_instance.list_tools.return_value = [
+            {"name": "read", "description": "Read file"}
+        ]
         mock.return_value = mock_instance
         yield mock, mock_instance
 
@@ -76,16 +78,25 @@ def mock_python_query_engine():
     with patch("continuum_sdk.python_impl.PythonQueryEngine") as mock:
         mock_instance = MagicMock()
         mock_instance.initialize.return_value = True
-        mock_instance.go_to_definition.return_value = [{"uri": "test.py", "line": 1, "column": 1}]
-        mock_instance.find_references.return_value = [{"uri": "test.py", "line": 1, "column": 1}]
+        mock_instance.go_to_definition.return_value = [
+            {"uri": "test.py", "line": 1, "column": 1}
+        ]
+        mock_instance.find_references.return_value = [
+            {"uri": "test.py", "line": 1, "column": 1}
+        ]
         mock_instance.hover.return_value = "hover info"
         mock_instance.shutdown.return_value = None
         mock_instance.is_connected.return_value = True
-        mock_instance.full_symbol_info.return_value = {"symbol": "test", "kind": "function"}
+        mock_instance.full_symbol_info.return_value = {
+            "symbol": "test",
+            "kind": "function",
+        }
         mock_instance.get_document_symbols.return_value = []
         mock_instance.rename_symbol.return_value = {"changed_files": 0}
         mock_instance.reconnect.return_value = True
-        mock_instance.get_connection_pool_status.return_value = {"connected_languages": ["python"]}
+        mock_instance.get_connection_pool_status.return_value = {
+            "connected_languages": ["python"]
+        }
         mock.return_value = mock_instance
         yield mock, mock_instance
 
@@ -118,21 +129,43 @@ def mock_python_multimodal_handler():
         mock_instance = MagicMock()
         mock_instance.encode_image.return_value = {
             "type": "image",
-            "source": {"type": "base64", "media_type": "image/png", "data": "abc123"}
+            "source": {"type": "base64", "media_type": "image/png", "data": "abc123"},
         }
         mock_instance.encode_document.return_value = {
             "type": "document",
-            "source": {"type": "base64", "media_type": "application/pdf", "data": "abc123"}
+            "source": {
+                "type": "base64",
+                "media_type": "application/pdf",
+                "data": "abc123",
+            },
         }
         mock_instance.create_message.return_value = {"role": "user", "content": "test"}
-        mock_instance.create_image_message.return_value = {"role": "user", "content": []}
+        mock_instance.create_image_message.return_value = {
+            "role": "user",
+            "content": [],
+        }
         mock_instance.extract_text.return_value = "extracted text"
         mock_instance.list_images.return_value = []
-        mock_instance.encode_image_from_url.return_value = {"type": "image", "source": {}}
-        mock_instance.encode_image_url_direct.return_value = {"type": "image_url", "image_url": {"url": "http://example.com/img.png"}}
-        mock_instance.to_openai_format.return_value = {"type": "image_url", "image_url": {"url": "data:image/png;base64,abc123"}}
-        mock_instance.create_openai_vision_message.return_value = {"role": "user", "content": []}
-        mock_instance.create_anthropic_vision_message.return_value = {"role": "user", "content": []}
+        mock_instance.encode_image_from_url.return_value = {
+            "type": "image",
+            "source": {},
+        }
+        mock_instance.encode_image_url_direct.return_value = {
+            "type": "image_url",
+            "image_url": {"url": "http://example.com/img.png"},
+        }
+        mock_instance.to_openai_format.return_value = {
+            "type": "image_url",
+            "image_url": {"url": "data:image/png;base64,abc123"},
+        }
+        mock_instance.create_openai_vision_message.return_value = {
+            "role": "user",
+            "content": [],
+        }
+        mock_instance.create_anthropic_vision_message.return_value = {
+            "role": "user",
+            "content": [],
+        }
         mock.return_value = mock_instance
         yield mock, mock_instance
 
@@ -146,7 +179,9 @@ def mock_python_permission_manager():
         mock_instance.grant.return_value = None
         mock_instance.revoke.return_value = None
         mock_instance.create_role.return_value = None
-        mock_instance.get_permissions.return_value = [{"resource": "session", "action": "read"}]
+        mock_instance.get_permissions.return_value = [
+            {"resource": "session", "action": "read"}
+        ]
         mock_instance.is_admin.return_value = False
         mock_instance.get_user_roles.return_value = ["guest"]
         mock.return_value = mock_instance
@@ -279,8 +314,10 @@ class TestAgent:
         agent = Agent()
         agent.register_tool("test_tool", lambda x: x, "A test tool", {"type": "object"})
         mock_instance.register_tool.assert_called_once_with(
-            "test_tool", mock_instance.register_tool.call_args[0][1],
-            "A test tool", {"type": "object"}
+            "test_tool",
+            mock_instance.register_tool.call_args[0][1],
+            "A test tool",
+            {"type": "object"},
         )
 
     def test_create_session(self, mock_python_agent):
@@ -426,22 +463,32 @@ class TestQueryEngine:
         engine = QueryEngine()
         result = engine.go_to_definition("python", "test.py", 10, 5)
         assert result == [{"uri": "test.py", "line": 1, "column": 1}]
-        mock_instance.go_to_definition.assert_called_once_with("python", "test.py", 10, 5)
+        mock_instance.go_to_definition.assert_called_once_with(
+            "python", "test.py", 10, 5
+        )
 
     def test_find_references(self, mock_python_query_engine):
         """Test QueryEngine.find_references method."""
         mock_class, mock_instance = mock_python_query_engine
         engine = QueryEngine()
-        result = engine.find_references("python", "test.py", 10, 5, include_declaration=True)
+        result = engine.find_references(
+            "python", "test.py", 10, 5, include_declaration=True
+        )
         assert result == [{"uri": "test.py", "line": 1, "column": 1}]
-        mock_instance.find_references.assert_called_once_with("python", "test.py", 10, 5, True)
+        mock_instance.find_references.assert_called_once_with(
+            "python", "test.py", 10, 5, True
+        )
 
-    def test_find_references_default_include_declaration(self, mock_python_query_engine):
+    def test_find_references_default_include_declaration(
+        self, mock_python_query_engine
+    ):
         """Test QueryEngine.find_references with default include_declaration."""
         mock_class, mock_instance = mock_python_query_engine
         engine = QueryEngine()
         engine.find_references("python", "test.py", 10, 5)
-        mock_instance.find_references.assert_called_once_with("python", "test.py", 10, 5, True)
+        mock_instance.find_references.assert_called_once_with(
+            "python", "test.py", 10, 5, True
+        )
 
     def test_hover(self, mock_python_query_engine):
         """Test QueryEngine.hover method."""
@@ -472,7 +519,9 @@ class TestQueryEngine:
         engine = QueryEngine()
         result = engine.full_symbol_info("python", "test.py", 10, 5)
         assert result == {"symbol": "test", "kind": "function"}
-        mock_instance.full_symbol_info.assert_called_once_with("python", "test.py", 10, 5)
+        mock_instance.full_symbol_info.assert_called_once_with(
+            "python", "test.py", 10, 5
+        )
 
     def test_get_document_symbols(self, mock_python_query_engine):
         """Test QueryEngine.get_document_symbols method."""
@@ -488,7 +537,9 @@ class TestQueryEngine:
         engine = QueryEngine()
         result = engine.rename_symbol("python", "test.py", 10, 5, "new_name")
         assert result == {"changed_files": 0}
-        mock_instance.rename_symbol.assert_called_once_with("python", "test.py", 10, 5, "new_name")
+        mock_instance.rename_symbol.assert_called_once_with(
+            "python", "test.py", 10, 5, "new_name"
+        )
 
     def test_reconnect(self, mock_python_query_engine):
         """Test QueryEngine.reconnect method."""
@@ -699,7 +750,9 @@ class TestMultimodalHandler:
         handler = MultimodalHandler()
         result = handler.create_image_message("user", "Hello", ["img1.png", "img2.png"])
         assert result == {"role": "user", "content": []}
-        mock_instance.create_image_message.assert_called_once_with("user", "Hello", ["img1.png", "img2.png"])
+        mock_instance.create_image_message.assert_called_once_with(
+            "user", "Hello", ["img1.png", "img2.png"]
+        )
 
     def test_extract_text(self, mock_python_multimodal_handler):
         """Test MultimodalHandler.extract_text method."""
@@ -725,14 +778,20 @@ class TestMultimodalHandler:
         handler = MultimodalHandler()
         result = handler.encode_image_from_url("http://example.com/img.png", timeout=60)
         assert result["type"] == "image"
-        mock_instance.encode_image_from_url.assert_called_once_with("http://example.com/img.png", 60)
+        mock_instance.encode_image_from_url.assert_called_once_with(
+            "http://example.com/img.png", 60
+        )
 
-    def test_encode_image_from_url_default_timeout(self, mock_python_multimodal_handler):
+    def test_encode_image_from_url_default_timeout(
+        self, mock_python_multimodal_handler
+    ):
         """Test MultimodalHandler.encode_image_from_url with default timeout."""
         mock_class, mock_instance = mock_python_multimodal_handler
         handler = MultimodalHandler()
         handler.encode_image_from_url("http://example.com/img.png")
-        mock_instance.encode_image_from_url.assert_called_once_with("http://example.com/img.png", 30)
+        mock_instance.encode_image_from_url.assert_called_once_with(
+            "http://example.com/img.png", 30
+        )
 
     def test_encode_image_url_direct(self, mock_python_multimodal_handler):
         """Test MultimodalHandler.encode_image_url_direct method."""
@@ -740,7 +799,9 @@ class TestMultimodalHandler:
         handler = MultimodalHandler()
         result = handler.encode_image_url_direct("http://example.com/img.png")
         assert result["type"] == "image_url"
-        mock_instance.encode_image_url_direct.assert_called_once_with("http://example.com/img.png")
+        mock_instance.encode_image_url_direct.assert_called_once_with(
+            "http://example.com/img.png"
+        )
 
     def test_to_openai_format(self, mock_python_multimodal_handler):
         """Test MultimodalHandler.to_openai_format method."""
@@ -755,9 +816,13 @@ class TestMultimodalHandler:
         """Test MultimodalHandler.create_openai_vision_message method."""
         mock_class, mock_instance = mock_python_multimodal_handler
         handler = MultimodalHandler()
-        result = handler.create_openai_vision_message("user", "Hello", [], detail="high")
+        result = handler.create_openai_vision_message(
+            "user", "Hello", [], detail="high"
+        )
         assert result == {"role": "user", "content": []}
-        mock_instance.create_openai_vision_message.assert_called_once_with("user", "Hello", [], "high")
+        mock_instance.create_openai_vision_message.assert_called_once_with(
+            "user", "Hello", [], "high"
+        )
 
     def test_create_anthropic_vision_message(self, mock_python_multimodal_handler):
         """Test MultimodalHandler.create_anthropic_vision_message method."""
@@ -765,7 +830,9 @@ class TestMultimodalHandler:
         handler = MultimodalHandler()
         result = handler.create_anthropic_vision_message("user", "Hello", [])
         assert result == {"role": "user", "content": []}
-        mock_instance.create_anthropic_vision_message.assert_called_once_with("user", "Hello", [])
+        mock_instance.create_anthropic_vision_message.assert_called_once_with(
+            "user", "Hello", []
+        )
 
 
 # =============================================================================
@@ -887,7 +954,7 @@ class TestImageInput:
             mock_instance = MagicMock()
             mock_instance.to_anthropic_format.return_value = {
                 "type": "image",
-                "source": {"type": "base64", "media_type": "image/png", "data": "abc"}
+                "source": {"type": "base64", "media_type": "image/png", "data": "abc"},
             }
             mock_py.return_value = mock_instance
 
@@ -902,7 +969,7 @@ class TestImageInput:
             mock_instance = MagicMock()
             mock_instance.to_openai_format.return_value = {
                 "type": "image_url",
-                "image_url": {"url": "data:image/png;base64,abc", "detail": "auto"}
+                "image_url": {"url": "data:image/png;base64,abc", "detail": "auto"},
             }
             mock_py.return_value = mock_instance
 
@@ -1047,8 +1114,10 @@ class TestRole:
 
     def test_init_with_permissions(self):
         """Test Role initialization with permissions."""
-        with patch("continuum_sdk.python_impl.PythonRole") as mock_py, \
-             patch("continuum_sdk.python_impl.PythonPermission"):
+        with (
+            patch("continuum_sdk.python_impl.PythonRole") as mock_py,
+            patch("continuum_sdk.python_impl.PythonPermission"),
+        ):
             mock_role_instance = MagicMock()
             mock_role_instance.name = "custom"
             mock_perm_instance1 = MagicMock()
@@ -1065,8 +1134,10 @@ class TestRole:
 
     def test_permissions_property(self):
         """Test Role.permissions property."""
-        with patch("continuum_sdk.python_impl.PythonRole") as mock_py, \
-             patch("continuum_sdk.python_impl.PythonPermission"):
+        with (
+            patch("continuum_sdk.python_impl.PythonRole") as mock_py,
+            patch("continuum_sdk.python_impl.PythonPermission"),
+        ):
             mock_role_instance = MagicMock()
             mock_role_instance.name = "custom"
             mock_perm_instance = MagicMock()
@@ -1112,6 +1183,7 @@ class TestSessionFromAPI:
     def test_add_message(self):
         """Test Session.add_message method."""
         from continuum_sdk.agent.session import MessageRole
+
         session = Session(id="test")
         msg = session.add_message(MessageRole.USER, "Hello")
         assert msg.content == "Hello"
@@ -1247,7 +1319,9 @@ class TestIntegration:
         # Create a temporary image file
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
             # Write a minimal PNG header
-            f.write(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01')
+            f.write(
+                b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            )
             temp_path = f.name
 
         try:
@@ -1381,9 +1455,11 @@ class TestRustBindingPaths:
 
     def test_agent_with_rust_binding_available(self):
         """Test Agent uses RustAgent when bindings available and impl=rust."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.rust_impl.RustAgent") as mock_rust_agent:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.rust_impl.RustAgent") as mock_rust_agent,
+        ):
             mock_instance = MagicMock()
             mock_instance.run.return_value = "rust result"
             mock_rust_agent.return_value = mock_instance
@@ -1394,9 +1470,11 @@ class TestRustBindingPaths:
 
     def test_builtin_tools_with_rust_binding_available(self):
         """Test BuiltinTools uses RustBuiltinTools when bindings available."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.rust_impl.RustBuiltinTools") as mock_rust_tools:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.rust_impl.RustBuiltinTools") as mock_rust_tools,
+        ):
             mock_instance = MagicMock()
             mock_instance.list_tools.return_value = [{"name": "read"}]
             mock_rust_tools.return_value = mock_instance
@@ -1407,9 +1485,11 @@ class TestRustBindingPaths:
 
     def test_query_engine_with_rust_binding_available(self):
         """Test QueryEngine uses RustQueryEngine when bindings available."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.rust_impl.RustQueryEngine") as mock_rust_engine:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.rust_impl.RustQueryEngine") as mock_rust_engine,
+        ):
             mock_instance = MagicMock()
             mock_rust_engine.return_value = mock_instance
 
@@ -1419,9 +1499,11 @@ class TestRustBindingPaths:
 
     def test_memory_system_with_rust_binding_available(self):
         """Test MemorySystem uses RustMemorySystem when bindings available."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.rust_impl.RustMemorySystem") as mock_rust_memory:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.rust_impl.RustMemorySystem") as mock_rust_memory,
+        ):
             mock_instance = MagicMock()
             mock_rust_memory.return_value = mock_instance
 
@@ -1432,9 +1514,11 @@ class TestRustBindingPaths:
     def test_multimodal_handler_always_uses_python(self):
         """Test MultimodalHandler always uses Python implementation."""
         # Even with Rust bindings available, MultimodalHandler uses Python
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.python_impl.PythonMultimodalHandler") as mock_py:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.python_impl.PythonMultimodalHandler") as mock_py,
+        ):
             mock_instance = MagicMock()
             mock_py.return_value = mock_instance
 
@@ -1444,9 +1528,11 @@ class TestRustBindingPaths:
 
     def test_permission_manager_with_rust_binding_available(self):
         """Test PermissionManager uses RustPermissionManager when bindings available."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.rust_impl.RustPermissionManager") as mock_rust_pm:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.rust_impl.RustPermissionManager") as mock_rust_pm,
+        ):
             mock_instance = MagicMock()
             mock_rust_pm.return_value = mock_instance
 
@@ -1456,9 +1542,11 @@ class TestRustBindingPaths:
 
     def test_permission_with_rust_binding_available(self):
         """Test Permission uses RustPermission when bindings available."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.rust_impl.RustPermission") as mock_rust_perm:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.rust_impl.RustPermission") as mock_rust_perm,
+        ):
             mock_instance = MagicMock()
             mock_instance.resource = "session"
             mock_instance.action = "read"
@@ -1469,10 +1557,12 @@ class TestRustBindingPaths:
 
     def test_role_with_rust_binding_available(self):
         """Test Role uses RustRole when bindings available."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.rust_impl.RustRole") as mock_rust_role, \
-             patch("continuum_sdk.rust_impl.RustPermission"):
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.rust_impl.RustRole") as mock_rust_role,
+            patch("continuum_sdk.rust_impl.RustPermission"),
+        ):
             mock_instance = MagicMock()
             mock_instance.name = "custom"
             mock_instance.permissions = []
@@ -1488,6 +1578,7 @@ class TestRustBindingModuleImport:
     def test_continuum_import_success(self):
         """Test successful import of _continuum module."""
         import sys
+
         # Simulate the _continuum module being available
         with patch.dict(sys.modules, {"continuum_sdk._continuum": MagicMock()}):
             # Re-import the api module to test the import path
@@ -1497,6 +1588,7 @@ class TestRustBindingModuleImport:
     def test_sh_python_import_success(self):
         """Test fallback import of sh_python module."""
         import sys
+
         # Simulate sh_python being available but _continuum not
         mock_sh_python = MagicMock()
         with patch.dict(sys.modules, {"sh_python": mock_sh_python}):
@@ -1514,9 +1606,11 @@ class TestMultimodalHandlerRustPath:
 
     def test_multimodal_handler_rust_impl_path(self):
         """Test MultimodalHandler when impl=rust but falls back to Python."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}), \
-             patch("continuum_sdk.python_impl.PythonMultimodalHandler") as mock_py:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch.dict(os.environ, {"CONTINUUM_IMPL": "rust"}),
+            patch("continuum_sdk.python_impl.PythonMultimodalHandler") as mock_py,
+        ):
             mock_instance = MagicMock()
             mock_py.return_value = mock_instance
 
@@ -1531,8 +1625,10 @@ class TestAgentRustPathDetailed:
 
     def test_agent_rust_impl_attribute(self):
         """Test Agent uses Rust implementation when requested."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch("continuum_sdk.rust_impl.RustAgent") as mock_rust:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch("continuum_sdk.rust_impl.RustAgent") as mock_rust,
+        ):
             mock_instance = MagicMock()
             mock_instance.run.return_value = "result"
             mock_rust.return_value = mock_instance
@@ -1548,8 +1644,10 @@ class TestAgentRustPathDetailed:
     @pytest.mark.asyncio
     async def test_agent_rust_arun(self):
         """Test Agent.arun with Rust implementation."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch("continuum_sdk.rust_impl.RustAgent") as mock_rust:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch("continuum_sdk.rust_impl.RustAgent") as mock_rust,
+        ):
             mock_instance = MagicMock()
             mock_instance.arun = AsyncMock(return_value="async result")
             mock_rust.return_value = mock_instance
@@ -1560,8 +1658,10 @@ class TestAgentRustPathDetailed:
 
     def test_agent_rust_register_tool(self):
         """Test Agent.register_tool with Rust implementation."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch("continuum_sdk.rust_impl.RustAgent") as mock_rust:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch("continuum_sdk.rust_impl.RustAgent") as mock_rust,
+        ):
             mock_instance = MagicMock()
             mock_rust.return_value = mock_instance
 
@@ -1575,8 +1675,10 @@ class TestBuiltinToolsRustPath:
 
     def test_builtin_tools_rust_all_methods(self):
         """Test all BuiltinTools methods with Rust implementation."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch("continuum_sdk.rust_impl.RustBuiltinTools") as mock_rust:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch("continuum_sdk.rust_impl.RustBuiltinTools") as mock_rust,
+        ):
             mock_instance = MagicMock()
             mock_instance.read_file.return_value = "content"
             mock_instance.write_file.return_value = "written"
@@ -1603,8 +1705,10 @@ class TestQueryEngineRustPath:
 
     def test_query_engine_rust_all_methods(self):
         """Test all QueryEngine methods with Rust implementation."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch("continuum_sdk.rust_impl.RustQueryEngine") as mock_rust:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch("continuum_sdk.rust_impl.RustQueryEngine") as mock_rust,
+        ):
             mock_instance = MagicMock()
             mock_instance.initialize.return_value = True
             mock_instance.go_to_definition.return_value = []
@@ -1639,8 +1743,10 @@ class TestMemorySystemRustPath:
 
     def test_memory_system_rust_all_methods(self):
         """Test all MemorySystem methods with Rust implementation."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch("continuum_sdk.rust_impl.RustMemorySystem") as mock_rust:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch("continuum_sdk.rust_impl.RustMemorySystem") as mock_rust,
+        ):
             mock_instance = MagicMock()
             mock_instance.store.return_value = "id123"
             mock_instance.query.return_value = []
@@ -1677,8 +1783,10 @@ class TestPermissionManagerRustPath:
 
     def test_permission_manager_rust_all_methods(self):
         """Test all PermissionManager methods with Rust implementation."""
-        with patch("continuum_sdk.api.HAS_RUST_BINDING", True), \
-             patch("continuum_sdk.rust_impl.RustPermissionManager") as mock_rust:
+        with (
+            patch("continuum_sdk.api.HAS_RUST_BINDING", True),
+            patch("continuum_sdk.rust_impl.RustPermissionManager") as mock_rust,
+        ):
             mock_instance = MagicMock()
             mock_instance.check.return_value = True
             mock_instance.grant.return_value = None

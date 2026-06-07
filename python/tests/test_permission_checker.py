@@ -51,7 +51,7 @@ class TestPermissionResult:
             has_permission=True,
             permission=Permission.READ,
             path="/test/file.py",
-            reason="Can read file"
+            reason="Can read file",
         )
         assert result.has_permission is True
         assert result.permission == Permission.READ
@@ -67,7 +67,7 @@ class TestPermissionResult:
             reason="Read-only file",
             exists=True,
             actual_permissions=0o444,
-            metadata={"key": "value"}
+            metadata={"key": "value"},
         )
         assert result.actual_permissions == 0o444
         assert result.metadata == {"key": "value"}
@@ -79,7 +79,7 @@ class TestPermissionResult:
             permission=Permission.READ,
             path="/test/file.py",
             reason="test",
-            actual_permissions=0o755
+            actual_permissions=0o755,
         )
         d = result.to_dict()
         assert d["has_permission"] is True
@@ -93,7 +93,7 @@ class TestPermissionResult:
             permission=Permission.READ,
             path="/test/file.py",
             reason="test",
-            actual_permissions=None
+            actual_permissions=None,
         )
         d = result.to_dict()
         assert d["actual_permissions"] is None
@@ -212,10 +212,7 @@ class TestPermissionChecker:
         """Test checking multiple permissions."""
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "readable.txt")
-        results = checker.check_multiple(
-            file_path,
-            [Permission.READ, Permission.WRITE]
-        )
+        results = checker.check_multiple(file_path, [Permission.READ, Permission.WRITE])
         assert len(results) == 2
         assert all(isinstance(r, PermissionResult) for r in results)
 
@@ -244,7 +241,9 @@ class TestPermissionChecker:
         new_file = os.path.join(temp_dir, "new_file.txt")
         result = checker.check_parent(new_file, Permission.WRITE)
         # temp_dir is writable
-        assert result.has_permission is True or not result.has_permission  # Depends on OS
+        assert (
+            result.has_permission is True or not result.has_permission
+        )  # Depends on OS
 
     def test_caching(self, temp_dir):
         """Test result caching."""
@@ -411,13 +410,13 @@ class TestPermissionCheckerErrorHandling:
         # On Windows, we need to patch the open() call to simulate permission denial
         # On Unix, we patch os.access
         if os.name == "nt":
-            with patch('builtins.open', side_effect=PermissionError("Access denied")):
+            with patch("builtins.open", side_effect=PermissionError("Access denied")):
                 result = checker.check(file_path, Permission.READ)
                 assert isinstance(result, PermissionResult)
                 assert result.has_permission is False
                 assert "No read permission" in result.reason
         else:
-            with patch('os.access', return_value=False):
+            with patch("os.access", return_value=False):
                 result = checker.check(file_path, Permission.READ)
                 assert isinstance(result, PermissionResult)
                 assert result.has_permission is False
@@ -428,7 +427,7 @@ class TestPermissionCheckerErrorHandling:
         file_path = os.path.join(temp_dir, "file.txt")
         Path(file_path).write_text("content")
 
-        with patch.object(Path, 'stat', side_effect=OSError("IO error")):
+        with patch.object(Path, "stat", side_effect=OSError("IO error")):
             perms = checker._get_permissions(Path(file_path))
             assert perms == 0o644  # Default fallback
 
@@ -438,7 +437,7 @@ class TestPermissionCheckerErrorHandling:
         file_path = os.path.join(temp_dir, "file.txt")
         Path(file_path).write_text("content")
 
-        with patch.object(Path, 'stat', side_effect=OSError("IO error")):
+        with patch.object(Path, "stat", side_effect=OSError("IO error")):
             perms = checker._get_permissions(Path(file_path))
             assert perms == 0o644
 
@@ -454,7 +453,9 @@ class TestPermissionCheckerErrorHandling:
         file_path = os.path.join(temp_dir, "file.txt")
         Path(file_path).write_text("content")
 
-        with patch.object(checker, '_check_read', side_effect=PermissionError("denied")):
+        with patch.object(
+            checker, "_check_read", side_effect=PermissionError("denied")
+        ):
             result = checker._check_permission(Path(file_path), Permission.READ, 0o644)
             assert result.has_permission is False
             assert "Permission denied" in result.reason
@@ -465,7 +466,7 @@ class TestPermissionCheckerErrorHandling:
         file_path = os.path.join(temp_dir, "file.txt")
         Path(file_path).write_text("content")
 
-        with patch.object(checker, '_check_read', side_effect=RuntimeError("error")):
+        with patch.object(checker, "_check_read", side_effect=RuntimeError("error")):
             result = checker._check_permission(Path(file_path), Permission.READ, 0o644)
             assert result.has_permission is False
             assert "Error checking permission" in result.reason
@@ -523,6 +524,7 @@ class TestPermissionCheckerCacheMechanism:
 
         # Wait for TTL to expire
         import time
+
         time.sleep(0.02)
 
         # Mock _get_permissions to verify fresh check happens
@@ -580,7 +582,7 @@ class TestPermissionCheckerParentDirectory:
         checker = PermissionChecker()
 
         # Create a mock path where parent equals itself
-        with patch('pathlib.Path') as mock_path_class:
+        with patch("pathlib.Path") as mock_path_class:
             mock_path = MagicMock(spec=Path)
             mock_path.parent = mock_path  # Parent equals itself
             mock_path.__str__ = lambda self: "/"
@@ -657,7 +659,7 @@ class TestPermissionCheckerCreatePermission:
         checker = PermissionChecker()
         new_file = os.path.join(temp_dir, "new_file.txt")
 
-        with patch.object(Path, 'touch', side_effect=PermissionError("Access denied")):
+        with patch.object(Path, "touch", side_effect=PermissionError("Access denied")):
             result = checker._check_create_permission(Path(new_file))
             assert result.has_permission is False
             assert "No create permission" in result.reason
@@ -687,7 +689,7 @@ class TestPermissionCheckerDeletePermission:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.access', return_value=False):
+        with patch("os.access", return_value=False):
             result = checker._check_delete(Path(file_path))
             assert result.has_permission is False
             assert "No write permission on parent directory" in result.reason
@@ -698,7 +700,7 @@ class TestPermissionCheckerDeletePermission:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.access', return_value=True):
+        with patch("os.access", return_value=True):
             result = checker._check_delete(Path(file_path))
             assert result.has_permission is True
             assert "Delete permission granted" in result.reason
@@ -727,7 +729,7 @@ class TestPermissionCheckerWindowsSpecific:
         """Test read permission denied on directory (Windows)."""
         checker = PermissionChecker()
 
-        with patch('os.access', return_value=False):
+        with patch("os.access", return_value=False):
             result = checker._check_read(Path(temp_dir), 0o755)
             assert result.has_permission is False
             assert "No read permission on directory" in result.reason
@@ -739,7 +741,7 @@ class TestPermissionCheckerWindowsSpecific:
         file_path = os.path.join(temp_dir, "file.txt")
         Path(file_path).write_text("content")
 
-        with patch('builtins.open', side_effect=PermissionError("Access denied")):
+        with patch("builtins.open", side_effect=PermissionError("Access denied")):
             result = checker._check_write(Path(file_path), 0o644)
             assert result.has_permission is False
             assert "No write permission" in result.reason
@@ -751,7 +753,7 @@ class TestPermissionCheckerWindowsSpecific:
         file_path = os.path.join(temp_dir, "file.txt")
         Path(file_path).write_text("content")
 
-        with patch('os.access', side_effect=OSError("Error")):
+        with patch("os.access", side_effect=OSError("Error")):
             result = checker._check_delete(Path(file_path))
             assert result.has_permission is False
             assert "No delete permission" in result.reason
@@ -774,7 +776,7 @@ class TestPermissionCheckerUnixSpecific:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.access', return_value=False):
+        with patch("os.access", return_value=False):
             result = checker._check_read(Path(file_path), 0o644)
             assert result.has_permission is False
             assert "No read permission" in result.reason
@@ -785,7 +787,7 @@ class TestPermissionCheckerUnixSpecific:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.access', return_value=False):
+        with patch("os.access", return_value=False):
             result = checker._check_write(Path(file_path), 0o644)
             assert result.has_permission is False
             assert "No write permission" in result.reason
@@ -796,7 +798,7 @@ class TestPermissionCheckerUnixSpecific:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.access', return_value=False):
+        with patch("os.access", return_value=False):
             result = checker._check_execute(Path(file_path), 0o644)
             assert result.has_permission is False
             assert "No execute permission" in result.reason
@@ -807,7 +809,7 @@ class TestPermissionCheckerUnixSpecific:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.access', return_value=True):
+        with patch("os.access", return_value=True):
             result = checker._check_execute(Path(file_path), 0o755)
             assert result.has_permission is True
             assert "Execute permission granted" in result.reason
@@ -818,7 +820,7 @@ class TestPermissionCheckerUnixSpecific:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "new_file.txt")
 
-        with patch('os.access', return_value=False):
+        with patch("os.access", return_value=False):
             result = checker._check_create_permission(Path(file_path))
             assert result.has_permission is False
             assert "No write permission in parent directory" in result.reason
@@ -841,8 +843,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         file_path = os.path.join(temp_dir, "file.txt")
 
         # Mock os.name to test Unix path on Windows
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=True) as mock_access:
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=True) as mock_access:
                 result = checker._check_read(Path(file_path), 0o644)
                 assert result.has_permission is True
                 assert "Read permission granted" in result.reason
@@ -853,8 +855,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=False):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=False):
                 result = checker._check_read(Path(file_path), 0o644)
                 assert result.has_permission is False
                 assert "No read permission" in result.reason
@@ -864,8 +866,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=True):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=True):
                 result = checker._check_write(Path(file_path), 0o644)
                 assert result.has_permission is True
                 assert "Write permission granted" in result.reason
@@ -875,8 +877,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=False):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=False):
                 result = checker._check_write(Path(file_path), 0o644)
                 assert result.has_permission is False
                 assert "No write permission" in result.reason
@@ -886,8 +888,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=True):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=True):
                 result = checker._check_execute(Path(file_path), 0o755)
                 assert result.has_permission is True
                 assert "Execute permission granted" in result.reason
@@ -897,8 +899,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=False):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=False):
                 result = checker._check_execute(Path(file_path), 0o644)
                 assert result.has_permission is False
                 assert "No execute permission" in result.reason
@@ -921,8 +923,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         mock_stat.st_mode = 0o100644
         mock_path.stat.return_value = mock_stat
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=True):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=True):
                 result = checker._check_delete(mock_path)
                 assert result.has_permission is True
                 assert "Delete permission granted" in result.reason
@@ -945,8 +947,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         mock_stat.st_mode = 0o100644
         mock_path.stat.return_value = mock_stat
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=False):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=False):
                 result = checker._check_delete(mock_path)
                 assert result.has_permission is False
                 assert "No write permission on parent directory" in result.reason
@@ -965,8 +967,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         mock_path.parent = mock_parent
         mock_path.__str__ = lambda self: file_path
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=True):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=True):
                 result = checker._check_create_permission(mock_path)
                 assert result.has_permission is True
                 assert "Create permission granted" in result.reason
@@ -985,8 +987,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         mock_path.parent = mock_parent
         mock_path.__str__ = lambda self: file_path
 
-        with patch('os.name', 'posix'):
-            with patch('os.access', return_value=False):
+        with patch("os.name", "posix"):
+            with patch("os.access", return_value=False):
                 result = checker._check_create_permission(mock_path)
                 assert result.has_permission is False
                 assert "No write permission in parent directory" in result.reason
@@ -996,8 +998,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.name', 'nt'):
-            with patch('os.access', return_value=True):
+        with patch("os.name", "nt"):
+            with patch("os.access", return_value=True):
                 result = checker._check_delete(Path(file_path))
                 assert result.has_permission is True
                 assert "Can delete file" in result.reason
@@ -1006,9 +1008,9 @@ class TestPermissionCheckerCrossPlatformMocked:
         """Test Windows delete permission for directory (mocked)."""
         checker = PermissionChecker()
 
-        with patch('os.name', 'nt'):
-            with patch('os.access', return_value=True):
-                with patch.object(Path, 'is_file', return_value=False):
+        with patch("os.name", "nt"):
+            with patch("os.access", return_value=True):
+                with patch.object(Path, "is_file", return_value=False):
                     result = checker._check_delete(Path(temp_dir))
                     assert result.has_permission is True
 
@@ -1017,8 +1019,8 @@ class TestPermissionCheckerCrossPlatformMocked:
         checker = PermissionChecker()
         file_path = os.path.join(temp_dir, "file.txt")
 
-        with patch('os.name', 'nt'):
-            with patch('os.access', side_effect=OSError("Error")):
+        with patch("os.name", "nt"):
+            with patch("os.access", side_effect=OSError("Error")):
                 result = checker._check_delete(Path(file_path))
                 assert result.has_permission is False
                 assert "No delete permission" in result.reason
@@ -1035,9 +1037,9 @@ class TestPermissionCheckerMockedFilesystem:
         mock_path.is_dir.return_value = False
         mock_path.__str__ = lambda self: "/test/file.py"
 
-        with patch.object(checker, '_get_permissions', return_value=0o644):
-            with patch('builtins.open', mock_open(read_data=b"content")):
-                with patch('os.access', return_value=True):
+        with patch.object(checker, "_get_permissions", return_value=0o644):
+            with patch("builtins.open", mock_open(read_data=b"content")):
+                with patch("os.access", return_value=True):
                     result = checker.check("/test/file.py", Permission.READ)
                     assert isinstance(result, PermissionResult)
 
@@ -1049,9 +1051,9 @@ class TestPermissionCheckerMockedFilesystem:
         mock_path.is_dir.return_value = False
         mock_path.__str__ = lambda self: "/test/file.py"
 
-        with patch.object(checker, '_get_permissions', return_value=0o644):
-            with patch('builtins.open', mock_open()):
-                with patch('os.access', return_value=True):
+        with patch.object(checker, "_get_permissions", return_value=0o644):
+            with patch("builtins.open", mock_open()):
+                with patch("os.access", return_value=True):
                     result = checker.check("/test/file.py", Permission.WRITE)
                     assert isinstance(result, PermissionResult)
 
@@ -1066,7 +1068,7 @@ class TestPermissionCheckerMockedFilesystem:
         mock_path.parent = mock_parent
         mock_path.__str__ = lambda self: "/test/new_file.py"
 
-        with patch('os.access', return_value=True):
+        with patch("os.access", return_value=True):
             result = checker.check("/test/new_file.py", Permission.CREATE)
             assert isinstance(result, PermissionResult)
 

@@ -263,7 +263,9 @@ class TestVectorItem:
 
     def test_with_metadata(self):
         """Test VectorItem with metadata"""
-        item = VectorItem(id="test", vector=[1.0], metadata={"key": "value"}, content="text")
+        item = VectorItem(
+            id="test", vector=[1.0], metadata={"key": "value"}, content="text"
+        )
         assert item.metadata == {"key": "value"}
         assert item.content == "text"
 
@@ -304,6 +306,7 @@ class TestVectorStoreAbstractMethods:
 
     def test_abstract_methods_callable(self):
         """Test that abstract methods can be called via concrete implementation"""
+
         # This test ensures the abstract method pass statements are covered
         # by creating a minimal concrete implementation that calls super()
         class MinimalVectorStore(InMemoryVectorStore):

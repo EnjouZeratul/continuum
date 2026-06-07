@@ -35,7 +35,13 @@ __version__ = "1.0.0"
 # Core classes (legacy, same as api.Agent)
 from .agent import Agent as LegacyAgent
 from .agent import Session as LegacySession
-from .api import HAS_RUST_BINDING, Agent, BuiltinTools, Session, get_implementation_preference
+from .api import (
+    HAS_RUST_BINDING,
+    Agent,
+    BuiltinTools,
+    Session,
+    get_implementation_preference,
+)
 from .config import (
     Config,
     ConfigLoader,

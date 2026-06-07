@@ -82,7 +82,9 @@ class TestPythonAgent:
         def test_func(x: int) -> int:
             return x * 2
 
-        agent.register_tool("double", test_func, "Double a number", {"x": {"type": "int"}})
+        agent.register_tool(
+            "double", test_func, "Double a number", {"x": {"type": "int"}}
+        )
         assert "double" in agent._tools
 
     def test_run_success(self):
@@ -209,7 +211,10 @@ class TestPythonBuiltinTools:
         """Test tool availability check"""
         tools = PythonBuiltinTools()
         # Should work for built-in tools
-        assert tools.is_available("read_file") is True or tools.is_available("Read") is True
+        assert (
+            tools.is_available("read_file") is True
+            or tools.is_available("Read") is True
+        )
 
     def test_execute(self):
         """Test execute method"""
@@ -246,7 +251,11 @@ class TestPythonBuiltinTools:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = os.path.join(tmpdir, "test_write.txt")
             result = tools.write_file(path, "write file test")
-            assert "Successfully" in result or "wrote" in result.lower() or os.path.exists(path)
+            assert (
+                "Successfully" in result
+                or "wrote" in result.lower()
+                or os.path.exists(path)
+            )
 
     def test_edit_file(self):
         """Test edit_file wrapper"""
@@ -474,10 +483,13 @@ class TestPythonPermissionManager:
         """Test creating custom role"""
         pm = PythonPermissionManager()
 
-        custom_role = PythonRole("custom", [
-            PythonPermission("resource1", "action1"),
-            PythonPermission("resource2", "action2"),
-        ])
+        custom_role = PythonRole(
+            "custom",
+            [
+                PythonPermission("resource1", "action1"),
+                PythonPermission("resource2", "action2"),
+            ],
+        )
         pm.create_role(custom_role)
 
         assert "custom" in pm._roles
@@ -595,9 +607,12 @@ class TestPythonQueryEngine:
 
             # Mock lsp function to return metadata with file
             from unittest import mock
+
             mock_result = mock.MagicMock()
             mock_result.metadata = {"file": "/path/to/definition.py", "line": 10}
-            with mock.patch('continuum_sdk.tools.lsp.go_to_definition', return_value=mock_result):
+            with mock.patch(
+                "continuum_sdk.tools.lsp.go_to_definition", return_value=mock_result
+            ):
                 result = engine.go_to_definition("python", test_file, 1, 5)
                 assert len(result) == 1
                 assert result[0]["uri"] == "/path/to/definition.py"
@@ -612,7 +627,11 @@ class TestPythonQueryEngine:
 
             # Mock the lsp function to raise exception
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.go_to_definition', side_effect=OSError("Test error")):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.go_to_definition",
+                side_effect=OSError("Test error"),
+            ):
                 result = engine.go_to_definition("python", "test.py", 1, 1)
                 assert result == []
 
@@ -649,10 +668,13 @@ class TestPythonQueryEngine:
 
             # Mock lsp function to return content with references (without Windows path issues)
             from unittest import mock
+
             mock_result = mock.MagicMock()
             # Use simple format that parses correctly
             mock_result.content = "/path/to/file.py:1:5\ndef target(): pass\n"
-            with mock.patch('continuum_sdk.tools.lsp.find_references', return_value=mock_result):
+            with mock.patch(
+                "continuum_sdk.tools.lsp.find_references", return_value=mock_result
+            ):
                 result = engine.find_references("python", test_file, 1, 5)
                 # Should parse the references
                 assert isinstance(result, list)
@@ -669,9 +691,12 @@ class TestPythonQueryEngine:
                 f.write("def target(): pass\ntarget()\n")
 
             from unittest import mock
+
             mock_result = mock.MagicMock()
             mock_result.content = ""  # Empty content
-            with mock.patch('continuum_sdk.tools.lsp.find_references', return_value=mock_result):
+            with mock.patch(
+                "continuum_sdk.tools.lsp.find_references", return_value=mock_result
+            ):
                 result = engine.find_references("python", test_file, 1, 5)
                 assert result == []
 
@@ -687,9 +712,12 @@ class TestPythonQueryEngine:
                 f.write("def my_func():\n    pass\n")
 
             from unittest import mock
+
             mock_result = mock.MagicMock()
             mock_result.metadata = {}  # No 'file' key
-            with mock.patch('continuum_sdk.tools.lsp.go_to_definition', return_value=mock_result):
+            with mock.patch(
+                "continuum_sdk.tools.lsp.go_to_definition", return_value=mock_result
+            ):
                 result = engine.go_to_definition("python", test_file, 1, 5)
                 assert result == []
 
@@ -701,7 +729,11 @@ class TestPythonQueryEngine:
             engine.initialize("python", tmpdir)
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.find_references', side_effect=OSError("Test error")):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.find_references",
+                side_effect=OSError("Test error"),
+            ):
                 result = engine.find_references("python", "test.py", 1, 1)
                 assert result == []
 
@@ -713,7 +745,10 @@ class TestPythonQueryEngine:
             engine.initialize("python", tmpdir)
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', side_effect=OSError("Test error")):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover", side_effect=OSError("Test error")
+            ):
                 result = engine.hover("python", "test.py", 1, 1)
                 assert result is None
 
@@ -730,7 +765,10 @@ class TestPythonQueryEngine:
                 f.write("test")
 
             from unittest import mock
-            with mock.patch('pathlib.Path.read_text', side_effect=PermissionError("Test error")):
+
+            with mock.patch(
+                "pathlib.Path.read_text", side_effect=PermissionError("Test error")
+            ):
                 result = engine.get_document_symbols("python", test_file)
                 assert result == []
 
@@ -783,9 +821,13 @@ class TestPythonQueryEngine:
 
             # Mock hover to return class info, and mock find_references
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="**MyClass** (class)")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content="**MyClass** (class)"),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("python", test_file, 1, 1)
                         assert result["kind"] == "class"
 
@@ -801,9 +843,17 @@ class TestPythonQueryEngine:
                 f.write("def my_func():\n    pass\n")
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="**my_func** (function)")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[{"uri": test_file, "line": 1, "column": 1}]):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content="**my_func** (function)"),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(
+                        engine,
+                        "go_to_definition",
+                        return_value=[{"uri": test_file, "line": 1, "column": 1}],
+                    ):
                         result = engine.full_symbol_info("python", test_file, 1, 5)
                         assert result["definition"] is not None
                         assert result["kind"] == "function"
@@ -820,10 +870,14 @@ class TestPythonQueryEngine:
                 f.write("x = 1\n")
 
             from unittest import mock
+
             # Hover without **symbol** pattern
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="variable x")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content="variable x"),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("python", test_file, 1, 1)
                         # symbol should be None since no match
                         assert result["symbol"] is None
@@ -840,9 +894,13 @@ class TestPythonQueryEngine:
                 f.write("struct MyStruct {}\n")
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="**MyStruct** (struct)")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content="**MyStruct** (struct)"),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("rust", test_file, 1, 1)
                         assert result["symbol"] == "MyStruct"
                         assert result["kind"] == "struct"
@@ -859,9 +917,13 @@ class TestPythonQueryEngine:
                 f.write("MY_CONST = 1\n")
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="**MY_CONST** (const)")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content="**MY_CONST** (const)"),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("python", test_file, 1, 1)
                         assert result["kind"] == "constant"
 
@@ -877,9 +939,13 @@ class TestPythonQueryEngine:
                 f.write("x = 1\n")
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content=None)):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content=None),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("python", test_file, 1, 1)
                         assert result["hover"] is None
                         assert result["symbol"] is None
@@ -896,9 +962,13 @@ class TestPythonQueryEngine:
                 f.write("x = 1\n")
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content=""),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("python", test_file, 1, 1)
                         # hover returns content which is empty string, but hover() returns None for empty
                         # Let's check that the code handles empty hover
@@ -916,10 +986,14 @@ class TestPythonQueryEngine:
                 f.write("my_var = 1\n")
 
             from unittest import mock
+
             # Hover with symbol but unknown kind (not function/class/struct/etc)
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="**my_var** (unknown_kind)")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content="**my_var** (unknown_kind)"),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("python", test_file, 1, 1)
                         assert result["symbol"] == "my_var"
                         # kind should be None since no match
@@ -937,9 +1011,13 @@ class TestPythonQueryEngine:
                 f.write("def my_func():\n    pass\n")
 
             from unittest import mock
-            with mock.patch('continuum_sdk.tools.lsp.get_hover', return_value=mock.MagicMock(content="**my_func** (function)")):
-                with mock.patch.object(engine, 'find_references', return_value=[]):
-                    with mock.patch.object(engine, 'go_to_definition', return_value=[]):
+
+            with mock.patch(
+                "continuum_sdk.tools.lsp.get_hover",
+                return_value=mock.MagicMock(content="**my_func** (function)"),
+            ):
+                with mock.patch.object(engine, "find_references", return_value=[]):
+                    with mock.patch.object(engine, "go_to_definition", return_value=[]):
                         result = engine.full_symbol_info("python", test_file, 1, 5)
                         assert result["symbol"] == "my_func"
                         assert result["kind"] == "function"
@@ -1048,11 +1126,12 @@ class TestPythonQueryEngine:
 
             # Mock find_references to return references
             from unittest import mock
+
             mock_refs = [
                 {"uri": test_file, "line": 1, "column": 5},
                 {"uri": test_file, "line": 3, "column": 1},
             ]
-            with mock.patch.object(engine, 'find_references', return_value=mock_refs):
+            with mock.patch.object(engine, "find_references", return_value=mock_refs):
                 result = engine.rename_symbol("python", test_file, 1, 5, "new_func")
                 assert result["changed_files"] == 1
                 assert len(result["changes"]) == 1
@@ -1071,9 +1150,12 @@ class TestPythonQueryEngine:
 
             # Mock find_references and Path.read_text to raise error
             from unittest import mock
+
             mock_refs = [{"uri": test_file, "line": 1, "column": 5}]
-            with mock.patch.object(engine, 'find_references', return_value=mock_refs):
-                with mock.patch('pathlib.Path.read_text', side_effect=PermissionError("No access")):
+            with mock.patch.object(engine, "find_references", return_value=mock_refs):
+                with mock.patch(
+                    "pathlib.Path.read_text", side_effect=PermissionError("No access")
+                ):
                     result = engine.rename_symbol("python", test_file, 1, 5, "new_name")
                     # Should handle error gracefully
                     assert result["changed_files"] == 0
@@ -1090,9 +1172,10 @@ class TestPythonQueryEngine:
                 f.write("def func():\n    pass\n")
 
             from unittest import mock
+
             # Reference with line out of bounds
             mock_refs = [{"uri": test_file, "line": 100, "column": 5}]
-            with mock.patch.object(engine, 'find_references', return_value=mock_refs):
+            with mock.patch.object(engine, "find_references", return_value=mock_refs):
                 result = engine.rename_symbol("python", test_file, 1, 5, "new_name")
                 # Should handle gracefully
                 assert result["changed_files"] == 0
@@ -1109,8 +1192,9 @@ class TestPythonQueryEngine:
                 f.write("# Just a comment\n")
 
             from unittest import mock
+
             # Mock find_references to return empty list
-            with mock.patch.object(engine, 'find_references', return_value=[]):
+            with mock.patch.object(engine, "find_references", return_value=[]):
                 result = engine.rename_symbol("python", test_file, 1, 1, "new_name")
                 assert result["changed_files"] == 0
                 assert result["changes"] == []
@@ -1127,11 +1211,12 @@ class TestPythonQueryEngine:
                 f.write("def my_func():\n    pass\nmy_func()\n")
 
             from unittest import mock
+
             mock_refs = [
                 {"uri": test_file, "line": 1, "column": 5},  # def my_func
                 {"uri": test_file, "line": 3, "column": 1},  # my_func()
             ]
-            with mock.patch.object(engine, 'find_references', return_value=mock_refs):
+            with mock.patch.object(engine, "find_references", return_value=mock_refs):
                 result = engine.rename_symbol("python", test_file, 1, 5, "new_func")
                 # Should have successfully extracted old_name
                 assert result["changed_files"] == 1
@@ -1147,15 +1232,26 @@ class TestPythonQueryEngine:
             test_file = os.path.join(tmpdir, "test.py")
             # Create file with multiple refs at same position
             with open(test_file, "w") as f:
-                f.write("def target_func():\n    pass\n    target_func()\ntarget_func()\n")
+                f.write(
+                    "def target_func():\n    pass\n    target_func()\ntarget_func()\n"
+                )
 
             from unittest import mock
+
             # Multiple refs where the first one has no identifier at column
             mock_refs = [
-                {"uri": test_file, "line": 2, "column": 10},  # In whitespace area - no match
-                {"uri": test_file, "line": 1, "column": 5},   # def target_func - match found
+                {
+                    "uri": test_file,
+                    "line": 2,
+                    "column": 10,
+                },  # In whitespace area - no match
+                {
+                    "uri": test_file,
+                    "line": 1,
+                    "column": 5,
+                },  # def target_func - match found
             ]
-            with mock.patch.object(engine, 'find_references', return_value=mock_refs):
+            with mock.patch.object(engine, "find_references", return_value=mock_refs):
                 result = engine.rename_symbol("python", test_file, 1, 5, "new_func")
                 # Should iterate through refs and find match
                 assert result["changed_files"] == 1
@@ -1370,7 +1466,9 @@ class TestPythonMemorySystem:
         assert result is True
 
         # Clean up the created file
-        default_path = Path.home() / ".continuum" / "memory" / f"{memory._session_id}.json"
+        default_path = (
+            Path.home() / ".continuum" / "memory" / f"{memory._session_id}.json"
+        )
         if default_path.exists():
             default_path.unlink()
 
@@ -1720,7 +1818,7 @@ class TestPythonMultimodalHandler:
 
         content = [
             {"type": "text", "text": "What's in this image?"},
-            {"type": "image", "source": {"type": "base64", "data": "abc123"}}
+            {"type": "image", "source": {"type": "base64", "data": "abc123"}},
         ]
         result = handler.create_message("user", content)
         assert result["role"] == "user"
@@ -1755,8 +1853,8 @@ class TestPythonMultimodalHandler:
             "role": "user",
             "content": [
                 {"type": "text", "text": "Hello"},
-                {"type": "text", "text": "World"}
-            ]
+                {"type": "text", "text": "World"},
+            ],
         }
         text = handler.extract_text(message)
         assert "Hello" in text
@@ -1798,7 +1896,7 @@ class TestPythonMultimodalHandler:
                 {"type": "image", "source": {"data": "img"}},
                 {"type": "text", "text": "Second"},
                 {"type": "unknown", "data": "unknown"},
-            ]
+            ],
         }
         text = handler.extract_text(message)
         assert "First" in text
@@ -1813,8 +1911,8 @@ class TestPythonMultimodalHandler:
             "content": [
                 {"type": "text", "text": "Hello"},
                 {"type": "image", "source": {"data": "abc"}},
-                {"type": "image", "source": {"data": "def"}}
-            ]
+                {"type": "image", "source": {"data": "def"}},
+            ],
         }
         images = handler.list_images(message)
         assert len(images) == 2
@@ -1838,10 +1936,13 @@ class TestPythonMultimodalHandler:
         mock_response.__enter__ = lambda self: self
         mock_response.__exit__ = lambda self, *args: None
 
-        with mock.patch('urllib.request.urlopen', return_value=mock_response):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 result = handler.encode_image_from_url("http://example.com/image.png")
                 assert result["type"] == "image"
                 assert result["source"]["type"] == "base64"
@@ -1850,9 +1951,12 @@ class TestPythonMultimodalHandler:
         """Test that private URLs are blocked"""
         handler = PythonMultimodalHandler()
 
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('192.168.1.1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://internal.example.com/image.png")
 
@@ -1869,10 +1973,15 @@ class TestPythonMultimodalHandler:
 
         import urllib.error
 
-        with mock.patch('urllib.request.urlopen', side_effect=urllib.error.URLError("Network error")):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch(
+            "urllib.request.urlopen", side_effect=urllib.error.URLError("Network error")
+        ):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 with pytest.raises(ValueError, match="Failed to fetch"):
                     handler.encode_image_from_url("http://example.com/image.png")
 
@@ -1885,10 +1994,13 @@ class TestPythonMultimodalHandler:
         def mock_urlopen(request, timeout=None):
             raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 with pytest.raises(ValueError, match="HTTP error"):
                     handler.encode_image_from_url("http://example.com/image.png")
 
@@ -1903,10 +2015,13 @@ class TestPythonMultimodalHandler:
         mock_response.__enter__ = lambda self: self
         mock_response.__exit__ = lambda self, *args: None
 
-        with mock.patch('urllib.request.urlopen', return_value=mock_response):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 result = handler.encode_image_from_url("http://example.com/test.jpg")
                 # Should guess jpeg from URL extension
                 assert result["source"]["media_type"] == "image/jpeg"
@@ -1918,11 +2033,20 @@ class TestPythonMultimodalHandler:
         # This tests the redirect count path without actual redirect logic
         # The _follow_redirects_safely method is complex, so we test it differently
         # by mocking it to return data
-        with mock.patch.object(handler, '_follow_redirects_safely', return_value=(b"fake_png_data", "image/png")):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
-                result = handler.encode_image_from_url("http://example.com/original.jpg")
+        with mock.patch.object(
+            handler,
+            "_follow_redirects_safely",
+            return_value=(b"fake_png_data", "image/png"),
+        ):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
+                result = handler.encode_image_from_url(
+                    "http://example.com/original.jpg"
+                )
                 assert result["type"] == "image"
 
     def test_encode_image_from_url_http_redirect(self):
@@ -1931,7 +2055,13 @@ class TestPythonMultimodalHandler:
         import urllib.error
 
         # First call raises HTTPError with redirect, second succeeds
-        redirect_error = urllib.error.HTTPError("http://example.com/img.png", 301, "Moved", {"Location": "http://example.com/new.png"}, None)
+        redirect_error = urllib.error.HTTPError(
+            "http://example.com/img.png",
+            301,
+            "Moved",
+            {"Location": "http://example.com/new.png"},
+            None,
+        )
 
         final_response = BytesIO(b"png_data")
         final_response.geturl = lambda: "http://example.com/new.png"
@@ -1940,16 +2070,20 @@ class TestPythonMultimodalHandler:
         final_response.__exit__ = lambda self, *args: None
 
         call_count = [0]
+
         def mock_urlopen(request, timeout=None):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise redirect_error
             return final_response
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 result = handler.encode_image_from_url("http://example.com/img.png")
                 assert result["type"] == "image"
 
@@ -1958,10 +2092,17 @@ class TestPythonMultimodalHandler:
         handler = PythonMultimodalHandler()
 
         # Test by mocking _follow_redirects_safely to raise
-        with mock.patch.object(handler, '_follow_redirects_safely', side_effect=ValueError("Too many redirects (max 5)")):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch.object(
+            handler,
+            "_follow_redirects_safely",
+            side_effect=ValueError("Too many redirects (max 5)"),
+        ):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 with pytest.raises(ValueError, match="Too many redirects"):
                     handler.encode_image_from_url("http://example.com/img.png")
 
@@ -1977,6 +2118,7 @@ class TestPythonMultimodalHandler:
         redirect_response.__exit__ = lambda self, *args: None
 
         call_count = [0]
+
         def mock_urlopen(request, timeout=None):
             call_count[0] += 1
             if call_count[0] == 1:
@@ -1991,11 +2133,16 @@ class TestPythonMultimodalHandler:
                 final_response.__exit__ = lambda self, *args: None
                 return final_response
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
-                data, media_type = handler._follow_redirects_safely("http://example.com/original.png", 30)
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
+                data, media_type = handler._follow_redirects_safely(
+                    "http://example.com/original.png", 30
+                )
                 assert data == b"final_png_data"
 
     def test_follow_redirects_too_many_http_redirects(self):
@@ -2004,19 +2151,31 @@ class TestPythonMultimodalHandler:
         import urllib.error
 
         # Create HTTPError for redirect
-        redirect_error = urllib.error.HTTPError("http://example.com/img.png", 301, "Moved", {"Location": "http://example.com/new.png"}, None)
+        redirect_error = urllib.error.HTTPError(
+            "http://example.com/img.png",
+            301,
+            "Moved",
+            {"Location": "http://example.com/new.png"},
+            None,
+        )
 
         call_count = [0]
+
         def mock_urlopen(request, timeout=None):
             call_count[0] += 1
             raise redirect_error
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 with pytest.raises(ValueError, match="Too many redirects"):
-                    handler._follow_redirects_safely("http://example.com/img.png", 30, max_redirects=0)
+                    handler._follow_redirects_safely(
+                        "http://example.com/img.png", 30, max_redirects=0
+                    )
 
     def test_follow_redirects_while_loop_exits(self):
         """Test _follow_redirects_safely when while loop exits without return"""
@@ -2029,13 +2188,18 @@ class TestPythonMultimodalHandler:
         redirect_response.__enter__ = lambda self: self
         redirect_response.__exit__ = lambda self, *args: None
 
-        with mock.patch('urllib.request.urlopen', return_value=redirect_response):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", return_value=redirect_response):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 with pytest.raises(ValueError, match="Too many redirects"):
                     # max_redirects=0 will cause immediate failure on first redirect
-                    handler._follow_redirects_safely("http://example.com/img.png", 30, max_redirects=0)
+                    handler._follow_redirects_safely(
+                        "http://example.com/img.png", 30, max_redirects=0
+                    )
 
     def test_follow_redirects_max_redirects_loop_exit(self):
         """Test _follow_redirects_safely loop exits at max_redirects"""
@@ -2043,6 +2207,7 @@ class TestPythonMultimodalHandler:
 
         # Create a sequence of responses that keep changing URL
         call_count = [0]
+
         def mock_urlopen(request, timeout=None):
             call_count[0] += 1
             response = BytesIO(b"")
@@ -2053,12 +2218,17 @@ class TestPythonMultimodalHandler:
             response.__exit__ = lambda self, *args: None
             return response
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 with pytest.raises(ValueError, match="Too many redirects"):
-                    handler._follow_redirects_safely("http://example.com/img.png", 30, max_redirects=1)
+                    handler._follow_redirects_safely(
+                        "http://example.com/img.png", 30, max_redirects=1
+                    )
 
     def test_follow_redirects_final_raise(self):
         """Test _follow_redirects_safely raises at end of while loop"""
@@ -2067,25 +2237,33 @@ class TestPythonMultimodalHandler:
         # Simulate the while loop running exactly max_redirects + 1 times
         # by having geturl() return different URL each time (triggering continue)
         call_count = [0]
+
         def mock_urlopen(request, timeout=None):
             call_count[0] += 1
             response = BytesIO(b"data")
             # Always different URL triggers redirect increment
-            response.geturl = lambda: f"http://example.com/always-new-{call_count[0]}.png"
+            response.geturl = (
+                lambda: f"http://example.com/always-new-{call_count[0]}.png"
+            )
             response.headers = {"Content-Type": "image/png"}
             response.__enter__ = lambda self: self
             response.__exit__ = lambda self, *args: None
             response.read = lambda: b"image_data"
             return response
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 # With max_redirects=0, the first redirect detection should increment
                 # redirect_count to 1, then continue, and while loop exits
                 with pytest.raises(ValueError, match="Too many redirects"):
-                    handler._follow_redirects_safely("http://example.com/img.png", 30, max_redirects=0)
+                    handler._follow_redirects_safely(
+                        "http://example.com/img.png", 30, max_redirects=0
+                    )
 
     def test_create_anthropic_vision_message_multiple_dicts(self):
         """Test create_anthropic_vision_message with multiple dict items"""
@@ -2110,13 +2288,18 @@ class TestPythonMultimodalHandler:
         mock_response.__enter__ = lambda self: self
         mock_response.__exit__ = lambda self, *args: None
 
-        with mock.patch('urllib.request.urlopen', return_value=mock_response):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 # Should guess from URL or raise error
                 try:
-                    result = handler.encode_image_from_url("http://example.com/test.bmp")
+                    result = handler.encode_image_from_url(
+                        "http://example.com/test.bmp"
+                    )
                     # If it succeeds, it should have guessed a type
                     assert "media_type" in result["source"]
                 except ValueError:
@@ -2127,10 +2310,17 @@ class TestPythonMultimodalHandler:
         """Test handling generic errors during URL fetch"""
         handler = PythonMultimodalHandler()
 
-        with mock.patch.object(handler, '_follow_redirects_safely', side_effect=RuntimeError("Unexpected error")):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch.object(
+            handler,
+            "_follow_redirects_safely",
+            side_effect=RuntimeError("Unexpected error"),
+        ):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 with pytest.raises(ValueError, match="Failed to fetch"):
                     handler.encode_image_from_url("http://example.com/img.png")
 
@@ -2188,7 +2378,9 @@ class TestPythonMultimodalHandler:
         """Test _validate_url_for_ssrf handles DNS errors"""
         handler = PythonMultimodalHandler()
 
-        with mock.patch('socket.getaddrinfo', side_effect=socket.gaierror("DNS failed")):
+        with mock.patch(
+            "socket.getaddrinfo", side_effect=socket.gaierror("DNS failed")
+        ):
             with pytest.raises(ValueError, match="Failed to resolve"):
                 handler._validate_url_for_ssrf("http://nonexistent.invalid/image.png")
 
@@ -2209,8 +2401,8 @@ class TestPythonMultimodalHandler:
             "source": {
                 "type": "base64",
                 "media_type": "image/png",
-                "data": "base64data"
-            }
+                "data": "base64data",
+            },
         }
         result = handler.to_openai_format(content)
         assert result["type"] == "image_url"
@@ -2222,7 +2414,7 @@ class TestPythonMultimodalHandler:
 
         content = {
             "type": "image_url",
-            "image_url": {"url": "http://example.com/image.png"}
+            "image_url": {"url": "http://example.com/image.png"},
         }
         result = handler.to_openai_format(content)
         assert result == content
@@ -2250,7 +2442,10 @@ class TestPythonMultimodalHandler:
 
         content = {
             "type": "image",
-            "source": {"type": "url", "url": "http://example.com/img.png"}  # Not base64
+            "source": {
+                "type": "url",
+                "url": "http://example.com/img.png",
+            },  # Not base64
         }
         result = handler.to_openai_format(content)
         # Should return unchanged (falls through to line 1407)
@@ -2301,9 +2496,12 @@ class TestPythonMultimodalHandler:
         """Test creating OpenAI Vision message with URL"""
         handler = PythonMultimodalHandler()
 
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+            ],
+        ):
             result = handler.create_openai_vision_message(
                 "user", "Check this", ["http://example.com/image.png"]
             )
@@ -2337,9 +2535,7 @@ class TestPythonMultimodalHandler:
         handler = PythonMultimodalHandler()
 
         encoded = {"type": "image", "source": {"type": "base64", "data": "abc"}}
-        result = handler.create_anthropic_vision_message(
-            "user", "Test", [encoded]
-        )
+        result = handler.create_anthropic_vision_message("user", "Test", [encoded])
         assert len(result["content"]) == 2
 
     def test_create_anthropic_vision_message_with_url(self):
@@ -2352,10 +2548,13 @@ class TestPythonMultimodalHandler:
         mock_response.__enter__ = lambda self: self
         mock_response.__exit__ = lambda self, *args: None
 
-        with mock.patch('urllib.request.urlopen', return_value=mock_response):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))
-            ]):
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+                ],
+            ):
                 result = handler.create_anthropic_vision_message(
                     "user", "Check this", ["http://example.com/img.png"]
                 )
@@ -2378,7 +2577,10 @@ class TestPythonMultimodalHandler:
         """Test creating OpenAI message with pre-encoded dict"""
         handler = PythonMultimodalHandler()
 
-        encoded = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "abc"}}
+        encoded = {
+            "type": "image",
+            "source": {"type": "base64", "media_type": "image/png", "data": "abc"},
+        }
         result = handler.create_openai_vision_message(
             "user", "Test", [encoded], detail="high"
         )
@@ -2388,7 +2590,10 @@ class TestPythonMultimodalHandler:
         """Test creating OpenAI message with image_url dict"""
         handler = PythonMultimodalHandler()
 
-        encoded = {"type": "image_url", "image_url": {"url": "http://example.com/img.png"}}
+        encoded = {
+            "type": "image_url",
+            "image_url": {"url": "http://example.com/img.png"},
+        }
         result = handler.create_openai_vision_message(
             "user", "Test", [encoded], detail="low"
         )
@@ -2491,7 +2696,7 @@ class TestImageInput:
 
         img = ImageInput.from_url("http://example.com/image.png")
 
-        with mock.patch('urllib.request.urlopen', return_value=mock_response):
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
             b64 = img.to_base64()
             assert b64 == base64.b64encode(b"fake_png_data").decode("utf-8")
             assert img.media_type == "image/png"
@@ -2580,7 +2785,7 @@ class TestImageInput:
 
         img = ImageInput(url="http://example.com/image.gif")
 
-        with mock.patch('urllib.request.urlopen', return_value=mock_response):
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
             b64 = img.to_base64()
             assert b64 is not None
             # Media type should be detected from response
@@ -2598,7 +2803,7 @@ class TestImageInput:
         img._url = "http://example.com/test.png"
         img._media_type = None
 
-        with mock.patch('urllib.request.urlopen', return_value=mock_response):
+        with mock.patch("urllib.request.urlopen", return_value=mock_response):
             b64 = img.to_base64()
             assert b64 is not None
             # Media type should be auto-detected from response
@@ -2712,4 +2917,6 @@ class TestEdgeCases:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=continuum_sdk.python_impl", "--cov-report=term-missing"])
+    pytest.main(
+        [__file__, "-v", "--cov=continuum_sdk.python_impl", "--cov-report=term-missing"]
+    )

@@ -1,6 +1,5 @@
 """Tests for task completion detection module."""
 
-
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -499,7 +498,9 @@ class TestTaskCompletionDetector:
         mock_client = MagicMock()
         mock_response = MagicMock()
         # JSON with invalid value type for confidence
-        mock_response.content = '{"complete": "yes", "confidence": "not_a_number", "reason": "Bad JSON"}'
+        mock_response.content = (
+            '{"complete": "yes", "confidence": "not_a_number", "reason": "Bad JSON"}'
+        )
         mock_client.chat = AsyncMock(return_value=mock_response)
 
         detector = TaskCompletionDetector(

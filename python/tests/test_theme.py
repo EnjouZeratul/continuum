@@ -1009,7 +1009,9 @@ class TestThemeManagerErrorHandling:
             manager.apply("dark")
 
             # Mock open to raise PermissionError
-            with mock.patch("builtins.open", side_effect=PermissionError("Access denied")):
+            with mock.patch(
+                "builtins.open", side_effect=PermissionError("Access denied")
+            ):
                 result = manager.save()
                 assert result is False
         except ImportError:
@@ -1343,23 +1345,25 @@ class TestTomlImportFallbacks:
         import importlib
 
         # Save current state
-        original_tomllib = sys.modules.get('tomllib')
-        original_tomli = sys.modules.get('tomli')
+        original_tomllib = sys.modules.get("tomllib")
+        original_tomli = sys.modules.get("tomli")
 
         # Remove tomllib to force fallback
-        if 'tomllib' in sys.modules:
-            del sys.modules['tomllib']
+        if "tomllib" in sys.modules:
+            del sys.modules["tomllib"]
 
         # Make sure tomli is available
         try:
             import tomli
-            sys.modules['tomli'] = tomli
+
+            sys.modules["tomli"] = tomli
         except ImportError:
             pytest.skip("tomli not available for fallback test")
 
         try:
             # Re-import the theme module to trigger the import block
             import continuum_sdk.config.theme as theme_module
+
             importlib.reload(theme_module)
 
             # The module should have loaded tomli as tomllib
@@ -1368,9 +1372,9 @@ class TestTomlImportFallbacks:
         finally:
             # Restore original state
             if original_tomllib:
-                sys.modules['tomllib'] = original_tomllib
+                sys.modules["tomllib"] = original_tomllib
             if original_tomli:
-                sys.modules['tomli'] = original_tomli
+                sys.modules["tomli"] = original_tomli
 
             # Reload to restore original state
             importlib.reload(theme_module)
@@ -1381,19 +1385,19 @@ class TestTomlImportFallbacks:
         import importlib
 
         # Save current state
-        original_tomllib = sys.modules.get('tomllib')
-        original_tomli = sys.modules.get('tomli')
+        original_tomllib = sys.modules.get("tomllib")
+        original_tomli = sys.modules.get("tomli")
         original_import = builtins.__import__
 
         # Remove both to simulate complete absence
-        if 'tomllib' in sys.modules:
-            del sys.modules['tomllib']
-        if 'tomli' in sys.modules:
-            del sys.modules['tomli']
+        if "tomllib" in sys.modules:
+            del sys.modules["tomllib"]
+        if "tomli" in sys.modules:
+            del sys.modules["tomli"]
 
         # Mock both imports to fail
         def mock_import(name, *args, **kwargs):
-            if name in ('tomllib', 'tomli'):
+            if name in ("tomllib", "tomli"):
                 raise ImportError(f"No module named '{name}'")
             return original_import(name, *args, **kwargs)
 
@@ -1402,6 +1406,7 @@ class TestTomlImportFallbacks:
         try:
             # Re-import to trigger both import failures
             import continuum_sdk.config.theme as theme_module
+
             importlib.reload(theme_module)
 
             # tomllib should be None when both imports fail
@@ -1411,9 +1416,9 @@ class TestTomlImportFallbacks:
             # Restore original state
             builtins.__import__ = original_import
             if original_tomllib:
-                sys.modules['tomllib'] = original_tomllib
+                sys.modules["tomllib"] = original_tomllib
             if original_tomli:
-                sys.modules['tomli'] = original_tomli
+                sys.modules["tomli"] = original_tomli
 
             # Reload to restore original state
             importlib.reload(theme_module)
@@ -1424,16 +1429,16 @@ class TestTomlImportFallbacks:
         import importlib
 
         # Save current state
-        original_tomli_w = sys.modules.get('tomli_w')
+        original_tomli_w = sys.modules.get("tomli_w")
         original_import = builtins.__import__
 
         # Remove tomli_w to simulate absence
-        if 'tomli_w' in sys.modules:
-            del sys.modules['tomli_w']
+        if "tomli_w" in sys.modules:
+            del sys.modules["tomli_w"]
 
         # Mock tomli_w import to fail
         def mock_import(name, *args, **kwargs):
-            if name == 'tomli_w':
+            if name == "tomli_w":
                 raise ImportError("No module named 'tomli_w'")
             return original_import(name, *args, **kwargs)
 
@@ -1442,6 +1447,7 @@ class TestTomlImportFallbacks:
         try:
             # Re-import to trigger the import failure
             import continuum_sdk.config.theme as theme_module
+
             importlib.reload(theme_module)
 
             # tomli_w should be None when import fails
@@ -1451,7 +1457,7 @@ class TestTomlImportFallbacks:
             # Restore original state
             builtins.__import__ = original_import
             if original_tomli_w:
-                sys.modules['tomli_w'] = original_tomli_w
+                sys.modules["tomli_w"] = original_tomli_w
 
             # Reload to restore original state
             importlib.reload(theme_module)

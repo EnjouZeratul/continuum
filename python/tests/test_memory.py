@@ -354,8 +354,14 @@ class TestMemoryStorage:
     def test_load_all(self):
         """Test loading all entries"""
         storage = MemoryStorage()
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+        )
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+        )
 
         entries = storage.load_all(MemoryTier.WORKING)
         assert len(entries) == 2
@@ -363,7 +369,10 @@ class TestMemoryStorage:
     def test_delete(self):
         """Test delete"""
         storage = MemoryStorage()
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"))
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"),
+        )
         result = storage.delete(MemoryTier.WORKING, "del")
         assert result is True
         assert storage.load(MemoryTier.WORKING, "del") is None
@@ -377,8 +386,14 @@ class TestMemoryStorage:
     def test_clear(self):
         """Test clear tier"""
         storage = MemoryStorage()
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+        )
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+        )
         count = storage.clear(MemoryTier.WORKING)
         assert count == 2
         assert storage.count(MemoryTier.WORKING) == 0
@@ -386,9 +401,18 @@ class TestMemoryStorage:
     def test_search(self):
         """Test search"""
         storage = MemoryStorage()
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple fruit"))
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana fruit"))
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="3", tier=MemoryTier.WORKING, content="carrot vegetable"))
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple fruit"),
+        )
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana fruit"),
+        )
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="3", tier=MemoryTier.WORKING, content="carrot vegetable"),
+        )
 
         results = storage.search(MemoryTier.WORKING, "fruit")
         assert len(results) == 2
@@ -397,7 +421,10 @@ class TestMemoryStorage:
         """Test search with limit"""
         storage = MemoryStorage()
         for i in range(10):
-            storage.save(MemoryTier.WORKING, MemoryEntry(id=str(i), tier=MemoryTier.WORKING, content=f"item {i}"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id=str(i), tier=MemoryTier.WORKING, content=f"item {i}"),
+            )
 
         results = storage.search(MemoryTier.WORKING, "item", limit=3)
         assert len(results) == 3
@@ -405,7 +432,10 @@ class TestMemoryStorage:
     def test_search_case_insensitive(self):
         """Test case-insensitive search"""
         storage = MemoryStorage()
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="Hello WORLD"))
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="1", tier=MemoryTier.WORKING, content="Hello WORLD"),
+        )
         results = storage.search(MemoryTier.WORKING, "hello")
         assert len(results) == 1
 
@@ -417,7 +447,10 @@ class TestMemoryStorage:
     def test_close(self):
         """Test close"""
         storage = MemoryStorage()
-        storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"))
+        storage.save(
+            MemoryTier.WORKING,
+            MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"),
+        )
         storage.close()
         assert len(storage._storage) == 0
 
@@ -458,7 +491,9 @@ class TestFileStorage:
         """Test auto_save=False"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=False)
-            entry = MemoryEntry(id="no-auto", tier=MemoryTier.WORKING, content="content")
+            entry = MemoryEntry(
+                id="no-auto", tier=MemoryTier.WORKING, content="content"
+            )
             storage.save(MemoryTier.WORKING, entry)
 
             # Entry should be in memory
@@ -473,7 +508,9 @@ class TestFileStorage:
         with tempfile.TemporaryDirectory() as tmpdir:
             # First instance
             storage1 = FileStorage(tmpdir, session_id="persist-test", auto_save=True)
-            entry = MemoryEntry(id="persist", tier=MemoryTier.PROJECT, content="Persisted content")
+            entry = MemoryEntry(
+                id="persist", tier=MemoryTier.PROJECT, content="Persisted content"
+            )
             storage1.save(MemoryTier.PROJECT, entry)
             storage1.close()
 
@@ -487,8 +524,14 @@ class TestFileStorage:
         """Test load_all"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=True)
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+            )
 
             entries = storage.load_all(MemoryTier.WORKING)
             assert len(entries) == 2
@@ -497,7 +540,10 @@ class TestFileStorage:
         """Test delete"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=True)
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"),
+            )
             result = storage.delete(MemoryTier.WORKING, "del")
             assert result is True
             assert storage.load(MemoryTier.WORKING, "del") is None
@@ -506,7 +552,10 @@ class TestFileStorage:
         """Test delete with auto_save=False"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=False)
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"),
+            )
             storage.flush()  # Ensure saved
             result = storage.delete(MemoryTier.WORKING, "del")
             assert result is True
@@ -515,7 +564,10 @@ class TestFileStorage:
         """Test clear with auto_save=False"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=False)
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
             storage.flush()  # Ensure saved
             count = storage.clear(MemoryTier.WORKING)
             assert count == 1
@@ -531,8 +583,14 @@ class TestFileStorage:
         """Test clear"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=True)
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+            )
             count = storage.clear(MemoryTier.WORKING)
             assert count == 2
 
@@ -540,16 +598,28 @@ class TestFileStorage:
         """Test count"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test")
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+            )
             assert storage.count(MemoryTier.WORKING) == 2
 
     def test_search(self):
         """Test search"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test")
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana"),
+            )
             results = storage.search(MemoryTier.WORKING, "apple")
             assert len(results) == 1
 
@@ -558,7 +628,12 @@ class TestFileStorage:
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test")
             for i in range(10):
-                storage.save(MemoryTier.WORKING, MemoryEntry(id=str(i), tier=MemoryTier.WORKING, content=f"item {i}"))
+                storage.save(
+                    MemoryTier.WORKING,
+                    MemoryEntry(
+                        id=str(i), tier=MemoryTier.WORKING, content=f"item {i}"
+                    ),
+                )
             results = storage.search(MemoryTier.WORKING, "item", limit=3)
             assert len(results) == 3
 
@@ -566,7 +641,10 @@ class TestFileStorage:
         """Test flush"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=False)
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"),
+            )
             storage.flush()
             # Should have saved
 
@@ -580,7 +658,10 @@ class TestFileStorage:
         """Test save_all (alias for flush)"""
         with tempfile.TemporaryDirectory() as tmpdir:
             storage = FileStorage(tmpdir, session_id="test", auto_save=False)
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"),
+            )
             storage.save_all()
 
     def test_get_default_storage_path(self):
@@ -607,7 +688,9 @@ class TestFileStorage:
             # Should not crash, just log warning
             FileStorage(tmpdir, session_id="test")
             # File was attempted to load but corrupted
-            assert "Failed to load" in caplog.text or True  # May or may not log depending on timing
+            assert (
+                "Failed to load" in caplog.text or True
+            )  # May or may not log depending on timing
 
 
 # ==================== SQLiteStorage Tests ====================
@@ -661,8 +744,14 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test")
 
-            storage.save(MemoryTier.SESSION, MemoryEntry(id="1", tier=MemoryTier.SESSION, content="a"))
-            storage.save(MemoryTier.SESSION, MemoryEntry(id="2", tier=MemoryTier.SESSION, content="b"))
+            storage.save(
+                MemoryTier.SESSION,
+                MemoryEntry(id="1", tier=MemoryTier.SESSION, content="a"),
+            )
+            storage.save(
+                MemoryTier.SESSION,
+                MemoryEntry(id="2", tier=MemoryTier.SESSION, content="b"),
+            )
 
             entries = storage.load_all(MemoryTier.SESSION)
             assert len(entries) == 2
@@ -675,7 +764,10 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test")
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"),
+            )
             result = storage.delete(MemoryTier.WORKING, "del")
             assert result is True
             assert storage.load(MemoryTier.WORKING, "del") is None
@@ -697,8 +789,14 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test")
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+            )
 
             count = storage.clear(MemoryTier.WORKING)
             assert count == 2
@@ -721,8 +819,14 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test")
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+            )
 
             assert storage.count(MemoryTier.WORKING) == 2
 
@@ -734,8 +838,14 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", enable_fts=True)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple fruit"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana fruit"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple fruit"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana fruit"),
+            )
 
             results = storage.search(MemoryTier.WORKING, "apple")
             assert len(results) >= 1
@@ -748,8 +858,14 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", enable_fts=False)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple fruit"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana fruit"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="apple fruit"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="banana fruit"),
+            )
 
             results = storage.search(MemoryTier.WORKING, "apple")
             assert len(results) >= 1
@@ -763,7 +879,12 @@ class TestSQLiteStorage:
             storage = SQLiteStorage(db_path, session_id="test")
 
             for i in range(10):
-                storage.save(MemoryTier.WORKING, MemoryEntry(id=str(i), tier=MemoryTier.WORKING, content=f"item {i}"))
+                storage.save(
+                    MemoryTier.WORKING,
+                    MemoryEntry(
+                        id=str(i), tier=MemoryTier.WORKING, content=f"item {i}"
+                    ),
+                )
 
             results = storage.search(MemoryTier.WORKING, "item", limit=3)
             assert len(results) == 3
@@ -776,7 +897,10 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", auto_commit=False)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"),
+            )
             storage.flush()
 
             storage.close()
@@ -802,8 +926,14 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test")
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-            storage.save(MemoryTier.SESSION, MemoryEntry(id="2", tier=MemoryTier.SESSION, content="b"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
+            storage.save(
+                MemoryTier.SESSION,
+                MemoryEntry(id="2", tier=MemoryTier.SESSION, content="b"),
+            )
 
             stats = storage.get_stats()
             assert "total_records" in stats
@@ -832,11 +962,15 @@ class TestSQLiteStorage:
             storage = SQLiteStorage(db_path, session_id="test")
 
             # Create entry
-            entry1 = MemoryEntry(id="update-test", tier=MemoryTier.WORKING, content="original")
+            entry1 = MemoryEntry(
+                id="update-test", tier=MemoryTier.WORKING, content="original"
+            )
             storage.save(MemoryTier.WORKING, entry1)
 
             # Update entry
-            entry2 = MemoryEntry(id="update-test", tier=MemoryTier.WORKING, content="updated")
+            entry2 = MemoryEntry(
+                id="update-test", tier=MemoryTier.WORKING, content="updated"
+            )
             storage.save(MemoryTier.WORKING, entry2)
 
             loaded = storage.load(MemoryTier.WORKING, "update-test")
@@ -850,7 +984,10 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", auto_commit=False)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="test"),
+            )
             loaded = storage.load(MemoryTier.WORKING, "1")
             assert loaded is not None
 
@@ -862,7 +999,10 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", enable_fts=False)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"),
+            )
             result = storage.delete(MemoryTier.WORKING, "del")
             assert result is True
 
@@ -874,8 +1014,14 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", enable_fts=False)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="2", tier=MemoryTier.WORKING, content="b"),
+            )
 
             count = storage.clear(MemoryTier.WORKING)
             assert count == 2
@@ -888,7 +1034,10 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", auto_commit=False)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="del", tier=MemoryTier.WORKING, content="del"),
+            )
             storage.flush()  # Commit the save
             result = storage.delete(MemoryTier.WORKING, "del")
             assert result is True
@@ -901,7 +1050,10 @@ class TestSQLiteStorage:
             db_path = Path(tmpdir) / "test.db"
             storage = SQLiteStorage(db_path, session_id="test", auto_commit=False)
 
-            storage.save(MemoryTier.WORKING, MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"))
+            storage.save(
+                MemoryTier.WORKING,
+                MemoryEntry(id="1", tier=MemoryTier.WORKING, content="a"),
+            )
             storage.flush()  # Commit the save
             count = storage.clear(MemoryTier.WORKING)
             assert count == 1
@@ -918,7 +1070,9 @@ class TestMemoryFactoryMethods:
     def test_create_with_file_storage(self):
         """Test create_with_file_storage"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            memory = Memory.create_with_file_storage("factory-test", storage_path=tmpdir)
+            memory = Memory.create_with_file_storage(
+                "factory-test", storage_path=tmpdir
+            )
             assert memory.session_id == "factory-test"
             memory.close()
 
@@ -926,7 +1080,9 @@ class TestMemoryFactoryMethods:
         """Test create_with_sqlite_storage"""
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "memory.db"
-            memory = Memory.create_with_sqlite_storage("sqlite-factory-test", db_path=db_path)
+            memory = Memory.create_with_sqlite_storage(
+                "sqlite-factory-test", db_path=db_path
+            )
             assert memory.session_id == "sqlite-factory-test"
             memory.close()
 

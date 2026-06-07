@@ -397,16 +397,19 @@ class TestConvenienceFunctions:
 class TestSerializationRoundTrip:
     """Tests for to_dict/from_dict round-trip serialization."""
 
-    @pytest.mark.parametrize("error_class,message,extra_kwargs", [
-        (ContinuumError, "Base error", {"code": "E001"}),
-        (ConfigError, "Config missing", {}),
-        (ToolExecutionError, "Tool failed", {"tool_name": "test"}),
-        (LLMError, "LLM error", {"provider": "anthropic"}),
-        (AuthenticationError, "Auth failed", {"provider": "openai"}),
-        (RateLimitError, "Rate limited", {"retry_after": 60}),
-        (SecurityError, "Security violation", {}),
-        (ValidationError, "Validation failed", {"field": "test"}),
-    ])
+    @pytest.mark.parametrize(
+        "error_class,message,extra_kwargs",
+        [
+            (ContinuumError, "Base error", {"code": "E001"}),
+            (ConfigError, "Config missing", {}),
+            (ToolExecutionError, "Tool failed", {"tool_name": "test"}),
+            (LLMError, "LLM error", {"provider": "anthropic"}),
+            (AuthenticationError, "Auth failed", {"provider": "openai"}),
+            (RateLimitError, "Rate limited", {"retry_after": 60}),
+            (SecurityError, "Security violation", {}),
+            (ValidationError, "Validation failed", {"field": "test"}),
+        ],
+    )
     def test_round_trip(self, error_class, message, extra_kwargs):
         original = error_class(message, **extra_kwargs)
         data = original.to_dict()
@@ -643,7 +646,9 @@ class TestRemainingBranchCoverage:
 
     def test_tool_error_convenience_without_suggestion(self):
         """Test tool_error convenience function without suggestion."""
-        err = tool_error("Tool failed", tool_name="read_file", tool_args={"path": "/test"})
+        err = tool_error(
+            "Tool failed", tool_name="read_file", tool_args={"path": "/test"}
+        )
         assert isinstance(err, ToolExecutionError)
         assert err.tool_name == "read_file"
         assert err.context.suggestion is None

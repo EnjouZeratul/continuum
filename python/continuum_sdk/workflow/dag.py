@@ -462,7 +462,9 @@ class DAG:
                 }
 
                 # Call function
-                func_result = node.func(**dep_outputs) if dep_outputs else node.func()  # pragma: no branch
+                func_result = (
+                    node.func(**dep_outputs) if dep_outputs else node.func()
+                )  # pragma: no branch
 
                 if asyncio.iscoroutine(func_result):  # pragma: no branch
                     output = await func_result

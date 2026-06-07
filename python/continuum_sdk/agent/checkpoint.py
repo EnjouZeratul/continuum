@@ -168,8 +168,10 @@ class PythonCheckpointSystem:
         Args:
             storage_path: Base directory for checkpoint storage.
         """
-        self._storage_path = Path(storage_path) if storage_path else (
-            Path.home() / ".continuum" / "checkpoints"
+        self._storage_path = (
+            Path(storage_path)
+            if storage_path
+            else (Path.home() / ".continuum" / "checkpoints")
         )
         self._storage_path.mkdir(parents=True, exist_ok=True)
         logger.debug(f"PythonCheckpointSystem initialized at {self._storage_path}")

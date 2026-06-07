@@ -77,7 +77,9 @@ def grep(
     files: list[Path] = []
     if search_path.is_file():
         files = [search_path]
-    elif search_path.is_dir():  # pragma: no branch - else branch covered by pragma below
+    elif (
+        search_path.is_dir()
+    ):  # pragma: no branch - else branch covered by pragma below
         if glob_pattern:
             files = list(search_path.glob(glob_pattern))
         else:  # pragma: no cover - rglob("*") is slow, tests use glob_pattern

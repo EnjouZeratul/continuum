@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def safe_open_read(
-    path: Path,
-    validate_func: Callable[[Path], Any]
+    path: Path, validate_func: Callable[[Path], Any]
 ) -> Generator[bytes, None, None]:
     """
     安全读取文件，带TOCTOU保护
@@ -52,7 +51,7 @@ def safe_open_read(
     try:
         # 2. Linux: 通过 /proc/self/fd/{fd} 获取真实路径
         # Windows: 直接使用原路径（Windows符号链接行为不同）
-        if os.name != 'nt':
+        if os.name != "nt":
             try:
                 real_path = Path(os.readlink(f"/proc/self/fd/{fd}"))
             except (OSError, FileNotFoundError):
@@ -63,13 +62,13 @@ def safe_open_read(
 
         # 3. 验证真实路径
         result = validate_func(real_path)
-        if hasattr(result, 'is_valid') and not result.is_valid:
+        if hasattr(result, "is_valid") and not result.is_valid:
             raise SecurityError(
                 f"Path validation failed: {getattr(result, 'reason', 'unknown')}"
             )
 
         # 4. 通过 fd 读取内容
-        with os.fdopen(fd, 'rb') as f:
+        with os.fdopen(fd, "rb") as f:
             content = f.read()
 
         yield content
@@ -83,7 +82,7 @@ def safe_write_atomic(
     path: Path,
     content: bytes,
     validate_func: Callable[[Path], Any],
-    create_dirs: bool = True
+    create_dirs: bool = True,
 ) -> None:
     """
     原子写入文件
@@ -102,7 +101,7 @@ def safe_write_atomic(
     """
     # 1. 验证目标路径
     result = validate_func(path)
-    if hasattr(result, 'is_valid') and not result.is_valid:
+    if hasattr(result, "is_valid") and not result.is_valid:
         raise SecurityError(
             f"Path validation failed: {getattr(result, 'reason', 'unknown')}"
         )
@@ -112,15 +111,15 @@ def safe_write_atomic(
         path.parent.mkdir(parents=True, exist_ok=True)
 
     # 3. 写入临时文件
-    temp_path = path.with_suffix(path.suffix + '.tmp')
+    temp_path = path.with_suffix(path.suffix + ".tmp")
     try:
-        with open(temp_path, 'wb') as f:
+        with open(temp_path, "wb") as f:
             f.write(content)
             f.flush()
             os.fsync(f.fileno())  # 确保写入磁盘
 
         # 4. 原子重命名（POSIX 保证原子性）
-        if os.name == 'nt':
+        if os.name == "nt":
             # Windows: 使用 replace（Python 3.3+ 原子操作）
             os.replace(temp_path, path)
         else:
@@ -137,7 +136,7 @@ def safe_read_with_retry(
     path: Path,
     validate_func: Callable[[Path], Any],
     max_retries: int = 3,
-    retry_delay: float = 0.1
+    retry_delay: float = 0.1,
 ) -> bytes:
     """
     带重试的安全读取

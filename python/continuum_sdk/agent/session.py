@@ -551,9 +551,7 @@ class Session:
 
         session = cls(id=data["id"])
         session._created_at = datetime.fromisoformat(data["created_at"])
-        session._messages = [
-            Message.from_dict(m) for m in data.get("messages", [])
-        ]
+        session._messages = [Message.from_dict(m) for m in data.get("messages", [])]
         session._metadata = data.get("metadata", {})
         session._tools_used = data.get("tools_used", [])
         session._cost = data.get("cost", 0.0)

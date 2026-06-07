@@ -1,6 +1,5 @@
 """Markdown Renderer Tests"""
 
-
 import pytest
 
 
@@ -11,6 +10,7 @@ class TestMarkdownRenderer:
         """Test module import"""
         try:
             from continuum_sdk.render import MarkdownRenderer
+
             assert MarkdownRenderer is not None
         except ImportError:
             pytest.skip("rich library not available")
@@ -19,6 +19,7 @@ class TestMarkdownRenderer:
         """Test renderer creation"""
         try:
             from continuum_sdk.render import CodeTheme, MarkdownRenderer
+
             renderer = MarkdownRenderer(theme=CodeTheme.MONOKAI)
             assert renderer is not None
             assert renderer.theme == CodeTheme.MONOKAI

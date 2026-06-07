@@ -336,9 +336,7 @@ class FixedSizeChunker:
                     id=f"{document.id or 'doc'}-0",
                     doc_id=document.id or "",
                     content=content,
-                    position=ChunkPosition(
-                        start=0, end=len(content), index=0, total=1
-                    ),
+                    position=ChunkPosition(start=0, end=len(content), index=0, total=1),
                     metadata=document.metadata.copy(),
                 )
             ]
@@ -355,9 +353,7 @@ class FixedSizeChunker:
                     id=f"{doc_id}-{index}",
                     doc_id=doc_id,
                     content=content[start:end],
-                    position=ChunkPosition(
-                        start=start, end=end, index=index, total=0
-                    ),
+                    position=ChunkPosition(start=start, end=end, index=index, total=0),
                     metadata=document.metadata.copy(),
                 )
             )
@@ -402,9 +398,7 @@ class ParagraphChunker:
                     id=f"{document.id or 'doc'}-0",
                     doc_id=document.id or "",
                     content=content,
-                    position=ChunkPosition(
-                        start=0, end=len(content), index=0, total=1
-                    ),
+                    position=ChunkPosition(start=0, end=len(content), index=0, total=1),
                     metadata=document.metadata.copy(),
                 )
             ]
@@ -462,9 +456,7 @@ class ParagraphChunker:
                     id=f"{document.id or 'doc'}-0",
                     doc_id=document.id or "",
                     content=content,
-                    position=ChunkPosition(
-                        start=0, end=len(content), index=0, total=1
-                    ),
+                    position=ChunkPosition(start=0, end=len(content), index=0, total=1),
                     metadata=document.metadata.copy(),
                 )
             ]

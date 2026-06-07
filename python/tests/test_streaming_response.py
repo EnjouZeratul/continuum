@@ -18,6 +18,7 @@ import pytest
 @dataclass
 class MockStreamChunk:
     """Mock StreamChunk for testing."""
+
     iteration: int
     state: str
     content: str | None
@@ -182,14 +183,14 @@ class TestAgentStreamIntegration:
         """Test streaming with tool calls."""
         import json
 
-        tool_call = json.dumps([{
-            "id": "tc_123",
-            "name": "search",
-            "arguments": '{"query": "test"}'
-        }])
+        tool_call = json.dumps(
+            [{"id": "tc_123", "name": "search", "arguments": '{"query": "test"}'}]
+        )
 
         chunks = [
-            MockStreamChunk(1, "running", "I'll search for that.", None, True, False, None),
+            MockStreamChunk(
+                1, "running", "I'll search for that.", None, True, False, None
+            ),
             MockStreamChunk(2, "tool_calling", None, tool_call, True, False, None),
             MockStreamChunk(3, "running", "Found results.", None, True, False, None),
             MockStreamChunk(4, "completed", "Done", None, False, True, None),
@@ -214,7 +215,9 @@ class TestAgentStreamIntegration:
         """Test error handling in streaming."""
         chunks = [
             MockStreamChunk(1, "running", "Starting", None, True, False, None),
-            MockStreamChunk(2, "error", None, None, False, True, "API rate limit exceeded"),
+            MockStreamChunk(
+                2, "error", None, None, False, True, "API rate limit exceeded"
+            ),
         ]
 
         iterator = MockStreamIterator(chunks)
@@ -300,7 +303,9 @@ class TestStreamStateTransitions:
     async def test_max_iterations_reached(self):
         """Test max iterations limit."""
         chunks = [
-            MockStreamChunk(100, "error", None, None, False, True, "Max iterations (100) reached"),
+            MockStreamChunk(
+                100, "error", None, None, False, True, "Max iterations (100) reached"
+            ),
         ]
 
         iterator = MockStreamIterator(chunks)

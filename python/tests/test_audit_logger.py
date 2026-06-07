@@ -127,7 +127,7 @@ class TestSanitizeMetadata:
         meta = {
             "config": {
                 "api_key": "api_key=sk-1234567890abcdef12345678",
-                "normal": "value"
+                "normal": "value",
             }
         }
         result = sanitize_metadata(meta)
@@ -136,24 +136,14 @@ class TestSanitizeMetadata:
 
     def test_redacts_list_items(self):
         """Test list item sanitization."""
-        meta = {
-            "tokens": [
-                "token=ghp_1234567890abcdefghijklmnop",
-                "normal_value"
-            ]
-        }
+        meta = {"tokens": ["token=ghp_1234567890abcdefghijklmnop", "normal_value"]}
         result = sanitize_metadata(meta)
         assert "[REDACTED]" in result["tokens"][0]
         assert result["tokens"][1] == "normal_value"
 
     def test_preserves_non_string_values(self):
         """Test non-string values are preserved."""
-        meta = {
-            "count": 42,
-            "ratio": 3.14,
-            "enabled": True,
-            "none_val": None
-        }
+        meta = {"count": 42, "ratio": 3.14, "enabled": True, "none_val": None}
         result = sanitize_metadata(meta)
         assert result["count"] == 42
         assert result["ratio"] == 3.14
@@ -236,10 +226,7 @@ class TestAuditLoggerSanitization:
             operation=AuditOperation.ACCESS,
             path="/config.json",
             result=AuditResult.SUCCESS,
-            metadata={
-                "aws_key": "AKIAIOSFODNN7EXAMPLE",
-                "normal": "data"
-            },
+            metadata={"aws_key": "AKIAIOSFODNN7EXAMPLE", "normal": "data"},
         )
         assert "[REDACTED]" in record.metadata["aws_key"]
         assert record.metadata["normal"] == "data"
@@ -260,14 +247,16 @@ class TestLogRotation:
         # This test would need mocking of MAX_LOG_SIZE_MB or creating large files
         # For now, test that _rotate_if_needed doesn't error on non-existent file
         from continuum_sdk.security.audit_logger import _rotate_if_needed
+
         _rotate_if_needed(Path(temp_dir) / "nonexistent.log")
 
     def test_rotation_preserves_backup(self, temp_dir):
         """Test that rotation creates backup file."""
         from continuum_sdk.security.audit_logger import _rotate_if_needed
+
         log_file = Path(temp_dir) / "test.log"
         # Create file exceeding limit (mock)
-        with patch('continuum_sdk.security.audit_logger.MAX_LOG_SIZE_MB', 0.00001):
+        with patch("continuum_sdk.security.audit_logger.MAX_LOG_SIZE_MB", 0.00001):
             log_file.write_text("x" * 100)
             _rotate_if_needed(log_file)
             # Original should be moved to backup
@@ -275,8 +264,6 @@ class TestLogRotation:
             # Backup should exist
             backups = list(Path(temp_dir).glob("test.*.log"))
             assert len(backups) == 1
-
-
 
     """Test AuditOperation enum"""
 
@@ -610,10 +597,7 @@ class TestAuditLoggerLog:
                     result=AuditResult.SUCCESS,
                 )
 
-        threads = [
-            threading.Thread(target=log_operations)
-            for _ in range(num_threads)
-        ]
+        threads = [threading.Thread(target=log_operations) for _ in range(num_threads)]
 
         for t in threads:
             t.start()
@@ -776,10 +760,16 @@ class TestAuditLoggerQuery:
     def test_query_combined_filters(self):
         """Test combined query filters"""
         logger = AuditLogger()
-        logger.log(AuditOperation.READ, "/src/main.py", AuditResult.SUCCESS, user="alice")
-        logger.log(AuditOperation.WRITE, "/src/main.py", AuditResult.SUCCESS, user="alice")
+        logger.log(
+            AuditOperation.READ, "/src/main.py", AuditResult.SUCCESS, user="alice"
+        )
+        logger.log(
+            AuditOperation.WRITE, "/src/main.py", AuditResult.SUCCESS, user="alice"
+        )
         logger.log(AuditOperation.READ, "/src/test.py", AuditResult.FAILURE, user="bob")
-        logger.log(AuditOperation.READ, "/lib/util.py", AuditResult.SUCCESS, user="alice")
+        logger.log(
+            AuditOperation.READ, "/lib/util.py", AuditResult.SUCCESS, user="alice"
+        )
 
         records = logger.query(
             path="/src/",
@@ -935,7 +925,9 @@ class TestAuditLoggerExport:
         """Test CSV export"""
         logger = AuditLogger()
         logger.log(AuditOperation.READ, "/file.py", AuditResult.SUCCESS, user="test")
-        logger.log(AuditOperation.WRITE, "/file.py", AuditResult.FAILURE, details="error")
+        logger.log(
+            AuditOperation.WRITE, "/file.py", AuditResult.FAILURE, details="error"
+        )
 
         export_path = os.path.join(temp_dir, "audit.csv")
         count = logger.export_csv(export_path)
@@ -945,11 +937,21 @@ class TestAuditLoggerExport:
 
         with open(export_path, encoding="utf-8", newline="") as f:
             import csv
+
             reader = csv.reader(f)
             rows = list(reader)
 
         assert len(rows) == 3  # header + 2 records
-        assert rows[0] == ["id", "timestamp", "operation", "path", "result", "user", "process_id", "details"]
+        assert rows[0] == [
+            "id",
+            "timestamp",
+            "operation",
+            "path",
+            "result",
+            "user",
+            "process_id",
+            "details",
+        ]
         assert rows[1][2] == "read"
         assert rows[2][2] == "write"
 
@@ -988,6 +990,7 @@ class TestAuditLoggerExport:
 
         with open(export_path, encoding="utf-8", newline="") as f:
             import csv
+
             reader = csv.reader(f)
             rows = list(reader)
 
@@ -1072,6 +1075,7 @@ class TestAuditLoggerFilePersistence:
 
         # Small delay to trigger flush interval
         import time
+
         time.sleep(0.01)
 
         logger.log(AuditOperation.WRITE, "/file.py", AuditResult.SUCCESS)
@@ -1186,7 +1190,7 @@ class TestAuditLoggerFilePersistence:
         Path(log_file).write_text("")
 
         # Mock open to raise IOError during loading
-        with patch('builtins.open', side_effect=OSError("Mocked IO error")):
+        with patch("builtins.open", side_effect=OSError("Mocked IO error")):
             # Should not raise, just log warning
             logger = AuditLogger(log_file=log_file)
             assert len(logger) == 0
@@ -1199,7 +1203,7 @@ class TestAuditLoggerFilePersistence:
         Path(log_file).write_text("")
 
         # Mock open to raise OSError during loading
-        with patch('builtins.open', side_effect=OSError("Mocked OS error")):
+        with patch("builtins.open", side_effect=OSError("Mocked OS error")):
             # Should not raise, just log warning
             logger = AuditLogger(log_file=log_file)
             assert len(logger) == 0
@@ -1220,7 +1224,7 @@ class TestAuditLoggerErrorHandling:
         logger = AuditLogger()
 
         # Mock os.getlogin to raise error
-        with patch('os.getlogin', side_effect=OSError("Mocked error")):
+        with patch("os.getlogin", side_effect=OSError("Mocked error")):
             record = logger.log(
                 operation=AuditOperation.READ,
                 path="/file.py",
@@ -1232,7 +1236,7 @@ class TestAuditLoggerErrorHandling:
         """Test user detection with permission error"""
         logger = AuditLogger()
 
-        with patch('os.getlogin', side_effect=PermissionError("Access denied")):
+        with patch("os.getlogin", side_effect=PermissionError("Access denied")):
             record = logger.log(
                 operation=AuditOperation.READ,
                 path="/file.py",

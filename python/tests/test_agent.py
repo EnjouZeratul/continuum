@@ -15,7 +15,6 @@ Coverage areas:
 - Streaming support (run_stream, execute_stream)
 """
 
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -221,6 +220,7 @@ class TestAgentState:
         """Test Agent created_at property"""
         agent = Agent(api_key="test-key")
         from datetime import datetime
+
         assert isinstance(agent.created_at, datetime)
 
     def test_agent_repr(self):
@@ -429,6 +429,7 @@ class TestAgentSession:
         agent = Agent(api_key="test-key")
         # Create a session manually without using create_session
         from continuum_sdk.agent.session import Session
+
         session = Session(id="external-session")
         agent.set_session(session)
         assert session.id in agent._sessions
@@ -849,6 +850,7 @@ class TestAgentQuickStart:
     @pytest.mark.asyncio
     async def test_chat_stream(self):
         """Test chat_stream method"""
+
         async def mock_stream(*args, **kwargs):
             chunks = [
                 StreamChunk(content="Hello"),
@@ -877,6 +879,7 @@ class TestAgentStreaming:
     @pytest.mark.asyncio
     async def test_run_stream_with_mock(self):
         """Test streaming with mocked LLM"""
+
         async def mock_stream(*args, **kwargs):
             chunks = [
                 StreamChunk(content="Hello"),
@@ -905,6 +908,7 @@ class TestAgentStreaming:
     @pytest.mark.asyncio
     async def test_execute_stream_with_mock(self):
         """Test execute_stream with mocked LLM"""
+
         async def mock_stream(*args, **kwargs):
             chunks = [
                 StreamChunk(content="Part 1"),
@@ -942,6 +946,7 @@ class TestAgentStreaming:
     @pytest.mark.asyncio
     async def test_execute_stream_with_session(self):
         """Test execute_stream records to session"""
+
         async def mock_stream(*args, **kwargs):
             chunks = [
                 StreamChunk(content="Full "),
@@ -971,6 +976,7 @@ class TestAgentStreaming:
     @pytest.mark.asyncio
     async def test_execute_stream_llm_error(self):
         """Test execute_stream handles LLM errors"""
+
         async def mock_error_stream(*args, **kwargs):
             raise LlmError("Stream error", provider="anthropic")
             yield  # Never reached
@@ -992,6 +998,7 @@ class TestAgentStreaming:
     @pytest.mark.asyncio
     async def test_execute_stream_with_session_history(self):
         """Test execute_stream with session message history"""
+
         async def mock_stream(*args, **kwargs):
             yield StreamChunk(content="Response")
 
@@ -1056,11 +1063,11 @@ class TestRustBindingsCoverage:
         import types
 
         # Create a new module to execute the import code
-        test_module = types.ModuleType('test_runtime_import')
+        test_module = types.ModuleType("test_runtime_import")
 
         # Execute the import block in the test module's namespace
         # This will exercise lines 101-110 including the except block
-        import_code = '''
+        import_code = """
 try:
     from sh_python import Agent as RustAgent
     from sh_python import AgentRuntime as RustAgentRuntime
@@ -1071,12 +1078,12 @@ try:
     HAS_RUST_BINDINGS = True
 except ImportError:
     HAS_RUST_BINDINGS = False
-'''
+"""
         exec(import_code, test_module.__dict__)
 
         # The actual value depends on whether sh_python is available
         # But importantly, both branches are now in the coverage data
-        assert hasattr(test_module, 'HAS_RUST_BINDINGS')
+        assert hasattr(test_module, "HAS_RUST_BINDINGS")
         assert isinstance(test_module.HAS_RUST_BINDINGS, bool)
 
     def test_rust_bindings_import_module_structure(self):
@@ -1089,7 +1096,7 @@ except ImportError:
         # If bindings are NOT available, lines 109-110 are executed
         # Since we can't control the import after module is loaded,
         # we just verify the structure exists
-        assert hasattr(runtime, 'HAS_RUST_BINDINGS')
+        assert hasattr(runtime, "HAS_RUST_BINDINGS")
         assert isinstance(runtime.HAS_RUST_BINDINGS, bool)
 
         # This test verifies the module structure is correct
@@ -1105,6 +1112,7 @@ except ImportError:
     def test_agent_with_rust_enabled_if_available(self):
         """Test Agent with Rust bindings enabled when available"""
         from continuum_sdk.agent import runtime
+
         if runtime.HAS_RUST_BINDINGS:
             agent = Agent(api_key="test-key", _use_rust=True)
             assert agent._rust_agent is not None
@@ -1141,6 +1149,7 @@ except ImportError:
     def test_agent_state_with_rust_agent(self):
         """Test state property returns correct state when using Rust agent"""
         from continuum_sdk.agent import runtime
+
         if runtime.HAS_RUST_BINDINGS:
             agent = Agent(api_key="test-key", _use_rust=True)
             # Rust agent should have its own state tracking
@@ -1154,6 +1163,7 @@ except ImportError:
     async def test_execute_async_with_rust_bindings(self):
         """Test execute_async uses Rust path when bindings are available"""
         from continuum_sdk.agent import runtime
+
         if runtime.HAS_RUST_BINDINGS:
             agent = Agent(api_key="test-key", _use_rust=True)
             agent.start()
@@ -1175,6 +1185,7 @@ except ImportError:
     async def test_run_stream_with_rust_bindings_full_loop(self):
         """Test run_stream Rust path covers abort detection and final chunk"""
         from continuum_sdk.agent import runtime
+
         if runtime.HAS_RUST_BINDINGS:
             # We need to test lines 667->exit, 677-682 (abort and final chunk)
             # Create mock Rust iterator that simulates abort and final conditions
@@ -1200,6 +1211,7 @@ except ImportError:
     @pytest.mark.asyncio
     async def test_run_stream_without_rust_bindings(self):
         """Test run_stream uses Python fallback when Rust bindings unavailable"""
+
         async def mock_stream(*args, **kwargs):
             chunks = [
                 StreamChunk(content="Stream "),
@@ -1250,6 +1262,7 @@ except ImportError:
     @pytest.mark.asyncio
     async def test_run_stream_auto_starts_agent(self):
         """Test run_stream auto-starts agent when not running"""
+
         async def mock_stream(*args, **kwargs):
             yield StreamChunk(content="test")
 
@@ -1271,6 +1284,7 @@ except ImportError:
     @pytest.mark.asyncio
     async def test_run_stream_creates_session_if_none(self):
         """Test run_stream creates session if none exists"""
+
         async def mock_stream(*args, **kwargs):
             yield StreamChunk(content="test")
 
@@ -1290,6 +1304,7 @@ except ImportError:
     @pytest.mark.asyncio
     async def test_run_stream_without_auto_start_python_path(self):
         """Test run_stream Python path without auto_start"""
+
         async def mock_stream(*args, **kwargs):
             yield StreamChunk(content="test")
 

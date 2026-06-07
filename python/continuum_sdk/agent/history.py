@@ -199,10 +199,7 @@ class HistoryBrowser:
             List of messages in range
         """
         messages = self._ensure_messages()
-        result = [
-            m for m in messages
-            if start_time <= m.timestamp <= end_time
-        ]
+        result = [m for m in messages if start_time <= m.timestamp <= end_time]
         if order == SortOrder.DESCENDING:
             return list(reversed(result))
         return result
@@ -286,13 +283,15 @@ class HistoryBrowser:
 
             pos = content.find(search_text)
             if pos >= 0:
-                results.append(SearchResult(
-                    message=msg,
-                    index=idx,
-                    match_position=pos,
-                    match_length=len(keyword),
-                    matched_text=msg.content[pos:pos + len(keyword)],
-                ))
+                results.append(
+                    SearchResult(
+                        message=msg,
+                        index=idx,
+                        match_position=pos,
+                        match_length=len(keyword),
+                        matched_text=msg.content[pos : pos + len(keyword)],
+                    )
+                )
 
         if limit:
             results = results[:limit]
@@ -322,13 +321,15 @@ class HistoryBrowser:
         for idx, msg in enumerate(messages):
             match = regex.search(msg.content)
             if match:
-                results.append(SearchResult(
-                    message=msg,
-                    index=idx,
-                    match_position=match.start(),
-                    match_length=len(match.group()),
-                    matched_text=match.group(),
-                ))
+                results.append(
+                    SearchResult(
+                        message=msg,
+                        index=idx,
+                        match_position=match.start(),
+                        match_length=len(match.group()),
+                        matched_text=match.group(),
+                    )
+                )
 
         if limit:
             results = results[:limit]
@@ -363,17 +364,21 @@ class HistoryBrowser:
                 regex = re.compile(filter.keyword)
                 messages = [m for m in messages if regex.search(m.content)]
             else:
-                search_text = filter.keyword if filter.case_sensitive else filter.keyword.lower()
+                search_text = (
+                    filter.keyword if filter.case_sensitive else filter.keyword.lower()
+                )
                 messages = [
-                    m for m in messages
-                    if search_text in (m.content if filter.case_sensitive else m.content.lower())
+                    m
+                    for m in messages
+                    if search_text
+                    in (m.content if filter.case_sensitive else m.content.lower())
                 ]
 
         # Pagination
         if filter.offset:
-            messages = messages[filter.offset:]
+            messages = messages[filter.offset :]
         if filter.limit:
-            messages = messages[:filter.limit]
+            messages = messages[: filter.limit]
 
         return messages
 
@@ -410,7 +415,9 @@ class HistoryBrowser:
 
         # Role counts
         stats.user_messages = sum(1 for m in messages if m.role == MessageRole.USER)
-        stats.assistant_messages = sum(1 for m in messages if m.role == MessageRole.ASSISTANT)
+        stats.assistant_messages = sum(
+            1 for m in messages if m.role == MessageRole.ASSISTANT
+        )
         stats.system_messages = sum(1 for m in messages if m.role == MessageRole.SYSTEM)
         stats.tool_messages = sum(1 for m in messages if m.role == MessageRole.TOOL)
 
@@ -486,7 +493,9 @@ class HistoryBrowser:
             "statistics": {
                 "total_messages": len(messages),
                 "user_messages": sum(1 for m in messages if m.role == MessageRole.USER),
-                "assistant_messages": sum(1 for m in messages if m.role == MessageRole.ASSISTANT),
+                "assistant_messages": sum(
+                    1 for m in messages if m.role == MessageRole.ASSISTANT
+                ),
             },
         }
 

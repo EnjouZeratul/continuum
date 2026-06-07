@@ -685,7 +685,10 @@ mod tests {
             arguments: serde_json::json!({"path": "README.md"}),
         };
 
-        let err = runtime.execute_tool(&sandbox_id, request).await.unwrap_err();
+        let err = runtime
+            .execute_tool(&sandbox_id, request)
+            .await
+            .unwrap_err();
         let message = err.to_string();
 
         assert!(message.contains("[experimental]"));

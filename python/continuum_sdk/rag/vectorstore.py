@@ -85,7 +85,9 @@ class VectorStore(ABC):
     """Vector store abstract class"""
 
     @abstractmethod
-    def upsert(self, id: str, vector: list[float], metadata: dict[str, Any] | None = None) -> bool:
+    def upsert(
+        self, id: str, vector: list[float], metadata: dict[str, Any] | None = None
+    ) -> bool:
         """Insert or update vector
 
         Args:
@@ -222,7 +224,9 @@ class InMemoryVectorStore(VectorStore):
         """Calculate vector similarity"""
         return self._similarity_funcs[self._metric](a, b)
 
-    def upsert(self, id: str, vector: list[float], metadata: dict[str, Any] | None = None) -> bool:
+    def upsert(
+        self, id: str, vector: list[float], metadata: dict[str, Any] | None = None
+    ) -> bool:
         """Insert or update vector"""
         with self._lock:
             self._data[id] = VectorItem(
@@ -258,12 +262,14 @@ class InMemoryVectorStore(VectorStore):
             # Take top_k
             results: list[SearchResult] = []
             for item, score in scores[:top_k]:
-                results.append(SearchResult(
-                    id=item.id,
-                    score=score,
-                    content=item.content or "",
-                    metadata=item.metadata,
-                ))
+                results.append(
+                    SearchResult(
+                        id=item.id,
+                        score=score,
+                        content=item.content or "",
+                        metadata=item.metadata,
+                    )
+                )
 
             return results
 
@@ -292,7 +298,9 @@ class InMemoryVectorStore(VectorStore):
             return True
 
     # Batch operations
-    def upsert_batch(self, items: list[tuple[str, list[float], dict[str, Any] | None]]) -> list[bool]:
+    def upsert_batch(
+        self, items: list[tuple[str, list[float], dict[str, Any] | None]]
+    ) -> list[bool]:
         """Batch insert or update vectors
 
         Args:

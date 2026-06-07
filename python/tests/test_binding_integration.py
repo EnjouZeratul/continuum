@@ -525,6 +525,7 @@ class TestRunStreamBinding:
                 if tool_calls:
                     # Should be valid JSON string
                     import json
+
                     data = json.loads(tool_calls)
                     assert isinstance(data, (list, dict))
 

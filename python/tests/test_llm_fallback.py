@@ -134,9 +134,7 @@ class TestPrimaryClientSuccess:
             return_value=mock_chat_response
         )
 
-        await fallback_client.chat(
-            [Message.user("Hello")], system_prompt="Be helpful"
-        )
+        await fallback_client.chat([Message.user("Hello")], system_prompt="Be helpful")
 
         call_args = fallback_client._clients["anthropic"].chat.call_args
         assert call_args.kwargs["system_prompt"] == "Be helpful"
@@ -173,9 +171,7 @@ class TestFallbackToBackup:
         fallback_client._clients["openai"].chat.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_fallback_on_network_error(
-        self, fallback_client, mock_chat_response
-    ):
+    async def test_fallback_on_network_error(self, fallback_client, mock_chat_response):
         """
         Test fallback to backup client on NetworkError.
         测试 NetworkError 时回退到备用客户端。
@@ -193,9 +189,7 @@ class TestFallbackToBackup:
         fallback_client._clients["openai"].chat.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_fallback_on_timeout_error(
-        self, fallback_client, mock_chat_response
-    ):
+    async def test_fallback_on_timeout_error(self, fallback_client, mock_chat_response):
         """
         Test fallback to backup client on TimeoutError.
         测试 TimeoutError 时回退到备用客户端。
@@ -278,9 +272,7 @@ class TestFallbackToBackup:
         event_log = fallback_client.get_event_log()
         # Should have provider_switch event
         switch_events = [
-            e
-            for e in event_log
-            if e.event_type == FallbackEventType.PROVIDER_SWITCH
+            e for e in event_log if e.event_type == FallbackEventType.PROVIDER_SWITCH
         ]
         assert len(switch_events) >= 1
         assert switch_events[0].provider == "anthropic"
@@ -305,9 +297,7 @@ class TestFallbackToBackup:
 
         event_log = fallback_client.get_event_log()
         degradation_events = [
-            e
-            for e in event_log
-            if e.event_type == FallbackEventType.DEGRADATION_NOTICE
+            e for e in event_log if e.event_type == FallbackEventType.DEGRADATION_NOTICE
         ]
         assert len(degradation_events) >= 1
         assert "Service degradation" in degradation_events[0].message
@@ -471,9 +461,7 @@ class TestRetryLogic:
         await fallback_client.chat([Message.user("Hello")])
 
         event_log = fallback_client.get_event_log()
-        retry_events = [
-            e for e in event_log if e.event_type == FallbackEventType.RETRY
-        ]
+        retry_events = [e for e in event_log if e.event_type == FallbackEventType.RETRY]
         assert len(retry_events) == 1
         assert retry_events[0].attempt == 1
 
@@ -959,8 +947,7 @@ class TestMissingClient:
         # Try to execute with a provider that has no client
         with pytest.raises(LlmError, match="No client configured for provider"):
             await client._execute_with_retry(
-                "nonexistent_provider",
-                lambda c: c.chat(messages=[Message.user("Hi")])
+                "nonexistent_provider", lambda c: c.chat(messages=[Message.user("Hi")])
             )
 
 
@@ -1034,6 +1021,7 @@ class TestShouldTriggerFallbackExtended:
         Test that non-LlmError returns False (branch 189->194 direct).
         测试非 LlmError 返回 False（分支 189->194 直接跳转）。
         """
+
         # Create a custom exception that's not an LlmError
         class CustomError(Exception):
             pass
@@ -1070,8 +1058,10 @@ class TestStreamingFallbackExtended:
 
         # Mock the anthropic client
         client._clients["anthropic"] = Mock()
+
         async def success_stream(*args, **kwargs):
             yield StreamChunk(content="Fallback response")
+
         client._clients["anthropic"].chat_stream = success_stream
 
         chunks = []
@@ -1087,6 +1077,7 @@ class TestStreamingFallbackExtended:
         Test that streaming doesn't fallback on AuthenticationError.
         测试流式请求在 AuthenticationError 时不回退。
         """
+
         # Primary fails with auth error
         async def failing_stream(*args, **kwargs):
             raise AuthenticationError("Invalid API key")
@@ -1108,6 +1099,7 @@ class TestStreamingFallbackExtended:
         Test that streaming raises error when all providers fail.
         测试流式请求在所有提供商失败时抛出错误。
         """
+
         async def failing_stream(*args, **kwargs):
             raise RateLimitError("Rate limited")
             yield
@@ -1124,7 +1116,8 @@ class TestStreamingFallbackExtended:
         # Should have logged ALL_PROVIDERS_FAILED
         event_log = fallback_client.get_event_log()
         failed_events = [
-            e for e in event_log
+            e
+            for e in event_log
             if e.event_type == FallbackEventType.ALL_PROVIDERS_FAILED
         ]
         assert len(failed_events) == 1
@@ -1164,8 +1157,7 @@ class TestStreamingFallbackExtended:
         # Check degradation notices
         event_log = fallback_client.get_event_log()
         degradation_events = [
-            e for e in event_log
-            if e.event_type == FallbackEventType.DEGRADATION_NOTICE
+            e for e in event_log if e.event_type == FallbackEventType.DEGRADATION_NOTICE
         ]
         assert len(degradation_events) >= 2
 
@@ -1210,15 +1202,19 @@ class TestStreamingFallbackExtended:
                 tried_providers.append(provider_name)
                 raise RateLimitError(f"{provider_name} rate limited")
                 yield
+
             return failing_stream
 
         def make_success_stream():
             async def success_stream(*args, **kwargs):
                 yield StreamChunk(content="Success")
+
             return success_stream
 
         # Primary fails after max retries
-        fallback_client._clients["anthropic"].chat_stream = make_failing_stream("anthropic")
+        fallback_client._clients["anthropic"].chat_stream = make_failing_stream(
+            "anthropic"
+        )
         # First fallback fails after max retries
         fallback_client._clients["openai"].chat_stream = make_failing_stream("openai")
         # Second fallback succeeds
@@ -1316,8 +1312,7 @@ class TestStreamingFallbackExtended:
         # Verify no provider switch events for skipped providers
         event_log = client.get_event_log()
         switch_events = [
-            e for e in event_log
-            if e.event_type == FallbackEventType.PROVIDER_SWITCH
+            e for e in event_log if e.event_type == FallbackEventType.PROVIDER_SWITCH
         ]
         # No switch events because skipped providers don't have last_provider_error
         assert len(switch_events) == 0

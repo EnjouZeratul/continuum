@@ -143,7 +143,11 @@ class TestToolDecorator:
             "required": ["value"],
         }
 
-        @tool(name="custom_schema_tool", description="Custom schema", parameters=custom_schema)
+        @tool(
+            name="custom_schema_tool",
+            description="Custom schema",
+            parameters=custom_schema,
+        )
         def custom_tool(value: float) -> float:
             return value * 2
 
@@ -222,7 +226,11 @@ class TestToolDecorator:
     def test_decorator_requires_confirmation(self):
         """Test decorator with requires_confirmation flag."""
 
-        @tool(name="confirm_tool", description="Needs confirmation", requires_confirmation=True)
+        @tool(
+            name="confirm_tool",
+            description="Needs confirmation",
+            requires_confirmation=True,
+        )
         def confirm_tool(action: str) -> str:
             return action
 

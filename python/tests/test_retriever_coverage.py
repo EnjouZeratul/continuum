@@ -445,7 +445,9 @@ class TestDefaultRetrieverEngine:
         engine = DefaultRetrieverEngine(embedding_model=model)
         doc = Document(content="Hello world", id="doc-1", metadata={"type": "test"})
         await engine.index([doc])
-        results = await engine.retrieve_with_filter("Hello", top_k=5, filter={"type": "test"})
+        results = await engine.retrieve_with_filter(
+            "Hello", top_k=5, filter={"type": "test"}
+        )
         assert len(results) >= 0  # Filter may not be applied in base impl
 
 
@@ -460,12 +462,12 @@ class TestRetrieverEngineAbstract:
     def test_abstract_methods_exist(self):
         """Test that all abstract methods are defined"""
         # Verify the abstract methods exist
-        assert hasattr(RetrieverEngine, 'index')
-        assert hasattr(RetrieverEngine, 'retrieve')
-        assert hasattr(RetrieverEngine, 'hybrid_retrieve')
-        assert hasattr(RetrieverEngine, 'delete')
-        assert hasattr(RetrieverEngine, 'clear')
-        assert hasattr(RetrieverEngine, 'count')
+        assert hasattr(RetrieverEngine, "index")
+        assert hasattr(RetrieverEngine, "retrieve")
+        assert hasattr(RetrieverEngine, "hybrid_retrieve")
+        assert hasattr(RetrieverEngine, "delete")
+        assert hasattr(RetrieverEngine, "clear")
+        assert hasattr(RetrieverEngine, "count")
 
 
 class TestParagraphChunkerEdgeCases:
@@ -743,7 +745,9 @@ class TestProtocolImplementations:
                         id=f"{document.id or 'doc'}-0",
                         doc_id=document.id or "",
                         content=document.content,
-                        position=ChunkPosition(start=0, end=len(document.content), index=0, total=1),
+                        position=ChunkPosition(
+                            start=0, end=len(document.content), index=0, total=1
+                        ),
                         metadata=document.metadata.copy(),
                     )
                 ]
@@ -760,10 +764,10 @@ class TestProtocolImplementations:
             async def index(self, documents: list[Document]) -> list[str]:
                 return [doc.id or "test" for doc in documents]
 
-            async def retrieve(self, query: str, top_k: int = 5) -> list[RetrievalResult]:
-                return [
-                    RetrievalResult(doc_id="test", content=query, score=1.0)
-                ]
+            async def retrieve(
+                self, query: str, top_k: int = 5
+            ) -> list[RetrievalResult]:
+                return [RetrievalResult(doc_id="test", content=query, score=1.0)]
 
             async def hybrid_retrieve(
                 self, query: str, top_k: int = 5, weights=None
@@ -836,7 +840,9 @@ class TestParagraphChunkerMissingCoverage:
         assert len(chunks) >= 1
         # Verify chunking happened
         total_length = sum(len(c.content) for c in chunks)
-        assert total_length <= len(content) + len(chunks)  # Allow for separator differences
+        assert total_length <= len(content) + len(
+            chunks
+        )  # Allow for separator differences
 
     def test_chunk_accumulate_then_split(self):
         """Test paragraph accumulation with split on max_size boundary"""
@@ -934,7 +940,9 @@ class TestRecursiveChunkerMissingCoverage:
         chunker = RecursiveChunker(max_chunk_size=15)
         # Content where first part is larger than max_chunk_size after the newline separator
         # and current_chunk would be empty (not yet accumulated)
-        content = "Small\n\nAAAAAAAAAAAAAAAAAA"  # First parts fit, last part needs recursion
+        content = (
+            "Small\n\nAAAAAAAAAAAAAAAAAA"  # First parts fit, last part needs recursion
+        )
         doc = Document(content=content, id="doc-1")
         chunks = chunker.chunk(doc)
         assert len(chunks) >= 1
@@ -998,4 +1006,11 @@ class TestRecursiveChunkerMissingCoverage:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=continuum_sdk.rag.retriever", "--cov-report=term-missing"])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--cov=continuum_sdk.rag.retriever",
+            "--cov-report=term-missing",
+        ]
+    )

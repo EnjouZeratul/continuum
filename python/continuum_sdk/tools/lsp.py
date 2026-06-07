@@ -335,12 +335,14 @@ def find_references(
                             break
 
                     if include_declaration or not is_declaration:
-                        references.append({
-                            "file": str(search_file),
-                            "line": i,
-                            "column": line_content.find(symbol) + 1,
-                            "is_declaration": is_declaration,
-                        })
+                        references.append(
+                            {
+                                "file": str(search_file),
+                                "line": i,
+                                "column": line_content.find(symbol) + 1,
+                                "is_declaration": is_declaration,
+                            }
+                        )
         except (OSError, PermissionError):
             continue
 
@@ -531,7 +533,19 @@ def symbol_search(
     matches = []
 
     # Get file extensions to search
-    extensions = [".py", ".rs", ".ts", ".tsx", ".js", ".jsx", ".go", ".java", ".c", ".cpp", ".h"]
+    extensions = [
+        ".py",
+        ".rs",
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".go",
+        ".java",
+        ".c",
+        ".cpp",
+        ".h",
+    ]
 
     for ext in extensions:
         glob_pattern = file_pattern or f"**/*{ext}"
@@ -546,13 +560,15 @@ def symbol_search(
                 for i, line_content in enumerate(lines, start=1):
                     for match in regex.finditer(line_content):
                         symbol = match.group()
-                        matches.append({
-                            "file": str(file_path),
-                            "line": i,
-                            "column": match.start() + 1,
-                            "symbol": symbol,
-                            "context": line_content.strip(),
-                        })
+                        matches.append(
+                            {
+                                "file": str(file_path),
+                                "line": i,
+                                "column": match.start() + 1,
+                                "symbol": symbol,
+                                "context": line_content.strip(),
+                            }
+                        )
             except (OSError, PermissionError, UnicodeDecodeError):
                 continue
 

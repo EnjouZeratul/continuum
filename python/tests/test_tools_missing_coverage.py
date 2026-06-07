@@ -60,7 +60,9 @@ class TestGrepMissingCoverage:
         for i in range(5):
             (tmp_path / f"file{i}.py").write_text("def test():\npass\n")
 
-        result = grep("def", path=str(tmp_path), output_mode="count", glob_pattern="*.py")
+        result = grep(
+            "def", path=str(tmp_path), output_mode="count", glob_pattern="*.py"
+        )
         assert "matches" in result.content
         assert result.metadata["output_mode"] == "count"
 
@@ -105,7 +107,9 @@ class TestGrepMissingCoverage:
         """Line 144: Test files_with_matches mode with no matches."""
         (tmp_path / "test.py").write_text("no match here")
 
-        result = grep("xyz123notfound", path=str(tmp_path), output_mode="files_with_matches")
+        result = grep(
+            "xyz123notfound", path=str(tmp_path), output_mode="files_with_matches"
+        )
         assert result.content == "(no matches)"
         assert result.metadata["files_matched"] == 0
 
@@ -242,6 +246,7 @@ class TestCustomToolAbstractMethods:
 
     def test_custom_tool_category_property(self):
         """Line 70: Test category property."""
+
         class MyTool(CustomTool):
             @property
             def name(self) -> str:
@@ -262,6 +267,7 @@ class TestCustomToolAbstractMethods:
 
     def test_custom_tool_requires_confirmation_property(self):
         """Line 75: Test requires_confirmation property."""
+
         class MyTool(CustomTool):
             @property
             def name(self) -> str:
@@ -282,6 +288,7 @@ class TestCustomToolAbstractMethods:
 
     def test_custom_tool_is_dangerous_property(self):
         """Line 80: Test is_dangerous property."""
+
         class MyTool(CustomTool):
             @property
             def name(self) -> str:
@@ -302,6 +309,7 @@ class TestCustomToolAbstractMethods:
 
     def test_custom_tool_to_meta(self):
         """Line 84: Test to_meta method."""
+
         class MyTool(CustomTool):
             @property
             def name(self) -> str:
@@ -332,6 +340,7 @@ class TestToolDecorator:
 
     def test_tool_decorator_basic(self):
         """Test basic tool decorator usage."""
+
         @tool(name="add", description="Add two numbers")
         async def add(a: int, b: int) -> int:
             return a + b
@@ -346,6 +355,7 @@ class TestToolDecorator:
 
     def test_tool_decorator_sync_function(self):
         """Test decorator with synchronous function."""
+
         @tool(name="sync_test", description="Sync test")
         def sync_func(x: str) -> str:
             return x.upper()
@@ -355,12 +365,7 @@ class TestToolDecorator:
 
     def test_tool_decorator_with_parameters_schema(self):
         """Test decorator with explicit parameters schema."""
-        params = {
-            "type": "object",
-            "properties": {
-                "input": {"type": "string"}
-            }
-        }
+        params = {"type": "object", "properties": {"input": {"type": "string"}}}
 
         @tool(name="custom_params", description="Custom params", parameters=params)
         async def custom_tool(input: str) -> str:
@@ -370,6 +375,7 @@ class TestToolDecorator:
 
     def test_tool_decorator_auto_infer_types(self):
         """Test decorator auto-infer parameter types (lines 126-159)."""
+
         @tool(name="inferred", description="Infer types")
         async def inferred_types(
             str_param: str,
@@ -379,7 +385,7 @@ class TestToolDecorator:
             list_param: list,
             dict_param: dict,
             no_type_param,
-            default_param: str = "default"
+            default_param: str = "default",
         ) -> str:
             return "ok"
 
@@ -396,7 +402,10 @@ class TestToolDecorator:
 
     def test_tool_decorator_with_confirmation(self):
         """Test decorator with requires_confirmation flag."""
-        @tool(name="dangerous", description="Dangerous tool", requires_confirmation=True)
+
+        @tool(
+            name="dangerous", description="Dangerous tool", requires_confirmation=True
+        )
         async def dangerous_tool() -> str:
             return "ok"
 
@@ -404,6 +413,7 @@ class TestToolDecorator:
 
     def test_tool_decorator_with_dangerous_flag(self):
         """Test decorator with is_dangerous flag."""
+
         @tool(name="risky", description="Risky tool", is_dangerous=True)
         async def risky_tool() -> str:
             return "ok"
@@ -412,6 +422,7 @@ class TestToolDecorator:
 
     def test_tool_decorator_with_self_parameter(self):
         """Test decorator skips 'self' parameter (line 134)."""
+
         @tool(name="method", description="Method test")
         async def method(self, x: int) -> int:
             return x
@@ -526,6 +537,7 @@ class TestDefaultRegistry:
         register_tool(tool_instance)
 
         from continuum_sdk.tools.custom import get_registry
+
         registry = get_registry()
         assert registry.has_tool("registered_test")
 
@@ -634,11 +646,7 @@ class TestBuiltinToolsMissingCoverage:
         from continuum_sdk.tools import ToolCategory, ToolMeta
 
         # Create without parameters
-        meta = ToolMeta(
-            name="test",
-            description="Test",
-            category=ToolCategory.OTHER
-        )
+        meta = ToolMeta(name="test", description="Test", category=ToolCategory.OTHER)
         assert meta.parameters == {}
 
         # Create with parameters
@@ -646,7 +654,7 @@ class TestBuiltinToolsMissingCoverage:
             name="test2",
             description="Test2",
             category=ToolCategory.OTHER,
-            parameters={"key": "value"}
+            parameters={"key": "value"},
         )
         assert meta2.parameters == {"key": "value"}
 
@@ -705,7 +713,11 @@ class TestBuiltinToolsMissingCoverage:
         with patch("continuum_sdk.tools.builtin.HAS_RUST_BINDING", False):
             tools = BuiltinTools()
             result = tools.write_file(str(test_file), "test content")
-            assert "success" in result.lower() or "wrote" in result.lower() or result == "success"
+            assert (
+                "success" in result.lower()
+                or "wrote" in result.lower()
+                or result == "success"
+            )
 
     def test_edit_file_python_fallback(self, tmp_path):
         """Lines 308-314: Test edit_file Python fallback."""
@@ -841,13 +853,17 @@ class TestBuiltinToolsMissingCoverage:
             assert "content" in result
 
             # Test write_file routing
-            result = tools.execute("write_file", {"path": str(tmp_path / "out.txt"), "content": "test"})
+            result = tools.execute(
+                "write_file", {"path": str(tmp_path / "out.txt"), "content": "test"}
+            )
             assert result
 
             # Test edit_file routing
             edit_file = tmp_path / "edit.txt"
             edit_file.write_text("old text")
-            result = tools.execute("edit_file", {"path": str(edit_file), "old": "old", "new": "new"})
+            result = tools.execute(
+                "edit_file", {"path": str(edit_file), "old": "old", "new": "new"}
+            )
 
             # Test list_directory routing
             result = tools.execute("list_directory", {"path": str(tmp_path)})
@@ -870,16 +886,24 @@ class TestBuiltinToolsMissingCoverage:
             lsp_file = tmp_path / "lsp.py"
             lsp_file.write_text("def func():\n    pass\n")
 
-            result = tools.execute("go_to_definition", {"file": str(lsp_file), "line": 1, "column": 1})
+            result = tools.execute(
+                "go_to_definition", {"file": str(lsp_file), "line": 1, "column": 1}
+            )
             assert result is not None
 
-            result = tools.execute("find_references", {"file": str(lsp_file), "line": 1, "column": 1})
+            result = tools.execute(
+                "find_references", {"file": str(lsp_file), "line": 1, "column": 1}
+            )
             assert result is not None
 
-            result = tools.execute("get_hover", {"file": str(lsp_file), "line": 1, "column": 1})
+            result = tools.execute(
+                "get_hover", {"file": str(lsp_file), "line": 1, "column": 1}
+            )
             assert result is not None
 
-            result = tools.execute("symbol_search", {"pattern": "func", "search_dir": str(tmp_path)})
+            result = tools.execute(
+                "symbol_search", {"pattern": "func", "search_dir": str(tmp_path)}
+            )
             assert result is not None
 
             # Test unknown tool error
@@ -983,4 +1007,13 @@ class TestIntegration:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=continuum_sdk.tools.search", "--cov=continuum_sdk.tools.custom", "--cov=continuum_sdk.tools.builtin", "--cov-report=term-missing"])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--cov=continuum_sdk.tools.search",
+            "--cov=continuum_sdk.tools.custom",
+            "--cov=continuum_sdk.tools.builtin",
+            "--cov-report=term-missing",
+        ]
+    )

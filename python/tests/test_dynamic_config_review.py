@@ -26,12 +26,14 @@ class TestEnvVariablePriority:
 
         # 无论 provider 是什么，都应该返回环境变量的值
         result = get_default_model("anthropic")
-        assert result == "test-model-from-env", \
-            f"Expected CONTINUUM_MODEL to take priority, got: {result}"
+        assert (
+            result == "test-model-from-env"
+        ), f"Expected CONTINUUM_MODEL to take priority, got: {result}"
 
         result = get_default_model("openai")
-        assert result == "test-model-from-env", \
-            f"Expected CONTINUUM_MODEL to take priority, got: {result}"
+        assert (
+            result == "test-model-from-env"
+        ), f"Expected CONTINUUM_MODEL to take priority, got: {result}"
 
         print("[PASS] CONTINUUM_MODEL 环境变量优先级正确")
 
@@ -46,14 +48,16 @@ class TestEnvVariablePriority:
         monkeypatch.delenv("CONTINUUM_MODEL", raising=False)
 
         result = get_default_model("anthropic")
-        assert result == anthropic_default, \
-            f"Expected provider default model {anthropic_default}, got: {result}"
+        assert (
+            result == anthropic_default
+        ), f"Expected provider default model {anthropic_default}, got: {result}"
 
         # 设置 CONTINUUM_MODEL 后，应覆盖
         monkeypatch.setenv("CONTINUUM_MODEL", "custom-model")
         result = get_default_model("anthropic")
-        assert result == "custom-model", \
-            f"Expected custom-model from env, got: {result}"
+        assert (
+            result == "custom-model"
+        ), f"Expected custom-model from env, got: {result}"
 
         print("[PASS] CONTINUUM_MODEL 正确覆盖 provider 内置配置")
 
@@ -88,8 +92,9 @@ class TestEnvVariablePriority:
         monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
 
         config = Config.from_env()
-        assert config.api_key == "test-openai-key", \
-            f"Expected OPENAI_API_KEY fallback, got: {config.api_key}"
+        assert (
+            config.api_key == "test-openai-key"
+        ), f"Expected OPENAI_API_KEY fallback, got: {config.api_key}"
 
         print("[PASS] provider-specific 环境变量回退正确")
 
@@ -108,8 +113,9 @@ class TestFallbackMechanism:
 
         # 验证 fallback 顺序
         expected_order = ["anthropic", "openai", "google", "deepseek", "qwen"]
-        assert FALLBACK_PROVIDER_ORDER == expected_order, \
-            f"FALLBACK_PROVIDER_ORDER should be {expected_order}, got: {FALLBACK_PROVIDER_ORDER}"
+        assert (
+            FALLBACK_PROVIDER_ORDER == expected_order
+        ), f"FALLBACK_PROVIDER_ORDER should be {expected_order}, got: {FALLBACK_PROVIDER_ORDER}"
 
         print("[PASS] FALLBACK_PROVIDER_ORDER 顺序正确")
 
@@ -130,11 +136,14 @@ class TestFallbackMechanism:
                 # 检查日志是否包含友好的信息
                 log_messages = [r.getMessage() for r in logs]
                 has_fallback_log = any("Fallback" in msg for msg in log_messages)
-                assert has_fallback_log, f"Should log fallback info, got: {log_messages}"
+                assert (
+                    has_fallback_log
+                ), f"Should log fallback info, got: {log_messages}"
             except RuntimeError as e:
                 # 如果所有 provider 都不可用，应该抛出包含配置指引的异常
-                assert "CONTINUUM_MODEL" in str(e), \
-                    f"RuntimeError should contain config guidance, got: {e}"
+                assert "CONTINUUM_MODEL" in str(
+                    e
+                ), f"RuntimeError should contain config guidance, got: {e}"
 
         print("[PASS] fallback 日志友好")
 
@@ -152,10 +161,12 @@ class TestFallbackMechanism:
                 get_default_model("anthropic")
 
             error_msg = str(exc_info.value)
-            assert "CONTINUUM_MODEL" in error_msg, \
-                f"Error should mention CONTINUUM_MODEL, got: {error_msg}"
-            assert "configure" in error_msg.lower(), \
-                f"Error should mention configuration, got: {error_msg}"
+            assert (
+                "CONTINUUM_MODEL" in error_msg
+            ), f"Error should mention CONTINUUM_MODEL, got: {error_msg}"
+            assert (
+                "configure" in error_msg.lower()
+            ), f"Error should mention configuration, got: {error_msg}"
 
             print("[PASS] RuntimeError 包含配置指引")
         finally:
@@ -176,19 +187,22 @@ class TestFallbackMechanism:
         assert first_fallback_provider is not None
         expected = first_fallback_provider.default_model
 
-        assert result == expected, \
-            f"Expected fallback to anthropic default model {expected}, got: {result}"
+        assert (
+            result == expected
+        ), f"Expected fallback to anthropic default model {expected}, got: {result}"
 
         print("[PASS] 正确回退到第一个可用的 provider")
 
     class _capture_logs:
         """捕获日志的上下文管理器"""
+
         def __init__(self, logger_name):
             self.logger_name = logger_name
             self.records = []
 
         def __enter__(self):
             import logging
+
             self.logger = logging.getLogger(self.logger_name)
             self.handler = logging.Handler()
             self.handler.emit = lambda record: self.records.append(record)
@@ -233,8 +247,7 @@ class TestEnvSafety:
         }
 
         for var in essential_vars:
-            assert var in DOCUMENTED_ENV_VARS, \
-                f"{var} should be in whitelist"
+            assert var in DOCUMENTED_ENV_VARS, f"{var} should be in whitelist"
 
         print("[PASS] 白名单包含核心配置")
 
@@ -268,8 +281,11 @@ class TestEnvSafety:
         # 设置列表值
         monkeypatch.setenv("CONTINUUM_MODELS", "gpt-4, claude-3, gemini-pro")
         result = get_list("MODELS")
-        assert result == ["gpt-4", "claude-3", "gemini-pro"], \
-            f"Should parse comma-separated list, got: {result}"
+        assert result == [
+            "gpt-4",
+            "claude-3",
+            "gemini-pro",
+        ], f"Should parse comma-separated list, got: {result}"
 
         # 空字符串
         monkeypatch.setenv("CONTINUUM_MODELS", "")
@@ -283,7 +299,9 @@ class TestEnvSafety:
         from continuum_sdk.env import ENV_PREFIX, get_str
 
         # 验证前缀
-        assert ENV_PREFIX == "CONTINUUM_", f"Expected CONTINUUM_ prefix, got: {ENV_PREFIX}"
+        assert (
+            ENV_PREFIX == "CONTINUUM_"
+        ), f"Expected CONTINUUM_ prefix, got: {ENV_PREFIX}"
 
         # 设置带前缀的变量
         monkeypatch.setenv("CONTINUUM_API_KEY", "test_key_1")
@@ -291,8 +309,9 @@ class TestEnvSafety:
 
         # 应该优先返回带前缀的
         result = get_str("API_KEY")
-        assert result == "test_key_1", \
-            f"Should prioritize CONTINUUM_ prefix, got: {result}"
+        assert (
+            result == "test_key_1"
+        ), f"Should prioritize CONTINUUM_ prefix, got: {result}"
 
         print("[PASS] CONTINUUM_ 前缀正确处理")
 
@@ -332,8 +351,9 @@ class TestConfigLoaderSecurity:
         # 如果环境变量存在，应该展开
         if "ANTHROPIC_API_KEY" in os.environ:
             expected = os.environ["ANTHROPIC_API_KEY"]
-            assert expanded["api_key"] == expected, \
-                f"Should expand ANTHROPIC_API_KEY, got: {expanded['api_key']}"
+            assert (
+                expanded["api_key"] == expected
+            ), f"Should expand ANTHROPIC_API_KEY, got: {expanded['api_key']}"
 
         print("[PASS] 环境变量展开安全")
 
@@ -373,8 +393,9 @@ class TestIntegrationScenarios:
         model = config.model
         assert model is not None, "Should return default model"
         # 应该是 openai 的默认模型或 fallback 模型
-        assert model in ["gpt-5.5", "claude-sonnet-4-6"] or model.startswith("gpt"), \
-            f"Expected openai default model, got: {model}"
+        assert model in ["gpt-5.5", "claude-sonnet-4-6"] or model.startswith(
+            "gpt"
+        ), f"Expected openai default model, got: {model}"
 
         print("[PASS] Config.model 属性 fallback 正确")
 
@@ -399,17 +420,19 @@ class TestIntegrationScenarios:
 
 def run_all_tests():
     """运行所有测试"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("全量审查动态配置实现")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     # 运行 pytest
-    exit_code = pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "-x",  # 首次失败即停止
-    ])
+    exit_code = pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "-x",  # 首次失败即停止
+        ]
+    )
 
     return exit_code
 

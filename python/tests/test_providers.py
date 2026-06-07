@@ -280,6 +280,7 @@ class TestGetDefaultModel:
             from importlib import reload
 
             import continuum_sdk.config.providers as providers_module
+
             reload(providers_module)
 
             result = providers_module.get_default_model("anthropic")
@@ -292,6 +293,7 @@ class TestGetDefaultModel:
             from importlib import reload
 
             import continuum_sdk.config.providers as providers_module
+
             reload(providers_module)
 
             result = providers_module.get_default_model("openai")
@@ -320,9 +322,7 @@ class TestGetDefaultModel:
         """Test fallback to first builtin provider."""
         with patch.dict(os.environ, {}, clear=True):
             # Mock fallback order to be empty to test the second fallback path
-            with patch(
-                "continuum_sdk.config.providers.FALLBACK_PROVIDER_ORDER", []
-            ):
+            with patch("continuum_sdk.config.providers.FALLBACK_PROVIDER_ORDER", []):
                 result = get_default_model("unknown")
                 # Should get first provider in BUILTIN_PROVIDERS
                 assert result is not None

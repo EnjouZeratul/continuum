@@ -58,7 +58,10 @@ class TestMCPToolWithoutLibrary:
             tool = MCPTool(
                 name="read_file",
                 description="Read file contents",
-                parameters={"type": "object", "properties": {"path": {"type": "string"}}},
+                parameters={
+                    "type": "object",
+                    "properties": {"path": {"type": "string"}},
+                },
                 _call_func=mock_call,
                 category=ToolCategory.FILE_OPS,
             )
@@ -472,7 +475,12 @@ class TestContinuumMCPAdapter:
 
             adapter = ContinuumMCPAdapter()
 
-            expected_dangerous = {"delete_file", "execute_command", "run_shell", "write_file"}
+            expected_dangerous = {
+                "delete_file",
+                "execute_command",
+                "run_shell",
+                "write_file",
+            }
             assert adapter.dangerous_tools == expected_dangerous
 
     def test_adapter_custom_dangerous_tools(self):
@@ -781,7 +789,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), mock_mcp)
 
                 registry = MCPToolRegistry()
@@ -810,7 +820,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = []
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), mock_mcp)
 
                 registry = MCPToolRegistry()
@@ -843,7 +855,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -881,7 +895,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -918,7 +934,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -957,7 +975,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -994,7 +1014,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool1]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -1027,7 +1049,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -1057,7 +1081,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = [mock_tool]
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -1090,7 +1116,9 @@ class TestMCPToolRegistry:
             mock_client2.tools.return_value = [mock_tool]
             mock_mcpadapt.side_effect = [mock_client1, mock_client2]
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -1131,7 +1159,9 @@ class TestMCPToolRegistry:
             mock_client.close.side_effect = RuntimeError("Close failed")
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 registry = MCPToolRegistry()
@@ -1156,7 +1186,9 @@ class TestMCPToolRegistry:
             mock_client.tools.return_value = []
             mock_mcpadapt.return_value = mock_client
 
-            with patch("continuum_sdk.tools.mcp_adapter._ensure_mcpadapt") as mock_ensure:
+            with patch(
+                "continuum_sdk.tools.mcp_adapter._ensure_mcpadapt"
+            ) as mock_ensure:
                 mock_ensure.return_value = ((mock_mcpadapt, MagicMock()), MagicMock())
 
                 async with MCPToolRegistry() as registry:
@@ -1178,7 +1210,14 @@ class TestPredefinedServers:
         ):
             from continuum_sdk.tools.mcp_adapter import PREDEFINED_MCP_SERVERS
 
-            expected_servers = ["filesystem", "github", "puppeteer", "slack", "postgres", "memory"]
+            expected_servers = [
+                "filesystem",
+                "github",
+                "puppeteer",
+                "slack",
+                "postgres",
+                "memory",
+            ]
             for server in expected_servers:
                 assert server in PREDEFINED_MCP_SERVERS
                 assert "command" in PREDEFINED_MCP_SERVERS[server]
@@ -1217,9 +1256,7 @@ class TestCreateMCPRegistry:
             ) as mock_registry_class:
                 mock_registry = MagicMock()
                 mock_registry_class.return_value = mock_registry
-                mock_registry.connect_stdio = Mock(
-                    return_value=[]
-                )
+                mock_registry.connect_stdio = Mock(return_value=[])
 
                 create_mcp_registry()
 
@@ -1281,10 +1318,7 @@ class TestCreateMCPRegistry:
                 mock_registry_class.return_value = mock_registry
                 mock_registry.connect_stdio = Mock(return_value=[])
 
-                create_mcp_registry(
-                    servers=["filesystem"],
-                    root_path="/custom/root"
-                )
+                create_mcp_registry(servers=["filesystem"], root_path="/custom/root")
 
                 # Check that --root was added to args
                 call_kwargs = mock_registry.connect_stdio.call_args
@@ -1364,7 +1398,7 @@ class TestModuleExports:
 # Integration tests (require mcpadapt library)
 @pytest.mark.skipif(
     not pytest.importorskip("mcpadapt", reason="mcpadapt not installed"),
-    reason="Integration tests require mcpadapt library"
+    reason="Integration tests require mcpadapt library",
 )
 class TestMCPIntegration:
     """Integration tests with real MCP library."""

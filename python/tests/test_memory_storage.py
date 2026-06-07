@@ -29,9 +29,7 @@ class TestMemoryStorage:
         """测试保存和加载"""
         storage = MemoryStorage()
         entry = MemoryEntry(
-            id="test-1",
-            tier=MemoryTier.WORKING,
-            content="Test content"
+            id="test-1", tier=MemoryTier.WORKING, content="Test content"
         )
 
         storage.save(MemoryTier.WORKING, entry)
@@ -98,7 +96,9 @@ class TestMemoryStorage:
         """测试清空"""
         storage = MemoryStorage()
         for i in range(5):
-            entry = MemoryEntry(id=f"c{i}", tier=MemoryTier.SESSION, content=f"content{i}")
+            entry = MemoryEntry(
+                id=f"c{i}", tier=MemoryTier.SESSION, content=f"content{i}"
+            )
             storage.save(MemoryTier.SESSION, entry)
 
         count = storage.clear(MemoryTier.SESSION)
@@ -108,9 +108,13 @@ class TestMemoryStorage:
     def test_search(self):
         """测试搜索"""
         storage = MemoryStorage()
-        entry1 = MemoryEntry(id="s1", tier=MemoryTier.WORKING, content="Python is great")
+        entry1 = MemoryEntry(
+            id="s1", tier=MemoryTier.WORKING, content="Python is great"
+        )
         entry2 = MemoryEntry(id="s2", tier=MemoryTier.WORKING, content="Java is okay")
-        entry3 = MemoryEntry(id="s3", tier=MemoryTier.WORKING, content="Python is popular")
+        entry3 = MemoryEntry(
+            id="s3", tier=MemoryTier.WORKING, content="Python is popular"
+        )
 
         storage.save(MemoryTier.WORKING, entry1)
         storage.save(MemoryTier.WORKING, entry2)
@@ -124,7 +128,9 @@ class TestMemoryStorage:
         storage = MemoryStorage()
         # 添加多个匹配的条目
         for i in range(10):
-            entry = MemoryEntry(id=f"match{i}", tier=MemoryTier.WORKING, content=f"test content {i}")
+            entry = MemoryEntry(
+                id=f"match{i}", tier=MemoryTier.WORKING, content=f"test content {i}"
+            )
             storage.save(MemoryTier.WORKING, entry)
 
         # 设置 limit=3，应该在找到3个后中断
@@ -179,9 +185,7 @@ class TestFileStorage:
         """测试保存和加载"""
         storage = FileStorage(temp_dir, session_id="test-save-load")
         entry = MemoryEntry(
-            id="fs-1",
-            tier=MemoryTier.WORKING,
-            content="File storage test"
+            id="fs-1", tier=MemoryTier.WORKING, content="File storage test"
         )
 
         storage.save(MemoryTier.WORKING, entry)
@@ -198,9 +202,7 @@ class TestFileStorage:
         # 创建并保存数据
         storage1 = FileStorage(temp_dir, session_id=session_id)
         entry = MemoryEntry(
-            id="persist-1",
-            tier=MemoryTier.PROJECT,
-            content="Persistent content"
+            id="persist-1", tier=MemoryTier.PROJECT, content="Persistent content"
         )
         storage1.save(MemoryTier.PROJECT, entry)
         storage1.close()
@@ -263,7 +265,9 @@ class TestFileStorage:
 
         # 添加多个匹配的条目
         for i in range(10):
-            entry = MemoryEntry(id=f"match{i}", tier=MemoryTier.WORKING, content=f"test query {i}")
+            entry = MemoryEntry(
+                id=f"match{i}", tier=MemoryTier.WORKING, content=f"test query {i}"
+            )
             storage.save(MemoryTier.WORKING, entry)
 
         # 设置 limit=3，应该在找到3个后中断
@@ -298,11 +302,7 @@ class TestFileStorage:
 
     def test_auto_save_disabled(self, temp_dir):
         """测试禁用自动保存"""
-        storage = FileStorage(
-            temp_dir,
-            session_id="no-auto-save",
-            auto_save=False
-        )
+        storage = FileStorage(temp_dir, session_id="no-auto-save", auto_save=False)
 
         entry = MemoryEntry(id="no-auto-1", tier=MemoryTier.WORKING, content="no auto")
         storage.save(MemoryTier.WORKING, entry)
@@ -321,8 +321,12 @@ class TestFileStorage:
         """测试搜索"""
         storage = FileStorage(temp_dir, session_id="search-test")
 
-        entry1 = MemoryEntry(id="fs-s1", tier=MemoryTier.WORKING, content="Python programming")
-        entry2 = MemoryEntry(id="fs-s2", tier=MemoryTier.WORKING, content="Java development")
+        entry1 = MemoryEntry(
+            id="fs-s1", tier=MemoryTier.WORKING, content="Python programming"
+        )
+        entry2 = MemoryEntry(
+            id="fs-s2", tier=MemoryTier.WORKING, content="Java development"
+        )
 
         storage.save(MemoryTier.WORKING, entry1)
         storage.save(MemoryTier.WORKING, entry2)
@@ -337,7 +341,9 @@ class TestFileStorage:
         """测试删除"""
         storage = FileStorage(temp_dir, session_id="delete-test")
 
-        entry = MemoryEntry(id="del-test-1", tier=MemoryTier.WORKING, content="to delete")
+        entry = MemoryEntry(
+            id="del-test-1", tier=MemoryTier.WORKING, content="to delete"
+        )
         storage.save(MemoryTier.WORKING, entry)
 
         assert storage.count(MemoryTier.WORKING) == 1
@@ -353,7 +359,9 @@ class TestFileStorage:
         storage = FileStorage(temp_dir, session_id="clear-test")
 
         for i in range(3):
-            entry = MemoryEntry(id=f"clear-{i}", tier=MemoryTier.SESSION, content=f"content {i}")
+            entry = MemoryEntry(
+                id=f"clear-{i}", tier=MemoryTier.SESSION, content=f"content {i}"
+            )
             storage.save(MemoryTier.SESSION, entry)
 
         count = storage.clear(MemoryTier.SESSION)
@@ -387,8 +395,7 @@ class TestMemoryWithStorage:
     def test_memory_with_file_storage(self, temp_dir):
         """测试使用文件存储的 Memory"""
         memory = Memory.create_with_file_storage(
-            session_id="file-memory-test",
-            storage_path=temp_dir
+            session_id="file-memory-test", storage_path=temp_dir
         )
 
         entry_id = memory.remember("Persistent content", tier=MemoryTier.PROJECT)
@@ -399,8 +406,7 @@ class TestMemoryWithStorage:
 
         # 重新加载
         memory2 = Memory.create_with_file_storage(
-            session_id="file-memory-test",
-            storage_path=temp_dir
+            session_id="file-memory-test", storage_path=temp_dir
         )
 
         results = memory2.recall("Persistent")
@@ -476,9 +482,7 @@ class TestSQLiteStorage:
         db_path = os.path.join(temp_dir, "test_save.db")
         storage = SQLiteStorage(db_path, session_id="test-save-load")
         entry = MemoryEntry(
-            id="sqlite-1",
-            tier=MemoryTier.WORKING,
-            content="SQLite storage test"
+            id="sqlite-1", tier=MemoryTier.WORKING, content="SQLite storage test"
         )
 
         storage.save(MemoryTier.WORKING, entry)
@@ -496,9 +500,7 @@ class TestSQLiteStorage:
         # 创建并保存数据
         storage1 = SQLiteStorage(db_path, session_id=session_id)
         entry = MemoryEntry(
-            id="persist-1",
-            tier=MemoryTier.PROJECT,
-            content="Persistent SQLite content"
+            id="persist-1", tier=MemoryTier.PROJECT, content="Persistent SQLite content"
         )
         storage1.save(MemoryTier.PROJECT, entry)
         storage1.close()
@@ -516,7 +518,9 @@ class TestSQLiteStorage:
         db_path = os.path.join(temp_dir, "delete.db")
         storage = SQLiteStorage(db_path, session_id="delete-test")
 
-        entry = MemoryEntry(id="del-sqlite-1", tier=MemoryTier.WORKING, content="to delete")
+        entry = MemoryEntry(
+            id="del-sqlite-1", tier=MemoryTier.WORKING, content="to delete"
+        )
         storage.save(MemoryTier.WORKING, entry)
 
         assert storage.count(MemoryTier.WORKING) == 1
@@ -533,7 +537,9 @@ class TestSQLiteStorage:
         storage = SQLiteStorage(db_path, session_id="clear-test")
 
         for i in range(3):
-            entry = MemoryEntry(id=f"clear-{i}", tier=MemoryTier.SESSION, content=f"content {i}")
+            entry = MemoryEntry(
+                id=f"clear-{i}", tier=MemoryTier.SESSION, content=f"content {i}"
+            )
             storage.save(MemoryTier.SESSION, entry)
 
         count = storage.clear(MemoryTier.SESSION)
@@ -547,8 +553,12 @@ class TestSQLiteStorage:
         db_path = os.path.join(temp_dir, "search.db")
         storage = SQLiteStorage(db_path, session_id="search-test", enable_fts=True)
 
-        entry1 = MemoryEntry(id="s-sqlite-1", tier=MemoryTier.WORKING, content="Python programming")
-        entry2 = MemoryEntry(id="s-sqlite-2", tier=MemoryTier.WORKING, content="Java development")
+        entry1 = MemoryEntry(
+            id="s-sqlite-1", tier=MemoryTier.WORKING, content="Python programming"
+        )
+        entry2 = MemoryEntry(
+            id="s-sqlite-2", tier=MemoryTier.WORKING, content="Java development"
+        )
 
         storage.save(MemoryTier.WORKING, entry1)
         storage.save(MemoryTier.WORKING, entry2)
@@ -565,7 +575,9 @@ class TestSQLiteStorage:
         storage = SQLiteStorage(db_path, session_id="stats-test")
 
         for i in range(5):
-            entry = MemoryEntry(id=f"stats-{i}", tier=MemoryTier.WORKING, content=f"content {i}")
+            entry = MemoryEntry(
+                id=f"stats-{i}", tier=MemoryTier.WORKING, content=f"content {i}"
+            )
             storage.save(MemoryTier.WORKING, entry)
 
         stats = storage.get_stats()
@@ -579,8 +591,7 @@ class TestSQLiteStorage:
         """测试使用 SQLite 存储的 Memory"""
         db_path = os.path.join(temp_dir, "memory.db")
         memory = Memory.create_with_sqlite_storage(
-            session_id="sqlite-memory-test",
-            db_path=db_path
+            session_id="sqlite-memory-test", db_path=db_path
         )
 
         entry_id = memory.remember("SQLite persistent content", tier=MemoryTier.PROJECT)
@@ -592,8 +603,7 @@ class TestSQLiteStorage:
 
         # 重新加载
         memory2 = Memory.create_with_sqlite_storage(
-            session_id="sqlite-memory-test",
-            db_path=db_path
+            session_id="sqlite-memory-test", db_path=db_path
         )
 
         results = memory2.recall("SQLite")
@@ -629,7 +639,9 @@ class TestSQLiteStorageMissing:
         db_path = os.path.join(temp_dir, "nofts.db")
         storage = SQLiteStorage(db_path, session_id="nofts-test", enable_fts=False)
 
-        entry = MemoryEntry(id="like-test", tier=MemoryTier.WORKING, content="test content")
+        entry = MemoryEntry(
+            id="like-test", tier=MemoryTier.WORKING, content="test content"
+        )
         storage.save(MemoryTier.WORKING, entry)
 
         # 使用 LIKE 搜索
@@ -751,7 +763,9 @@ class TestMissingBranchCoverage:
 
     def test_file_storage_delete_without_auto_save(self, temp_dir):
         """Test FileStorage.delete with auto_save=False (line 316->318)."""
-        storage = FileStorage(temp_dir, session_id="delete-no-autosave", auto_save=False)
+        storage = FileStorage(
+            temp_dir, session_id="delete-no-autosave", auto_save=False
+        )
         entry = MemoryEntry(id="del-no-auto", tier=MemoryTier.WORKING, content="test")
         storage.save(MemoryTier.WORKING, entry)
 
@@ -806,7 +820,9 @@ class TestMissingBranchCoverage:
         db_path = os.path.join(temp_dir, "search-nofts.db")
         storage = SQLiteStorage(db_path, session_id="search-nofts", enable_fts=False)
 
-        entry = MemoryEntry(id="search-nofts", tier=MemoryTier.WORKING, content="hello world")
+        entry = MemoryEntry(
+            id="search-nofts", tier=MemoryTier.WORKING, content="hello world"
+        )
         storage.save(MemoryTier.WORKING, entry)
 
         # Search for something that doesn't match - tests LIKE fallback
@@ -819,7 +835,9 @@ class TestMissingBranchCoverage:
         db_path = os.path.join(temp_dir, "search-fts.db")
         storage = SQLiteStorage(db_path, session_id="search-fts", enable_fts=True)
 
-        entry = MemoryEntry(id="fts-test", tier=MemoryTier.WORKING, content="python programming")
+        entry = MemoryEntry(
+            id="fts-test", tier=MemoryTier.WORKING, content="python programming"
+        )
         storage.save(MemoryTier.WORKING, entry)
 
         # FTS search

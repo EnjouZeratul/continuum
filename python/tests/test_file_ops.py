@@ -10,7 +10,6 @@ Test coverage for:
 - Error handling
 """
 
-
 from pathlib import Path
 
 import pytest
@@ -1032,7 +1031,9 @@ class TestEdgeCases:
     def test_read_with_content_not_ending_in_newline(self, tmp_path: Path):
         """Test reading content that doesn't end in newline (covers line 144 branch)."""
         file_path = tmp_path / "no_newline.txt"
-        file_path.write_text("Line 1\nLine 2\nLine 3", newline="")  # No trailing newline
+        file_path.write_text(
+            "Line 1\nLine 2\nLine 3", newline=""
+        )  # No trailing newline
 
         reader = ReadTool()
         result = reader.read(str(file_path))
@@ -1068,7 +1069,9 @@ class TestSecurityIntegration:
         file_path = tmp_path / "secured_edit.txt"
         file_path.write_text("Original text")
 
-        result = edit_file(str(file_path), "Original", "Modified", workspace=str(tmp_path))
+        result = edit_file(
+            str(file_path), "Original", "Modified", workspace=str(tmp_path)
+        )
 
         assert result.is_error is False
         assert "Modified" in file_path.read_text()
@@ -1091,11 +1094,7 @@ class TestSecureMode:
         file_path = tmp_path / "secure_read.txt"
         file_path.write_text("Secure content")
 
-        result = read_file(
-            str(file_path),
-            secure_mode=True,
-            workspace=str(tmp_path)
-        )
+        result = read_file(str(file_path), secure_mode=True, workspace=str(tmp_path))
 
         assert result.is_error is False
         assert result.content == "Secure content"
@@ -1112,13 +1111,12 @@ class TestSecureMode:
         project_path.mkdir()
 
         with pytest.raises(ToolError) as exc_info:
-            read_file(
-                str(outside_path),
-                secure_mode=True,
-                workspace=str(project_path)
-            )
+            read_file(str(outside_path), secure_mode=True, workspace=str(project_path))
 
-        assert "validation failed" in exc_info.value.message.lower() or "security" in exc_info.value.message.lower()
+        assert (
+            "validation failed" in exc_info.value.message.lower()
+            or "security" in exc_info.value.message.lower()
+        )
 
     def test_read_secure_mode_nonexistent_file(self, tmp_path: Path):
         """Test secure mode read handles nonexistent file."""
@@ -1126,7 +1124,7 @@ class TestSecureMode:
             read_file(
                 str(tmp_path / "nonexistent.txt"),
                 secure_mode=True,
-                workspace=str(tmp_path)
+                workspace=str(tmp_path),
             )
 
         assert "not found" in exc_info.value.message.lower()
@@ -1139,7 +1137,7 @@ class TestSecureMode:
             str(file_path),
             "Atomic content\n",  # Secure mode writes exact content
             secure_mode=True,
-            workspace=str(tmp_path)
+            workspace=str(tmp_path),
         )
 
         assert result.is_error is False
@@ -1156,7 +1154,7 @@ class TestSecureMode:
             str(file_path),
             "New atomic content\n",  # Secure mode writes exact content
             secure_mode=True,
-            workspace=str(tmp_path)
+            workspace=str(tmp_path),
         )
 
         assert result.is_error is False
@@ -1170,7 +1168,7 @@ class TestSecureMode:
             str(file_path),
             "Exact",  # No trailing newline
             secure_mode=True,
-            workspace=str(tmp_path)
+            workspace=str(tmp_path),
         )
 
         assert result.is_error is False
@@ -1184,7 +1182,7 @@ class TestSecureMode:
             str(file_path),
             "Nested secure content",
             secure_mode=True,
-            workspace=str(tmp_path)
+            workspace=str(tmp_path),
         )
 
         assert result.is_error is False
@@ -1202,10 +1200,13 @@ class TestSecureMode:
                 str(outside_path),
                 "Should fail",
                 secure_mode=True,
-                workspace=str(project_path)
+                workspace=str(project_path),
             )
 
-        assert "validation failed" in exc_info.value.message.lower() or "security" in exc_info.value.message.lower()
+        assert (
+            "validation failed" in exc_info.value.message.lower()
+            or "security" in exc_info.value.message.lower()
+        )
 
     def test_write_secure_mode_skips_append(self, tmp_path: Path):
         """Test secure mode falls back to legacy mode for append."""
@@ -1217,7 +1218,7 @@ class TestSecureMode:
             "Appended",
             secure_mode=True,
             append=True,
-            workspace=str(tmp_path)
+            workspace=str(tmp_path),
         )
 
         # Secure mode should be skipped for append operations
@@ -1230,11 +1231,7 @@ class TestSecureMode:
         file_path = tmp_path / "binary_secure.bin"
         file_path.write_bytes(b"\x00\x01\x02\xff\xfe")
 
-        result = read_file(
-            str(file_path),
-            secure_mode=True,
-            workspace=str(tmp_path)
-        )
+        result = read_file(str(file_path), secure_mode=True, workspace=str(tmp_path))
 
         # Should read successfully, binary data decoded
         assert result.is_error is False
@@ -1244,11 +1241,7 @@ class TestSecureMode:
         file_path = tmp_path / "unicode_secure.txt"
         file_path.write_text("你好世界 World 🌍", encoding="utf-8")
 
-        result = read_file(
-            str(file_path),
-            secure_mode=True,
-            workspace=str(tmp_path)
-        )
+        result = read_file(str(file_path), secure_mode=True, workspace=str(tmp_path))
 
         assert result.is_error is False
         assert "你好" in result.content
@@ -1260,11 +1253,7 @@ class TestSecureMode:
         file_path.write_text("\n".join(lines))
 
         result = read_file(
-            str(file_path),
-            offset=3,
-            limit=3,
-            secure_mode=True,
-            workspace=str(tmp_path)
+            str(file_path), offset=3, limit=3, secure_mode=True, workspace=str(tmp_path)
         )
 
         assert result.is_error is False
@@ -1276,10 +1265,7 @@ class TestSecureMode:
         file_path.write_text("No security check")
 
         # No workspace = security disabled
-        result = read_file(
-            str(file_path),
-            secure_mode=True
-        )
+        result = read_file(str(file_path), secure_mode=True)
 
         assert result.is_error is False
         assert result.content == "No security check"
@@ -1289,11 +1275,7 @@ class TestSecureMode:
         file_path = tmp_path / "no_security_write.txt"
 
         # No workspace = security disabled
-        result = write_file(
-            str(file_path),
-            "No security write",
-            secure_mode=True
-        )
+        result = write_file(str(file_path), "No security write", secure_mode=True)
 
         assert result.is_error is False
         assert file_path.exists()

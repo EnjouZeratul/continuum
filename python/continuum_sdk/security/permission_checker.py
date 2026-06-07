@@ -98,9 +98,9 @@ class PermissionResult:
             "path": self.path,
             "reason": self.reason,
             "exists": self.exists,
-            "actual_permissions": oct(self.actual_permissions)
-            if self.actual_permissions
-            else None,
+            "actual_permissions": (
+                oct(self.actual_permissions) if self.actual_permissions else None
+            ),
             "metadata": self.metadata,
         }
 
@@ -200,7 +200,9 @@ class PermissionChecker:
         """
         return {str(p): self.check(p, permission) for p in paths}
 
-    def check_parent(self, path: str | Path, permission: Permission) -> PermissionResult:
+    def check_parent(
+        self, path: str | Path, permission: Permission
+    ) -> PermissionResult:
         """Check parent directory permission
 
         Args:

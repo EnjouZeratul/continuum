@@ -10,7 +10,13 @@ def test_continuum_reexports_stable_sdk_api():
     assert Agent is continuum_sdk.Agent
     assert Session is continuum_sdk.Session
     assert Config is continuum_sdk.Config
-    assert continuum.__all__ == ["Agent", "Session", "Config", "ConfigLoader", "load_config"]
+    assert continuum.__all__ == [
+        "Agent",
+        "Session",
+        "Config",
+        "ConfigLoader",
+        "load_config",
+    ]
 
 
 def test_public_session_uses_real_session_implementation():
@@ -25,8 +31,15 @@ def test_public_session_uses_real_session_implementation():
     assert user_message.role == MessageRole.USER
     assert assistant_message.role == MessageRole.ASSISTANT
     assert system_message.role == MessageRole.SYSTEM
-    assert [message.content for message in session.get_messages()] == ["Hello", "Hi", "System"]
-    assert [message.content for message in session.get_messages(limit=2)] == ["Hi", "System"]
+    assert [message.content for message in session.get_messages()] == [
+        "Hello",
+        "Hi",
+        "System",
+    ]
+    assert [message.content for message in session.get_messages(limit=2)] == [
+        "Hi",
+        "System",
+    ]
     assert session.get_last_message().content == "System"
 
 

@@ -63,7 +63,9 @@ class CalculatorTool(CustomTool):
 # ==================== Method 2: Use @tool Decorator ====================
 
 
-@tool(name="greet", description="Generate greeting message", requires_confirmation=False)
+@tool(
+    name="greet", description="Generate greeting message", requires_confirmation=False
+)
 async def greet_user(name: str, greeting: str = "Hello") -> str:
     """Generate personalized greeting"""
     return f"{greeting}, {name}!"

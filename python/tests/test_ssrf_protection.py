@@ -37,9 +37,10 @@ class TestSSRFPrivateIPRanges:
             "10.255.255.255",
         ]
         for ip in test_ips:
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
-            ]):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 80))],
+            ):
                 with pytest.raises(ValueError, match="private"):
                     handler.encode_image_from_url("http://example.com/image.png")
 
@@ -51,9 +52,10 @@ class TestSSRFPrivateIPRanges:
             "172.31.255.255",
         ]
         for ip in test_ips:
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
-            ]):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 80))],
+            ):
                 with pytest.raises(ValueError, match="private"):
                     handler.encode_image_from_url("http://example.com/image.png")
 
@@ -65,9 +67,10 @@ class TestSSRFPrivateIPRanges:
             "192.168.255.255",
         ]
         for ip in test_ips:
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
-            ]):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 80))],
+            ):
                 with pytest.raises(ValueError, match="private"):
                     handler.encode_image_from_url("http://example.com/image.png")
 
@@ -86,9 +89,12 @@ class TestSSRFLocalhost:
 
     def test_127_0_0_1_blocked(self, handler):
         """127.0.0.1 should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://example.com/image.png")
 
@@ -96,17 +102,19 @@ class TestSSRFLocalhost:
         """Any 127.x.x.x should be blocked."""
         test_ips = ["127.0.0.1", "127.1.1.1", "127.255.255.255"]
         for ip in test_ips:
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
-            ]):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 80))],
+            ):
                 with pytest.raises(ValueError, match="private"):
                     handler.encode_image_from_url("http://example.com/image.png")
 
     def test_0_0_0_0_blocked(self, handler):
         """0.0.0.0 should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('0.0.0.0', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("0.0.0.0", 80))],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://example.com/image.png")
 
@@ -122,9 +130,10 @@ class TestSSRFLinkLocal:
         """169.254.0.0/16 (link-local) should be blocked."""
         test_ips = ["169.254.0.1", "169.254.1.1", "169.254.255.255"]
         for ip in test_ips:
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', (ip, 80))
-            ]):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, 80))],
+            ):
                 with pytest.raises(ValueError, match="private"):
                     handler.encode_image_from_url("http://example.com/image.png")
 
@@ -159,18 +168,24 @@ class TestSSRFSchemeValidation:
     def test_http_allowed(self, handler):
         """http:// should be allowed for public IPs."""
         # Test validation only, not actual fetch
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+            ],
+        ):
             # Should not raise for validation
             result = handler._validate_url_for_ssrf("http://example.com/image.png")
             assert result == "example.com"
 
     def test_https_allowed(self, handler):
         """https:// should be allowed for public IPs."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443))
+            ],
+        ):
             result = handler._validate_url_for_ssrf("https://example.com/image.png")
             assert result == "example.com"
 
@@ -184,25 +199,34 @@ class TestSSRFDNSRebinding:
 
     def test_dns_to_private_ip_blocked(self, handler):
         """DNS resolving to private IP should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('192.168.1.1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://evil.example.com/image.png")
 
     def test_dns_to_localhost_blocked(self, handler):
         """DNS resolving to localhost should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://evil.example.com/image.png")
 
     def test_dns_to_public_ip_allowed(self, handler):
         """DNS resolving to public IP should be allowed."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+            ],
+        ):
             # Should not raise
             result = handler._validate_url_for_ssrf("http://example.com/image.png")
             assert result == "example.com"
@@ -223,20 +247,33 @@ class TestSSRFOpenRedirect:
             # First call returns redirect to private IP
             headers = {"Location": "http://192.168.1.1/evil.png"}
             err = urllib.error.HTTPError(
-                request.full_url if hasattr(request, 'full_url') else str(request),
+                request.full_url if hasattr(request, "full_url") else str(request),
                 302,
                 "Found",
                 headers,
-                None
+                None,
             )
             err.headers = headers
             raise err
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', side_effect=[
-                [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))],  # Initial URL
-                [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('192.168.1.1', 80))],   # Redirect target
-            ]):
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                side_effect=[
+                    [
+                        (
+                            socket.AF_INET,
+                            socket.SOCK_STREAM,
+                            6,
+                            "",
+                            ("93.184.216.34", 80),
+                        )
+                    ],  # Initial URL
+                    [
+                        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.168.1.1", 80))
+                    ],  # Redirect target
+                ],
+            ):
                 with pytest.raises(ValueError, match="private"):
                     handler.encode_image_from_url("http://example.com/redirect")
 
@@ -253,19 +290,22 @@ class TestSSRFOpenRedirect:
             headers = {"Location": f"http://example.com/redirect{redirect_count}"}
             # HTTPError needs a valid response object
             err = urllib.error.HTTPError(
-                request.full_url if hasattr(request, 'full_url') else str(request),
+                request.full_url if hasattr(request, "full_url") else str(request),
                 302,
                 "Found",
                 headers,
-                None
+                None,
             )
             err.headers = headers
             raise err
 
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-        ]):
-            with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+            ],
+        ):
+            with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
                 with pytest.raises(ValueError, match="redirect"):
                     handler.encode_image_from_url("http://example.com/start")
 
@@ -291,10 +331,13 @@ class TestSSRFPublicURLAllowed:
         def mock_urlopen(request, timeout=None):
             return mock_response
 
-        with mock.patch('urllib.request.urlopen', side_effect=mock_urlopen):
-            with mock.patch('socket.getaddrinfo', return_value=[
-                (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 80))
-            ]):
+        with mock.patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            with mock.patch(
+                "socket.getaddrinfo",
+                return_value=[
+                    (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80))
+                ],
+            ):
                 result = handler.encode_image_from_url("http://example.com/image.png")
                 assert result["type"] == "image"
                 assert "source" in result
@@ -310,33 +353,49 @@ class TestSSRFIPv6:
 
     def test_ipv6_loopback_blocked(self, handler):
         """IPv6 loopback (::1) should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::1", 80))],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://example.com/image.png")
 
     def test_ipv6_link_local_blocked(self, handler):
         """IPv6 link-local (fe80::) should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('fe80::1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fe80::1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://example.com/image.png")
 
     def test_ipv6_ula_blocked(self, handler):
         """IPv6 ULA (fc00::) should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('fc00::1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("fc00::1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://example.com/image.png")
 
     def test_ipv6_public_allowed(self, handler):
         """Public IPv6 addresses should be allowed."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('2001:4860:4860::8888', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (
+                    socket.AF_INET6,
+                    socket.SOCK_STREAM,
+                    6,
+                    "",
+                    ("2001:4860:4860::8888", 80),
+                )
+            ],
+        ):
             # Should not raise for validation
             result = handler._validate_url_for_ssrf("http://example.com/image.png")
             assert result == "example.com"
@@ -351,27 +410,36 @@ class TestSSRFEdgeCases:
 
     def test_ipv4_mapped_ipv6_blocked(self, handler):
         """IPv4-mapped IPv6 addresses (like ::ffff:127.0.0.1) should be blocked."""
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET6, socket.SOCK_STREAM, 6, '', ('::ffff:127.0.0.1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::ffff:127.0.0.1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://example.com/image.png")
 
     def test_decimal_ip_blocked(self, handler):
         """Decimal IP representation should be blocked after resolution."""
         # 2130706433 = 127.0.0.1 in decimal
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://2130706433/image.png")
 
     def test_hex_ip_blocked(self, handler):
         """Hex IP representation should be blocked after resolution."""
         # 0x7f000001 = 127.0.0.1 in hex
-        with mock.patch('socket.getaddrinfo', return_value=[
-            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 80))
-        ]):
+        with mock.patch(
+            "socket.getaddrinfo",
+            return_value=[
+                (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))
+            ],
+        ):
             with pytest.raises(ValueError, match="private"):
                 handler.encode_image_from_url("http://0x7f000001/image.png")
 
@@ -382,7 +450,9 @@ class TestSSRFEdgeCases:
 
     def test_dns_failure_blocked(self, handler):
         """DNS resolution failure should be blocked."""
-        with mock.patch('socket.getaddrinfo', side_effect=socket.gaierror("DNS failed")):
+        with mock.patch(
+            "socket.getaddrinfo", side_effect=socket.gaierror("DNS failed")
+        ):
             with pytest.raises(ValueError, match="resolve"):
                 handler.encode_image_from_url("http://nonexistent.invalid/image.png")
 

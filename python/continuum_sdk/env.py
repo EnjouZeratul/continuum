@@ -50,48 +50,44 @@ logger = logging.getLogger(__name__)
 
 # Documented environment variables (whitelist preserved for documentation purposes)
 # 文档化的环境变量（白名单保留用于文档目的）
-DOCUMENTED_ENV_VARS: Final[frozenset[str]] = frozenset({
-    # Core configuration / 核心配置
-    "API_KEY",
-    "BASE_URL",
-    "PROVIDER",
-    "MODEL",
-    "SMALL_MODEL",
-    "DEFAULT_MODEL",
-    "API_FORMAT",
-
-    # Runtime settings / 运行时设置
-    "LOG_LEVEL",
-    "MAX_TOKENS",
-    "TIMEOUT",
-    "MAX_ITERATIONS",
-    "TEMPERATURE",
-    "EFFORT_LEVEL",
-
-    # Feature flags / 功能开关
-    "DEBUG",
-    "VERBOSE",
-    "DISABLE_TRAFFIC",
-    "AUDIT_ENABLED",
-
-    # Paths / 路径配置
-    "WORKTREES_DIR",
-    "PLUGINS_DIR",
-    "AUDIT_LOG_PATH",
-    "THEME_CONFIG",
-
-    # List-type configurations / 列表类型配置
-    "MODELS",
-    "ALLOWED_TOOLS",
-    "BLOCKED_TOOLS",
-    "EXTRA_HEADERS",
-
-    # Retention / 保留设置
-    "AUDIT_RETENTION",
-
-    # Test support / 测试支持
-    "USE_REAL_API",
-})
+DOCUMENTED_ENV_VARS: Final[frozenset[str]] = frozenset(
+    {
+        # Core configuration / 核心配置
+        "API_KEY",
+        "BASE_URL",
+        "PROVIDER",
+        "MODEL",
+        "SMALL_MODEL",
+        "DEFAULT_MODEL",
+        "API_FORMAT",
+        # Runtime settings / 运行时设置
+        "LOG_LEVEL",
+        "MAX_TOKENS",
+        "TIMEOUT",
+        "MAX_ITERATIONS",
+        "TEMPERATURE",
+        "EFFORT_LEVEL",
+        # Feature flags / 功能开关
+        "DEBUG",
+        "VERBOSE",
+        "DISABLE_TRAFFIC",
+        "AUDIT_ENABLED",
+        # Paths / 路径配置
+        "WORKTREES_DIR",
+        "PLUGINS_DIR",
+        "AUDIT_LOG_PATH",
+        "THEME_CONFIG",
+        # List-type configurations / 列表类型配置
+        "MODELS",
+        "ALLOWED_TOOLS",
+        "BLOCKED_TOOLS",
+        "EXTRA_HEADERS",
+        # Retention / 保留设置
+        "AUDIT_RETENTION",
+        # Test support / 测试支持
+        "USE_REAL_API",
+    }
+)
 
 # Environment variable prefix / 环境变量前缀
 ENV_PREFIX: Final[str] = "CONTINUUM_"

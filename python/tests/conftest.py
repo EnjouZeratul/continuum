@@ -15,9 +15,7 @@ CASSETTE_DIR = os.path.join(os.path.dirname(__file__), "cassettes")
 
 def pytest_configure(config):
     """Configure pytest with VCR markers."""
-    config.addinivalue_line(
-        "markers", "vcr: mark test to use VCR recording/playback"
-    )
+    config.addinivalue_line("markers", "vcr: mark test to use VCR recording/playback")
 
 
 @pytest.fixture(scope="module")

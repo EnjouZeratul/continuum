@@ -33,6 +33,7 @@ class TestEmbeddingProvider:
     def test_provider_openai(self):
         """Test OpenAI provider configuration."""
         from continuum_sdk.rag.embeddings import EmbeddingConfig
+
         config = EmbeddingConfig(provider="openai", model="text-embedding-3-small")
         assert config.provider == "openai"
         assert config.model == "text-embedding-3-small"
@@ -40,18 +41,21 @@ class TestEmbeddingProvider:
     def test_provider_huggingface(self):
         """Test HuggingFace provider configuration."""
         from continuum_sdk.rag.embeddings import EmbeddingConfig
+
         config = EmbeddingConfig(provider="huggingface", model="all-MiniLM-L6-v2")
         assert config.provider == "huggingface"
 
     def test_provider_cohere(self):
         """Test Cohere provider configuration."""
         from continuum_sdk.rag.embeddings import EmbeddingConfig
+
         config = EmbeddingConfig(provider="cohere", model="embed-english-v3.0")
         assert config.provider == "cohere"
 
     def test_provider_local(self):
         """Test local provider configuration."""
         from continuum_sdk.rag.embeddings import EmbeddingConfig
+
         config = EmbeddingConfig(provider="local", model="all-MiniLM-L6-v2")
         assert config.provider == "local"
 
@@ -62,6 +66,7 @@ class TestEmbeddingsFactory:
     def test_explicit_config_openai(self):
         """Test explicit OpenAI configuration with mock."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         # Use _use_rust=False to force Python implementation
         embeddings = Embeddings(
             provider="openai",
@@ -76,6 +81,7 @@ class TestEmbeddingsFactory:
     def test_explicit_config_huggingface(self):
         """Test explicit HuggingFace configuration with mock."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         embeddings = Embeddings(
             provider="huggingface",
             model="sentence-transformers/all-MiniLM-L6-v2",
@@ -92,6 +98,7 @@ class TestEmbeddingsFactory:
     def test_explicit_config_cohere(self):
         """Test explicit Cohere configuration with mock."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         embeddings = Embeddings(
             provider="cohere",
             model="embed-english-v3.0",
@@ -104,6 +111,7 @@ class TestEmbeddingsFactory:
     def test_explicit_config_local(self):
         """Test explicit local configuration."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         embeddings = Embeddings(
             provider="local",
             model="all-MiniLM-L6-v2",
@@ -121,6 +129,7 @@ class TestBatchEmbedding:
     def test_batch_embedding(self):
         """Test batch embedding generation."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         embeddings = Embeddings(
             provider="local",
             model="test-model",
@@ -143,6 +152,7 @@ class TestBatchEmbedding:
     def test_single_embedding(self):
         """Test single text embedding."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         embeddings = Embeddings(
             provider="local",
             model="test-model",
@@ -157,7 +167,10 @@ class TestBatchEmbedding:
     def test_empty_batch(self):
         """Test empty batch handling."""
         from continuum_sdk.rag.embeddings import Embeddings
-        embeddings = Embeddings(provider="local", model="test", dimension=64, _use_rust=False)
+
+        embeddings = Embeddings(
+            provider="local", model="test", dimension=64, _use_rust=False
+        )
         vectors = embeddings.embed_batch([])
         assert len(vectors) == 0
 
@@ -168,6 +181,7 @@ class TestGracefulDegradation:
     def test_python_fallback_when_rust_disabled(self):
         """Test that Python implementation is used when Rust is disabled."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         embeddings = Embeddings(
             provider="local",
             model="test-model",
@@ -180,6 +194,7 @@ class TestGracefulDegradation:
     def test_mock_fallback_on_api_failure(self):
         """Test that mock fallback is used when API fails."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         # Without API key, local provider should still work
         embeddings = Embeddings(
             provider="local",
@@ -194,7 +209,10 @@ class TestGracefulDegradation:
     def test_no_api_key_graceful_handling(self):
         """Test handling when no API key is provided."""
         from continuum_sdk.rag.embeddings import Embeddings
-        embeddings = Embeddings(provider="local", model="test-model", dimension=256, _use_rust=False)
+
+        embeddings = Embeddings(
+            provider="local", model="test-model", dimension=256, _use_rust=False
+        )
         vector = embeddings.embed("test")
         assert len(vector) == 256
 
@@ -205,7 +223,10 @@ class TestEmbeddingQuality:
     def test_mock_embedding_consistency(self):
         """Test that mock embeddings are deterministic."""
         from continuum_sdk.rag.embeddings import Embeddings
-        embeddings = Embeddings(provider="local", model="test", dimension=64, _use_rust=False)
+
+        embeddings = Embeddings(
+            provider="local", model="test", dimension=64, _use_rust=False
+        )
 
         vec1 = embeddings.embed("test")
         vec2 = embeddings.embed("test")
@@ -216,8 +237,11 @@ class TestEmbeddingQuality:
     def test_embedding_dimension_correctness(self):
         """Test that embedding dimensions are correct."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         for dim in [64, 128, 256, 384, 512, 768, 1024, 1536]:
-            embeddings = Embeddings(provider="local", model="test", dimension=dim, _use_rust=False)
+            embeddings = Embeddings(
+                provider="local", model="test", dimension=dim, _use_rust=False
+            )
             vector = embeddings.embed("test")
             assert len(vector) == dim, f"Expected {dim}, got {len(vector)}"
 
@@ -228,6 +252,7 @@ class TestErrorHandling:
     def test_unsupported_provider_with_python_fallback(self):
         """Test handling of unsupported provider."""
         from continuum_sdk.rag.embeddings import Embeddings
+
         # With _use_rust=False, unsupported provider should raise error
         with pytest.raises(ValueError, match="Unsupported provider"):
             embeddings = Embeddings(

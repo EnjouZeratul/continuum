@@ -784,7 +784,7 @@ class TestCustomClient:
         client = CustomClient(
             api_key="test-key",
             base_url="https://custom.api.com/v1",
-            default_model="default-model"
+            default_model="default-model",
         )
 
         mock_response = Mock()
@@ -1036,7 +1036,9 @@ class TestApiKeyErrorMessages:
 
     def test_403_permission_denied_message(self):
         """测试 403 权限拒绝错误消息"""
-        error = classify_http_error(403, "permission denied for this endpoint", "gemini")
+        error = classify_http_error(
+            403, "permission denied for this endpoint", "gemini"
+        )
         assert isinstance(error, AuthenticationError)
         assert "GEMINI API key lacks required permissions" in str(error)
 
@@ -1260,7 +1262,9 @@ class TestAnthropicStreaming:
         mock_response.aiter_lines = Mock(return_value=self._async_iter(stream_lines))
 
         tools = [
-            ToolDefinition(name="test", description="Test tool", parameters={"type": "object"})
+            ToolDefinition(
+                name="test", description="Test tool", parameters={"type": "object"}
+            )
         ]
 
         with patch.object(
@@ -1268,9 +1272,7 @@ class TestAnthropicStreaming:
         ) as mock_stream:
             chunks = []
             async for chunk in client.chat_stream(
-                [Message.user("Hi")],
-                system_prompt="Be helpful",
-                tools=tools
+                [Message.user("Hi")], system_prompt="Be helpful", tools=tools
             ):
                 chunks.append(chunk)
 
@@ -1288,7 +1290,7 @@ class TestAnthropicStreaming:
 
         stream_lines = [
             'data: {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Valid"}}',
-            'data: invalid json here',
+            "data: invalid json here",
             'data: {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "More"}}',
             'data: {"type": "message_stop"}',
         ]
@@ -1314,8 +1316,8 @@ class TestAnthropicStreaming:
         client = AnthropicClient(api_key="test-key")
 
         stream_lines = [
-            '',  # Empty line
-            'some other text',
+            "",  # Empty line
+            "some other text",
             'data: {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Content"}}',
             'data: {"type": "message_stop"}',
         ]
@@ -1342,7 +1344,7 @@ class TestAnthropicStreaming:
 
         stream_lines = [
             'data: {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Done"}}',
-            'data: [DONE]',
+            "data: [DONE]",
         ]
 
         mock_response = Mock()
@@ -1365,8 +1367,7 @@ class TestAnthropicStreaming:
     async def test_stream_custom_base_url_with_v1(self):
         """测试流式请求自定义 base_url 带 /v1"""
         client = AnthropicClient(
-            api_key="test-key",
-            base_url="https://custom.anthropic.com/v1"
+            api_key="test-key", base_url="https://custom.anthropic.com/v1"
         )
 
         stream_lines = [
@@ -1392,8 +1393,7 @@ class TestAnthropicStreaming:
     async def test_stream_custom_base_url_without_v1(self):
         """测试流式请求自定义 base_url 不带 /v1"""
         client = AnthropicClient(
-            api_key="test-key",
-            base_url="https://custom.anthropic.com"
+            api_key="test-key", base_url="https://custom.anthropic.com"
         )
 
         stream_lines = [
@@ -1507,8 +1507,7 @@ class TestOpenAIStreaming:
             client._client, "stream", return_value=self._async_context(mock_response)
         ) as mock_stream:
             async for _ in client.chat_stream(
-                [Message.user("Hi")],
-                system_prompt="Be helpful"
+                [Message.user("Hi")], system_prompt="Be helpful"
             ):
                 pass
 
@@ -1533,16 +1532,15 @@ class TestOpenAIStreaming:
         mock_response.aiter_lines = Mock(return_value=self._async_iter(stream_lines))
 
         tools = [
-            ToolDefinition(name="test", description="Test tool", parameters={"type": "object"})
+            ToolDefinition(
+                name="test", description="Test tool", parameters={"type": "object"}
+            )
         ]
 
         with patch.object(
             client._client, "stream", return_value=self._async_context(mock_response)
         ) as mock_stream:
-            async for _ in client.chat_stream(
-                [Message.user("Hi")],
-                tools=tools
-            ):
+            async for _ in client.chat_stream([Message.user("Hi")], tools=tools):
                 pass
 
             call_args = mock_stream.call_args
@@ -1572,7 +1570,7 @@ class TestOpenAIStreaming:
 
         stream_lines = [
             'data: {"choices": [{"delta": {"content": "Valid"}}]}',
-            'data: invalid json',
+            "data: invalid json",
             'data: {"choices": [{"delta": {"content": "More"}}]}',
             "data: [DONE]",
         ]
@@ -1650,8 +1648,8 @@ class TestOpenAIStreaming:
         client = OpenAIClient(api_key="test-key")
 
         stream_lines = [
-            '',
-            'some random text',
+            "",
+            "some random text",
             'data: {"choices": [{"delta": {"content": "Content"}}]}',
             "data: [DONE]",
         ]
@@ -1741,8 +1739,7 @@ class TestGeminiStreaming:
             client._client, "stream", return_value=self._async_context(mock_response)
         ) as mock_stream:
             async for _ in client.chat_stream(
-                [Message.user("Hi")],
-                system_prompt="Be helpful"
+                [Message.user("Hi")], system_prompt="Be helpful"
             ):
                 pass
 
@@ -1852,7 +1849,9 @@ class TestGeminiStreaming:
             # Single chunk without },{ delimiter is not parsed
             # The buffer is accumulated but never processed without },{
             content_chunks = [c for c in chunks if c.content]
-            assert len(content_chunks) == 0  # Expected behavior: no delimiter = no parsing
+            assert (
+                len(content_chunks) == 0
+            )  # Expected behavior: no delimiter = no parsing
 
     @pytest.mark.asyncio
     async def test_stream_empty_parts(self):
@@ -1962,8 +1961,7 @@ class TestCustomStreaming:
             client._client, "stream", return_value=self._async_context(mock_response)
         ) as mock_stream:
             async for _ in client.chat_stream(
-                [Message.user("Hi")],
-                system_prompt="Be helpful"
+                [Message.user("Hi")], system_prompt="Be helpful"
             ):
                 pass
 
@@ -1994,7 +1992,7 @@ class TestCustomStreaming:
 
         stream_lines = [
             'data: {"choices": [{"delta": {"content": "Valid"}}]}',
-            'data: invalid json',
+            "data: invalid json",
             'data: {"choices": [{"delta": {"content": "More"}}]}',
             "data: [DONE]",
         ]
@@ -2044,8 +2042,8 @@ class TestCustomStreaming:
         client = CustomClient(api_key="test-key", base_url="https://custom.api.com/v1")
 
         stream_lines = [
-            '',
-            'some text',
+            "",
+            "some text",
             'data: {"choices": [{"delta": {"content": "Content"}}]}',
             "data: [DONE]",
         ]
@@ -2255,14 +2253,17 @@ class TestAnthropicStreamingMissing:
         async def gen():
             for item in items:
                 yield item
+
         return gen()
 
     def _async_context(self, response):
         class AsyncCtx:
             async def __aenter__(self):
                 return response
+
             async def __aexit__(self, *args):
                 pass
+
         return AsyncCtx()
 
 
@@ -2384,7 +2385,9 @@ class TestGeminiStreamingMissing:
         client = GeminiClient(api_key="test-key")
 
         # 第一个元素有效，第二个无效 JSON
-        chunk = '{"candidates":[{"content":{"parts":[{"text":"Hi"}]}}]},{invalid json},{'
+        chunk = (
+            '{"candidates":[{"content":{"parts":[{"text":"Hi"}]}}]},{invalid json},{'
+        )
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -2406,14 +2409,17 @@ class TestGeminiStreamingMissing:
         async def gen():
             for item in items:
                 yield item
+
         return gen()
 
     def _async_context(self, response):
         class AsyncCtx:
             async def __aenter__(self):
                 return response
+
             async def __aexit__(self, *args):
                 pass
+
         return AsyncCtx()
 
 
@@ -2477,7 +2483,7 @@ class TestCustomStreamingMissing:
 
         stream_lines = [
             'data: {"choices": [{"delta": {"content": "Hi"}}]}',
-            'data: invalid json',
+            "data: invalid json",
             'data: {"choices": [{"delta": {"content": "More"}}]}',
             "data: [DONE]",
         ]
@@ -2500,14 +2506,17 @@ class TestCustomStreamingMissing:
         async def gen():
             for item in items:
                 yield item
+
         return gen()
 
     def _async_context(self, response):
         class AsyncCtx:
             async def __aenter__(self):
                 return response
+
             async def __aexit__(self, *args):
                 pass
+
         return AsyncCtx()
 
 
@@ -2540,14 +2549,17 @@ class TestCustomStreamingEmptyIterator:
         async def gen():
             for item in items:
                 yield item
+
         return gen()
 
     def _async_context(self, response):
         class AsyncCtx:
             async def __aenter__(self):
                 return response
+
             async def __aexit__(self, *args):
                 pass
+
         return AsyncCtx()
 
 
@@ -2685,14 +2697,17 @@ class TestGeminiStreamingBracketBranch:
         async def gen():
             for item in items:
                 yield item
+
         return gen()
 
     def _async_context(self, response):
         class AsyncCtx:
             async def __aenter__(self):
                 return response
+
             async def __aexit__(self, *args):
                 pass
+
         return AsyncCtx()
 
 
@@ -2807,7 +2822,11 @@ class TestLlmTypesMissingCoverage:
         """Test ChatResponse.from_gemini with empty candidates."""
         data = {
             "candidates": [{}],  # Must have at least one element
-            "usageMetadata": {"promptTokenCount": 0, "candidatesTokenCount": 0, "totalTokenCount": 0},
+            "usageMetadata": {
+                "promptTokenCount": 0,
+                "candidatesTokenCount": 0,
+                "totalTokenCount": 0,
+            },
         }
         response = ChatResponse.from_gemini(data, "gemini-1.5-pro")
         assert response.content == ""
@@ -2817,7 +2836,11 @@ class TestLlmTypesMissingCoverage:
         """Test ChatResponse.from_gemini with empty parts."""
         data = {
             "candidates": [{"content": {"parts": []}, "finishReason": "STOP"}],
-            "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 0, "totalTokenCount": 5},
+            "usageMetadata": {
+                "promptTokenCount": 5,
+                "candidatesTokenCount": 0,
+                "totalTokenCount": 5,
+            },
         }
         response = ChatResponse.from_gemini(data, "gemini-1.5-pro")
         assert response.content == ""

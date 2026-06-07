@@ -131,7 +131,13 @@ class Change:
 
         # Check if sensitive file
         sensitive_patterns = [
-            ".env", ".git", ".ssh", "config", "secret", "key", "credential"
+            ".env",
+            ".git",
+            ".ssh",
+            "config",
+            "secret",
+            "key",
+            "credential",
         ]
         is_sensitive = any(p in self.path.lower() for p in sensitive_patterns)
 
@@ -316,7 +322,9 @@ class ChangePreviewer:
         lines.append("=== Change Preview ===")
         lines.append(f"Type: {change.change_type.value}")
         lines.append(f"Path: {change.path}")
-        lines.append(f"Risk: {change.risk_level.value if change.risk_level else 'unknown'}")
+        lines.append(
+            f"Risk: {change.risk_level.value if change.risk_level else 'unknown'}"
+        )
 
         if change.reason:
             lines.append(f"Reason: {change.reason}")
@@ -433,7 +441,10 @@ class ChangePreviewer:
                 self._record_result(result)
                 return True
 
-            if change.risk_level and change.risk_level not in self._require_confirmation:
+            if (
+                change.risk_level
+                and change.risk_level not in self._require_confirmation
+            ):
                 result = ConfirmationResult(
                     approved=True,
                     change=change,
@@ -490,9 +501,16 @@ class ChangePreviewer:
                     by_risk[level] = []
                 by_risk[level].append(c)
 
-            for level in [RiskLevel.CRITICAL, RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.LOW]:
+            for level in [
+                RiskLevel.CRITICAL,
+                RiskLevel.HIGH,
+                RiskLevel.MEDIUM,
+                RiskLevel.LOW,
+            ]:
                 if level in by_risk:
-                    print(f"\n{level.value.upper()} risk ({len(by_risk[level])} changes):")
+                    print(
+                        f"\n{level.value.upper()} risk ({len(by_risk[level])} changes):"
+                    )
                     for c in by_risk[level]:
                         print(f"  - {c.change_type.value}: {c.path}")
 
@@ -521,7 +539,9 @@ class ChangePreviewer:
         print("\n" + self.preview(change))
 
         # Prompt for confirmation
-        print(f"\nRisk level: {change.risk_level.value if change.risk_level else 'unknown'}")
+        print(
+            f"\nRisk level: {change.risk_level.value if change.risk_level else 'unknown'}"
+        )
         print("Approve this change? [y/N/a(vendor)/q(uit)]")
 
         try:

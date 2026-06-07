@@ -143,23 +143,23 @@ class RateLimiter:
 # Patterns for sensitive data detection and replacement
 SENSITIVE_PATTERNS: list[tuple[str, str]] = [
     # API Keys
-    (r'(api[_-]?key["\s:=]+)["\']?[\w-]{20,}["\']?', r'\1[REDACTED]'),
-    (r'(apikey["\s:=]+)["\']?[\w-]{20,}["\']?', r'\1[REDACTED]'),
+    (r'(api[_-]?key["\s:=]+)["\']?[\w-]{20,}["\']?', r"\1[REDACTED]"),
+    (r'(apikey["\s:=]+)["\']?[\w-]{20,}["\']?', r"\1[REDACTED]"),
     # Tokens
-    (r'(token["\s:=]+)["\']?[\w-]{20,}["\']?', r'\1[REDACTED]'),
-    (r'(access_token["\s:=]+)["\']?[\w-]{20,}["\']?', r'\1[REDACTED]'),
-    (r'(refresh_token["\s:=]+)["\']?[\w-]{20,}["\']?', r'\1[REDACTED]'),
+    (r'(token["\s:=]+)["\']?[\w-]{20,}["\']?', r"\1[REDACTED]"),
+    (r'(access_token["\s:=]+)["\']?[\w-]{20,}["\']?', r"\1[REDACTED]"),
+    (r'(refresh_token["\s:=]+)["\']?[\w-]{20,}["\']?', r"\1[REDACTED]"),
     # Passwords
-    (r'(password["\s:=]+)["\']?[\w-]+["\']?', r'\1[REDACTED]'),
-    (r'(passwd["\s:=]+)["\']?[\w-]+["\']?', r'\1[REDACTED]'),
+    (r'(password["\s:=]+)["\']?[\w-]+["\']?', r"\1[REDACTED]"),
+    (r'(passwd["\s:=]+)["\']?[\w-]+["\']?', r"\1[REDACTED]"),
     # AWS
-    (r'AKIA[A-Z0-9]{16}', r'AKIA[REDACTED]'),
-    (r'(aws_secret_access_key["\s:=]+)["\']?[\w/+=]{40}["\']?', r'\1[REDACTED]'),
+    (r"AKIA[A-Z0-9]{16}", r"AKIA[REDACTED]"),
+    (r'(aws_secret_access_key["\s:=]+)["\']?[\w/+=]{40}["\']?', r"\1[REDACTED]"),
     # Private Keys
-    (r'-----BEGIN[^-]*PRIVATE KEY-----', r'-----BEGIN [REDACTED] PRIVATE KEY-----'),
-    (r'-----END[^-]*PRIVATE KEY-----', r'-----END [REDACTED] PRIVATE KEY-----'),
+    (r"-----BEGIN[^-]*PRIVATE KEY-----", r"-----BEGIN [REDACTED] PRIVATE KEY-----"),
+    (r"-----END[^-]*PRIVATE KEY-----", r"-----END [REDACTED] PRIVATE KEY-----"),
     # Bearer tokens
-    (r'Bearer[\s]+[\w-]+\.[\w-]+\.[\w-]+', r'Bearer [REDACTED]'),
+    (r"Bearer[\s]+[\w-]+\.[\w-]+\.[\w-]+", r"Bearer [REDACTED]"),
 ]
 
 _SENSITIVE_REGEX: list[tuple[re.Pattern, str]] = [
@@ -206,9 +206,11 @@ def sanitize_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
             result[safe_key] = sanitize_metadata(value)
         elif isinstance(value, list):
             result[safe_key] = [
-                sanitize_metadata(item) if isinstance(item, dict)
-                else sanitize_string(item) if isinstance(item, str)
-                else item
+                (
+                    sanitize_metadata(item)
+                    if isinstance(item, dict)
+                    else sanitize_string(item) if isinstance(item, str) else item
+                )
                 for item in value
             ]
         else:
@@ -381,8 +383,7 @@ class AuditLogger:
 
         # Rate limiter for DoS protection
         self._rate_limiter = RateLimiter(
-            max_records=rate_limit,
-            window_seconds=rate_window
+            max_records=rate_limit, window_seconds=rate_window
         )
 
         # Ensure log directory exists
@@ -456,9 +457,7 @@ class AuditLogger:
                 if elapsed >= self._flush_interval:
                     self._append_to_file(record)
 
-        logger.debug(
-            f"Audit: {operation.value} {safe_path} -> {result.value}"
-        )
+        logger.debug(f"Audit: {operation.value} {safe_path} -> {result.value}")
 
         return record
 
@@ -535,9 +534,7 @@ class AuditLogger:
         """
         return self.query(path=path, limit=self._max_records)
 
-    def get_by_time_range(
-        self, start: datetime, end: datetime
-    ) -> list[AuditRecord]:
+    def get_by_time_range(self, start: datetime, end: datetime) -> list[AuditRecord]:
         """Get records within time range
 
         Args:
@@ -596,8 +593,12 @@ class AuditLogger:
                 "operations": operations,
                 "results": results,
                 "unique_paths": len(paths),
-                "first_record": self._records[0].timestamp.isoformat() if self._records else None,
-                "last_record": self._records[-1].timestamp.isoformat() if self._records else None,
+                "first_record": (
+                    self._records[0].timestamp.isoformat() if self._records else None
+                ),
+                "last_record": (
+                    self._records[-1].timestamp.isoformat() if self._records else None
+                ),
             }
 
     def export_json(self, path: str | Path) -> int:
@@ -631,22 +632,32 @@ class AuditLogger:
 
         with open(path, "w", encoding="utf-8", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "id", "timestamp", "operation", "path", "result",
-                "user", "process_id", "details"
-            ])
+            writer.writerow(
+                [
+                    "id",
+                    "timestamp",
+                    "operation",
+                    "path",
+                    "result",
+                    "user",
+                    "process_id",
+                    "details",
+                ]
+            )
 
             for r in records:
-                writer.writerow([
-                    r.id,
-                    r.timestamp.isoformat(),
-                    r.operation.value,
-                    r.path,
-                    r.result.value,
-                    r.user or "",
-                    r.process_id or "",
-                    r.details or "",
-                ])
+                writer.writerow(
+                    [
+                        r.id,
+                        r.timestamp.isoformat(),
+                        r.operation.value,
+                        r.path,
+                        r.result.value,
+                        r.user or "",
+                        r.process_id or "",
+                        r.details or "",
+                    ]
+                )
 
         return len(records)
 
@@ -702,7 +713,9 @@ class AuditLogger:
                         except (json.JSONDecodeError, KeyError):
                             continue
 
-            logger.info(f"Loaded {len(self._records)} audit records from {self._log_file}")
+            logger.info(
+                f"Loaded {len(self._records)} audit records from {self._log_file}"
+            )
 
         except (OSError, FileNotFoundError) as e:
             logger.warning(f"Failed to load audit records: {e}")

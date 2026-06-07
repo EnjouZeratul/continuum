@@ -21,9 +21,7 @@ logger = logging.getLogger(__name__)
 class PythonAgent:
     """Pure Python Agent implementation."""
 
-    def __init__(
-        self, name: str = "default", model: str | None = None, **kwargs: Any
-    ):
+    def __init__(self, name: str = "default", model: str | None = None, **kwargs: Any):
         self._name = name
         self._model = model or get_default_model("anthropic")
         self._tools: dict[str, Callable] = {}
@@ -101,11 +99,13 @@ class PythonSession:
 
     def add_message(self, role: str, content: str) -> None:
         """Add a message."""
-        self._messages.append({
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self._messages.append(
+            {
+                "role": role,
+                "content": content,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
     def get_messages(self) -> list[dict[str, str]]:
         """Get all messages."""
@@ -196,6 +196,7 @@ class PythonBuiltinTools:
     def execute(self, name: str, args: dict[str, Any]) -> str:
         """Execute tool by name."""
         return self._tools.execute(name, args)
+
 
 import json
 import re
@@ -397,17 +398,24 @@ class PythonQueryEngine:
             List of definition locations with 'uri', 'line', 'column'
         """
         from .tools.lsp import go_to_definition
+
         try:
             result = go_to_definition(
-                file_path, line, column,
-                search_dir=str(self._root_paths.get(language.lower(), Path(file_path).parent))
+                file_path,
+                line,
+                column,
+                search_dir=str(
+                    self._root_paths.get(language.lower(), Path(file_path).parent)
+                ),
             )
             if result.metadata and "file" in result.metadata:
-                return [{
-                    "uri": result.metadata["file"],
-                    "line": result.metadata.get("line", 1),
-                    "column": 1,
-                }]
+                return [
+                    {
+                        "uri": result.metadata["file"],
+                        "line": result.metadata.get("line", 1),
+                        "column": 1,
+                    }
+                ]
             return []
         except (OSError, json.JSONDecodeError):
             return []
@@ -433,11 +441,16 @@ class PythonQueryEngine:
             List of reference locations
         """
         from .tools.lsp import find_references
+
         try:
             result = find_references(
-                file_path, line, column,
-                search_dir=str(self._root_paths.get(language.lower(), Path(file_path).parent)),
-                include_declaration=include_declaration
+                file_path,
+                line,
+                column,
+                search_dir=str(
+                    self._root_paths.get(language.lower(), Path(file_path).parent)
+                ),
+                include_declaration=include_declaration,
             )
             if result.content:
                 refs = []
@@ -445,11 +458,13 @@ class PythonQueryEngine:
                     if ":" in line_content:
                         parts = line_content.split(":")
                         if len(parts) >= 3:
-                            refs.append({
-                                "uri": parts[0],
-                                "line": int(parts[1]),
-                                "column": int(parts[2].split()[0]),
-                            })
+                            refs.append(
+                                {
+                                    "uri": parts[0],
+                                    "line": int(parts[1]),
+                                    "column": int(parts[2].split()[0]),
+                                }
+                            )
                 return refs
             return []
         except (OSError, json.JSONDecodeError):
@@ -474,6 +489,7 @@ class PythonQueryEngine:
             Hover text or None
         """
         from .tools.lsp import get_hover
+
         try:
             result = get_hover(file_path, line, column)
             return result.content if result.content else None
@@ -521,6 +537,7 @@ class PythonQueryEngine:
             symbol_info["hover"] = hover_text
             # Extract symbol name from hover
             import re
+
             match = re.search(r"\*\*(\w+)\*\*", hover_text)
             if match:
                 symbol_info["symbol"] = match.group(1)
@@ -579,10 +596,24 @@ class PythonQueryEngine:
 
             # Definition patterns by language
             patterns = {
-                ".py": [(r"def\s+(\w+)\s*\(", "function"), (r"class\s+(\w+)\s*[:\(]", "class")],
-                ".rs": [(r"fn\s+(\w+)\s*[<(]", "function"), (r"struct\s+(\w+)\s*[{{<]", "struct"), (r"enum\s+(\w+)\s*[{{<]", "enum")],
-                ".ts": [(r"function\s+(\w+)\s*[<(]", "function"), (r"class\s+(\w+)\s*[{{<]", "class"), (r"interface\s+(\w+)\s*[{{<]", "interface")],
-                ".go": [(r"func\s+(\w+)\s*\(", "function"), (r"type\s+(\w+)\s+struct", "struct")],
+                ".py": [
+                    (r"def\s+(\w+)\s*\(", "function"),
+                    (r"class\s+(\w+)\s*[:\(]", "class"),
+                ],
+                ".rs": [
+                    (r"fn\s+(\w+)\s*[<(]", "function"),
+                    (r"struct\s+(\w+)\s*[{{<]", "struct"),
+                    (r"enum\s+(\w+)\s*[{{<]", "enum"),
+                ],
+                ".ts": [
+                    (r"function\s+(\w+)\s*[<(]", "function"),
+                    (r"class\s+(\w+)\s*[{{<]", "class"),
+                    (r"interface\s+(\w+)\s*[{{<]", "interface"),
+                ],
+                ".go": [
+                    (r"func\s+(\w+)\s*\(", "function"),
+                    (r"type\s+(\w+)\s+struct", "struct"),
+                ],
             }
 
             lang_patterns = patterns.get(file_ext, [])
@@ -590,12 +621,14 @@ class PythonQueryEngine:
             for i, line_content in enumerate(lines, start=1):
                 for pattern, kind in lang_patterns:
                     for match in re.finditer(pattern, line_content):
-                        symbols.append({
-                            "name": match.group(1),
-                            "kind": kind,
-                            "line": i,
-                            "column": match.start(1) + 1,
-                        })
+                        symbols.append(
+                            {
+                                "name": match.group(1),
+                                "kind": kind,
+                                "line": i,
+                                "column": match.start(1) + 1,
+                            }
+                        )
 
             return symbols
         except (OSError, json.JSONDecodeError):
@@ -651,18 +684,21 @@ class PythonQueryEngine:
                         col = ref["column"] - 1
                         # Extract identifier
                         import re
+
                         match = re.search(r"\b(\w+)\b", line_content[col:])
                         if match:
                             old_name = match.group(1)
                             break
 
                 if old_name:
-                    changes.append({
-                        "file": uri,
-                        "old_name": old_name,
-                        "new_name": new_name,
-                        "locations": positions,
-                    })
+                    changes.append(
+                        {
+                            "file": uri,
+                            "old_name": old_name,
+                            "new_name": new_name,
+                            "locations": positions,
+                        }
+                    )
             except (OSError, PermissionError, UnicodeDecodeError):
                 continue
 
@@ -910,7 +946,9 @@ class PythonMemorySystem:
             True if successful
         """
         if path is None:
-            path = str(Path.home() / ".continuum" / "memory" / f"{self._session_id}.json")
+            path = str(
+                Path.home() / ".continuum" / "memory" / f"{self._session_id}.json"
+            )
 
         storage_path = Path(path)
         storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -959,7 +997,9 @@ class PythonMemorySystem:
         }
         key = tier.lower().replace("-", "_")
         if key not in tier_map:
-            raise ValueError(f"Invalid tier: {tier}. Must be working, session, project, or longterm")
+            raise ValueError(
+                f"Invalid tier: {tier}. Must be working, session, project, or longterm"
+            )
         return tier_map[key]
 
 
@@ -977,7 +1017,9 @@ class PythonMultimodalHandler:
         """Initialize multimodal handler."""
         self._content_cache: dict[str, dict[str, Any]] = {}
 
-    def encode_image(self, image_path: str, media_type: str | None = None) -> dict[str, Any]:
+    def encode_image(
+        self, image_path: str, media_type: str | None = None
+    ) -> dict[str, Any]:
         """Encode image for LLM consumption.
 
         Args:
@@ -1031,7 +1073,9 @@ class PythonMultimodalHandler:
             },
         }
 
-    def encode_document(self, doc_path: str, media_type: str | None = None) -> dict[str, Any]:
+    def encode_document(
+        self, doc_path: str, media_type: str | None = None
+    ) -> dict[str, Any]:
         """Encode document for LLM consumption.
 
         Args:
@@ -1189,20 +1233,20 @@ class PythonMultimodalHandler:
 
         # IPv4 private ranges
         private_networks_v4 = [
-            ipaddress.ip_network('10.0.0.0/8'),
-            ipaddress.ip_network('172.16.0.0/12'),
-            ipaddress.ip_network('192.168.0.0/16'),
-            ipaddress.ip_network('127.0.0.0/8'),
-            ipaddress.ip_network('0.0.0.0/8'),
-            ipaddress.ip_network('169.254.0.0/16'),
+            ipaddress.ip_network("10.0.0.0/8"),
+            ipaddress.ip_network("172.16.0.0/12"),
+            ipaddress.ip_network("192.168.0.0/16"),
+            ipaddress.ip_network("127.0.0.0/8"),
+            ipaddress.ip_network("0.0.0.0/8"),
+            ipaddress.ip_network("169.254.0.0/16"),
         ]
 
         # IPv6 private ranges
         private_networks_v6 = [
-            ipaddress.ip_network('::1/128'),           # Loopback
-            ipaddress.ip_network('fe80::/10'),         # Link-local
-            ipaddress.ip_network('fc00::/7'),          # ULA
-            ipaddress.ip_network('::ffff:0:0/96'),     # IPv4-mapped
+            ipaddress.ip_network("::1/128"),  # Loopback
+            ipaddress.ip_network("fe80::/10"),  # Link-local
+            ipaddress.ip_network("fc00::/7"),  # ULA
+            ipaddress.ip_network("::ffff:0:0/96"),  # IPv4-mapped
         ]
 
         if addr.version == 4:
@@ -1229,32 +1273,40 @@ class PythonMultimodalHandler:
         parsed = urlparse(url)
 
         # Only allow http/https schemes
-        if parsed.scheme not in ('http', 'https'):
-            raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http and https are allowed.")
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(
+                f"Invalid URL scheme: {parsed.scheme}. Only http and https are allowed."
+            )
 
         hostname = parsed.hostname
         if not hostname:
             raise ValueError("Invalid URL: missing hostname")
 
         # Block localhost and similar hostnames
-        blocked_hostnames = {'localhost', 'localhost.localdomain', 'local'}
+        blocked_hostnames = {"localhost", "localhost.localdomain", "local"}
         if hostname.lower() in blocked_hostnames:
             raise ValueError(f"Blocked hostname: {hostname}")
 
         # DNS rebinding protection: resolve hostname and check resolved IP
         try:
             # Get all IP addresses for the hostname
-            addr_info = socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == 'https' else 80))
+            addr_info = socket.getaddrinfo(
+                hostname, parsed.port or (443 if parsed.scheme == "https" else 80)
+            )
             for _family, _socktype, _proto, _canonname, sockaddr in addr_info:
                 ip = sockaddr[0]
                 if self._is_private_ip(ip):
-                    raise ValueError(f"URL resolves to private/internal IP: {hostname} -> {ip}")
+                    raise ValueError(
+                        f"URL resolves to private/internal IP: {hostname} -> {ip}"
+                    )
         except socket.gaierror as e:
             raise ValueError(f"Failed to resolve hostname {hostname}: {e}")
 
         return hostname
 
-    def _follow_redirects_safely(self, url: str, timeout: int, max_redirects: int = 5) -> tuple[bytes, str]:
+    def _follow_redirects_safely(
+        self, url: str, timeout: int, max_redirects: int = 5
+    ) -> tuple[bytes, str]:
         """Follow redirects safely, validating each redirect target.
 
         Args:
@@ -1289,7 +1341,9 @@ class PythonMultimodalHandler:
                     if response.geturl() != current_url:
                         redirect_count += 1
                         if redirect_count > max_redirects:
-                            raise ValueError(f"Too many redirects (max {max_redirects})")
+                            raise ValueError(
+                                f"Too many redirects (max {max_redirects})"
+                            )
                         current_url = response.geturl()
                         continue
 
@@ -1300,17 +1354,19 @@ class PythonMultimodalHandler:
                     return (data, media_type)
 
             except urllib.error.HTTPError as e:
-                if e.code in (301, 302, 303, 307, 308) and 'Location' in e.headers:
+                if e.code in (301, 302, 303, 307, 308) and "Location" in e.headers:
                     redirect_count += 1
                     if redirect_count > max_redirects:
                         raise ValueError(f"Too many redirects (max {max_redirects})")
-                    current_url = e.headers['Location']
+                    current_url = e.headers["Location"]
                     continue
                 raise ValueError(f"HTTP error {e.code}: {e.reason}")
             except urllib.error.URLError as e:
                 raise ValueError(f"Failed to fetch URL: {e}")
 
-        raise ValueError(f"Too many redirects (max {max_redirects})")  # pragma: no cover - hard to trigger in tests
+        raise ValueError(
+            f"Too many redirects (max {max_redirects})"
+        )  # pragma: no cover - hard to trigger in tests
 
     def encode_image_from_url(self, url: str, timeout: int = 30) -> dict[str, Any]:
         """Fetch and encode image from URL with SSRF protection.
@@ -1427,10 +1483,12 @@ class PythonMultimodalHandler:
             if isinstance(img, str):
                 if img.startswith(("http://", "https://")):
                     # URL - use direct reference for OpenAI
-                    content.append({
-                        "type": "image_url",
-                        "image_url": {"url": img, "detail": detail},
-                    })
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": img, "detail": detail},
+                        }
+                    )
                 else:
                     # File path - encode as base64
                     encoded = self.encode_image(img)
@@ -1523,6 +1581,7 @@ class ImageInput:
             elif source.startswith("data:"):
                 # Data URL
                 import re
+
                 match = re.match(r"data:([^;]+);base64,(.+)", source)
                 if match:
                     self._media_type = match.group(1)
@@ -1550,9 +1609,7 @@ class ImageInput:
         return cls(url=url)
 
     @classmethod
-    def from_base64(
-        cls, data: str, media_type: str = "image/jpeg"
-    ) -> ImageInput:
+    def from_base64(cls, data: str, media_type: str = "image/jpeg") -> ImageInput:
         """Create from base64 data."""
         return cls(base64_data=data, media_type=media_type)
 
@@ -1595,13 +1652,16 @@ class ImageInput:
                     ".webp": "image/webp",
                 }
                 self._media_type = type_map.get(ext, "image/jpeg")
-            self._base64_data = base64.b64encode(self._bytes_data).decode("utf-8")  # pragma: no cover - branch when media_type is already set
+            self._base64_data = base64.b64encode(self._bytes_data).decode(
+                "utf-8"
+            )  # pragma: no cover - branch when media_type is already set
             self._lazy_loaded = True
             return self._base64_data
 
         if self._url is not None:
             # Fetch from URL
             import urllib.request
+
             request = urllib.request.Request(
                 self._url,
                 headers={"User-Agent": "Mozilla/5.0 (compatible; ContinuumSDK/1.0)"},
@@ -1611,7 +1671,9 @@ class ImageInput:
                 if self._media_type is None:
                     content_type = response.headers.get("Content-Type", "image/jpeg")
                     self._media_type = content_type.split(";")[0].strip()
-            self._base64_data = base64.b64encode(self._bytes_data).decode("utf-8")  # pragma: no cover - branch when media_type is already set
+            self._base64_data = base64.b64encode(self._bytes_data).decode(
+                "utf-8"
+            )  # pragma: no cover - branch when media_type is already set
             self._lazy_loaded = True
             return self._base64_data
 

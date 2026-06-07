@@ -88,7 +88,9 @@ def create_data_pipeline():
     dag.add(Node("merge", func=merge_results, description="Merge results"))
     dag.add(Node("save", func=save_results, description="Save results"))
     dag.add(Node("notify_ok", func=notify_success, description="Success notification"))
-    dag.add(Node("notify_fail", func=notify_failure, description="Failure notification"))
+    dag.add(
+        Node("notify_fail", func=notify_failure, description="Failure notification")
+    )
 
     # Set dependencies
     dag.depends_on("validate", "fetch")

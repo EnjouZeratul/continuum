@@ -118,6 +118,7 @@ def _get_env(name: str, default: str | None = None) -> str | None:
         )
     return os.environ.get(name, default)
 
+
 # TOML support (Python 3.11+ has built-in, otherwise use tomllib)
 try:
     import tomllib
@@ -450,7 +451,9 @@ class Config:
                     try:
                         config_data[key] = converter(value)
                     except (ValueError, TypeError) as e:
-                        logger.debug(f"Config conversion failed for {key}: {value} - {e}")
+                        logger.debug(
+                            f"Config conversion failed for {key}: {value} - {e}"
+                        )
                 else:
                     config_data[config_key] = value
 

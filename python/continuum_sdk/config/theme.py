@@ -531,4 +531,6 @@ class ThemeManager:
         }
 
     def __repr__(self) -> str:
-        return f"ThemeManager(theme={self._current_theme.name}, path={self._config_path})"
+        return (
+            f"ThemeManager(theme={self._current_theme.name}, path={self._config_path})"
+        )

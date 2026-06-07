@@ -139,7 +139,9 @@ class InsufficientQuotaError(LlmError):
     pass
 
 
-def _build_api_key_error_message(status_code: int, provider: str, response_body: str) -> str:
+def _build_api_key_error_message(
+    status_code: int, provider: str, response_body: str
+) -> str:
     """
     Build detailed, user-friendly API key error message.
 
@@ -159,7 +161,9 @@ def _build_api_key_error_message(status_code: int, provider: str, response_body:
     is_expired_key = "expired" in body_lower
     is_missing_key = "missing" in body_lower or "required" in body_lower
     is_permission_denied = "permission" in body_lower or "forbidden" in body_lower
-    is_billing = "billing" in body_lower or "quota" in body_lower or "payment" in body_lower
+    is_billing = (
+        "billing" in body_lower or "quota" in body_lower or "payment" in body_lower
+    )
 
     if status_code == 401:
         if is_invalid_key:

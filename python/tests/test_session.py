@@ -147,6 +147,7 @@ class TestSessionPersistence:
         """创建临时目录"""
         import shutil
         import tempfile
+
         dir_path = tempfile.mkdtemp()
         yield dir_path
         shutil.rmtree(dir_path)
@@ -308,6 +309,7 @@ class TestSessionRecover:
         """Create temporary directory."""
         import shutil
         import tempfile
+
         dir_path = tempfile.mkdtemp()
         yield dir_path
         shutil.rmtree(dir_path)
@@ -508,11 +510,7 @@ class TestSessionMessageHandling:
         session = Session()
 
         custom_metadata = {"source": "api", "version": "1.0"}
-        msg = session.add_message(
-            MessageRole.USER,
-            "Hello",
-            metadata=custom_metadata
-        )
+        msg = session.add_message(MessageRole.USER, "Hello", metadata=custom_metadata)
 
         assert msg.metadata == custom_metadata
         assert msg.metadata["source"] == "api"
@@ -523,9 +521,7 @@ class TestSessionMessageHandling:
 
         custom_time = datetime.now() - timedelta(hours=1)
         msg = Message(
-            role=MessageRole.USER,
-            content="Past message",
-            timestamp=custom_time
+            role=MessageRole.USER, content="Past message", timestamp=custom_time
         )
 
         assert msg.timestamp == custom_time
@@ -585,11 +581,7 @@ class TestSessionUtilities:
         """Test list_saved_sessions when directory doesn't exist."""
         # Use monkeypatch to override get_default_session_dir
         nonexistent_dir = tmp_path / "nonexistent"
-        monkeypatch.setattr(
-            Session,
-            "get_default_session_dir",
-            lambda: nonexistent_dir
-        )
+        monkeypatch.setattr(Session, "get_default_session_dir", lambda: nonexistent_dir)
 
         sessions = Session.list_saved_sessions()
         assert sessions == []
@@ -744,11 +736,16 @@ class TestRustBindings:
 
             def export(self):
                 import json
-                return json.dumps({
-                    "id": self._id,
-                    "created_at": self._created_at,
-                    "messages": [{"role": m[0], "content": m[1]} for m in self._messages]
-                })
+
+                return json.dumps(
+                    {
+                        "id": self._id,
+                        "created_at": self._created_at,
+                        "messages": [
+                            {"role": m[0], "content": m[1]} for m in self._messages
+                        ],
+                    }
+                )
 
         # Create mock sh_core module
         mock_sh_core = type(sys)("sh_core")
@@ -791,6 +788,7 @@ class TestRustBindings:
             @property
             def created_at(self):
                 from datetime import datetime
+
                 return datetime.now().isoformat()
 
             def message_count(self):
@@ -841,6 +839,7 @@ class TestRustBindings:
             @property
             def created_at(self):
                 from datetime import datetime
+
                 return datetime.now().isoformat()
 
             def message_count(self):
@@ -888,6 +887,7 @@ class TestRustBindings:
             @property
             def created_at(self):
                 from datetime import datetime
+
                 return datetime.now().isoformat()
 
             def message_count(self):
@@ -934,6 +934,7 @@ class TestRustBindings:
             @property
             def created_at(self):
                 from datetime import datetime
+
                 return datetime.now().isoformat()
 
             def message_count(self):
@@ -977,6 +978,7 @@ class TestRustBindings:
             @property
             def created_at(self):
                 from datetime import datetime
+
                 return datetime.now().isoformat()
 
             def message_count(self):
@@ -984,6 +986,7 @@ class TestRustBindings:
 
             def export(self):
                 import json
+
                 return json.dumps({"id": self._id, "exported_via": "rust"})
 
         mock_sh_core = type(sys)("sh_core")
@@ -1022,6 +1025,7 @@ class TestRustBindingsImportCheck:
 
         # Force fresh import
         import importlib
+
         session_module = importlib.import_module("continuum_sdk.agent.session")
 
         # This should be False when no real sh_core is available

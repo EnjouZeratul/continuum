@@ -217,7 +217,10 @@ class TestResolveSecurity:
             assert ctx1.enabled is False
 
             # Should have logged a warning
-            assert any("security disabled for tool 'tool_a'" in r.message for r in caplog.records)
+            assert any(
+                "security disabled for tool 'tool_a'" in r.message
+                for r in caplog.records
+            )
 
             caplog.clear()
 
@@ -328,7 +331,9 @@ class TestEnforcePath:
 
         assert result == test_file.resolve()
 
-    def test_enforce_path_absolute_path_inside_project(self, security_context, temp_dir):
+    def test_enforce_path_absolute_path_inside_project(
+        self, security_context, temp_dir
+    ):
         """Test enforce_path with absolute path inside project."""
         test_file = Path(temp_dir, "test_file.txt")
 
@@ -446,7 +451,9 @@ class TestEnforcePath:
         assert len(records) >= 1
         assert "permission check failed" in records[0].details
 
-    def test_enforce_path_permission_create_nonexistent_file(self, security_context, temp_dir):
+    def test_enforce_path_permission_create_nonexistent_file(
+        self, security_context, temp_dir
+    ):
         """Test enforce_path with CREATE permission for nonexistent file."""
         # CREATE permission for nonexistent file should be allowed
         # (parent directory permission check)
@@ -463,7 +470,9 @@ class TestEnforcePath:
         expected = (Path(temp_dir) / "new_file.txt").resolve()
         assert result == expected
 
-    def test_enforce_path_permission_create_existing_file(self, security_context, temp_dir):
+    def test_enforce_path_permission_create_existing_file(
+        self, security_context, temp_dir
+    ):
         """Test enforce_path with CREATE permission for existing file."""
         # Create a file
         test_file = Path(temp_dir, "existing.txt")

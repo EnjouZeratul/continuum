@@ -46,7 +46,8 @@ MOCK_RESPONSES = {
         usage=TokenUsage(input_tokens=20, output_tokens=25),
     ),
     "long_response": ChatResponse(
-        content="This is a longer response that demonstrates the model's ability to generate detailed content. " * 5,
+        content="This is a longer response that demonstrates the model's ability to generate detailed content. "
+        * 5,
         model="claude-sonnet-4-6",
         usage=TokenUsage(input_tokens=10, output_tokens=100),
     ),
@@ -117,6 +118,7 @@ class TestRealLlmCalls:
         if USE_REAL_API:
             try:
                 from test_config import get_api_key, get_base_url, get_model, load_env
+
                 load_env()
                 return LlmClient.for_provider(
                     provider="anthropic",
@@ -277,7 +279,10 @@ class TestRealAgentPlanning:
             max_tokens=100,
         )
         assert response is not None
-        assert "feature" in response.content.lower() or "implement" in response.content.lower()
+        assert (
+            "feature" in response.content.lower()
+            or "implement" in response.content.lower()
+        )
         print(f"\n[Response]: {response.content}")
 
     @pytest.mark.asyncio
@@ -290,7 +295,10 @@ class TestRealAgentPlanning:
             max_tokens=100,
         )
         assert response is not None
-        assert "refactor" in response.content.lower() or "pattern" in response.content.lower()
+        assert (
+            "refactor" in response.content.lower()
+            or "pattern" in response.content.lower()
+        )
         print(f"\n[Response]: {response.content}")
 
     @pytest.mark.asyncio
@@ -303,7 +311,10 @@ class TestRealAgentPlanning:
             max_tokens=150,
         )
         assert response is not None
-        assert "success" in response.content.lower() or "completed" in response.content.lower()
+        assert (
+            "success" in response.content.lower()
+            or "completed" in response.content.lower()
+        )
         print(f"\n[Response]: {response.content}")
 
 
@@ -333,7 +344,11 @@ class TestRealToolExecution:
             max_tokens=50,
         )
         assert response is not None
-        assert "file" in response.content.lower() or "read" in response.content.lower() or "write" in response.content.lower()
+        assert (
+            "file" in response.content.lower()
+            or "read" in response.content.lower()
+            or "write" in response.content.lower()
+        )
         print(f"\n[Response]: {response.content}")
 
 

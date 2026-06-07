@@ -167,9 +167,7 @@ class TestConfig:
 
     def test_config_from_file_json(self):
         """Test loading from JSON file"""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"provider": "openai", "model": "gpt-4"}, f)
             path = f.name
 
@@ -186,9 +184,7 @@ class TestConfig:
 provider = "anthropic"
 model = "claude-sonnet-4-6"
 """
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".toml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             f.write(toml_content)
             path = f.name
 
@@ -260,9 +256,7 @@ class TestConfigLoader:
 
     def test_config_loader_with_path(self):
         """Test with path"""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"provider": "test"}, f)
             path = f.name
 
@@ -319,9 +313,7 @@ class TestUtilityFunctions:
 
     def test_load_config_with_path(self):
         """Test load_config with path"""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"provider": "test"}, f)
             path = f.name
 
@@ -381,9 +373,7 @@ class TestConfigEdgeCases:
         """Test environment variable expansion in config files"""
         monkeypatch.setenv("TEST_CONFIG_VAR", "expanded_value")
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump({"api_key": "${TEST_CONFIG_VAR}"}, f)
             path = f.name
 
@@ -487,7 +477,7 @@ class TestConfigUseProviderAdvanced:
             "custom",
             api_key="custom-key",
             base_url="https://custom.api",
-            model="custom-model"
+            model="custom-model",
         )
         config.use("custom")
         assert config.api_key == "custom-key"
@@ -501,7 +491,7 @@ class TestConfigUseProviderAdvanced:
             "provider-with-small",
             api_key="key",
             model="big-model",
-            small_model="small-model"
+            small_model="small-model",
         )
         config.use("provider-with-small")
         # Note: use() only copies api_key, base_url, and model (not small_model)
@@ -525,6 +515,7 @@ class TestConfigFileLoading:
         """Test TOML loading when tomllib is not available"""
         # Patch tomllib to None to simulate missing support
         import continuum_sdk.config.loader as loader_module
+
         original_tomllib = loader_module.tomllib
         loader_module.tomllib = None
 
@@ -546,9 +537,7 @@ class TestConfigFileLoading:
 
     def test_load_file_json_decode_error(self):
         """Test handling of invalid JSON"""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("{ invalid json }")
             path = f.name
 
@@ -563,12 +552,11 @@ class TestConfigFileLoading:
         """Test handling of invalid TOML - note: ValueError not caught by current handler"""
         # Only run if tomllib is available
         import continuum_sdk.config.loader as loader_module
+
         if loader_module.tomllib is None:
             pytest.skip("TOML support not available")
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".toml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             f.write("invalid toml [[[[")
             path = f.name
 
@@ -582,9 +570,7 @@ class TestConfigFileLoading:
 
     def test_load_file_unknown_extension_json_content(self):
         """Test auto-detection with JSON content for unknown extension"""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".custom", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".custom", delete=False) as f:
             json.dump({"provider": "auto-detected"}, f)
             path = f.name
 
@@ -597,12 +583,11 @@ class TestConfigFileLoading:
     def test_load_file_unknown_extension_toml_content(self):
         """Test auto-detection with TOML content for unknown extension"""
         import continuum_sdk.config.loader as loader_module
+
         if loader_module.tomllib is None:
             pytest.skip("TOML support not available")
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".custom", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".custom", delete=False) as f:
             f.write('provider = "auto-detected-toml"')
             path = f.name
 
@@ -667,20 +652,14 @@ class TestEnvVarExpansionAdvanced:
     def test_expand_env_vars_dict(self, monkeypatch):
         """Test expansion in nested dict"""
         monkeypatch.setenv("CONTINUUM_API_KEY", "expanded-key")
-        data = {
-            "nested": {
-                "api_key": "${CONTINUUM_API_KEY}"
-            }
-        }
+        data = {"nested": {"api_key": "${CONTINUUM_API_KEY}"}}
         result = Config._expand_env_vars(data)
         assert result["nested"]["api_key"] == "expanded-key"
 
     def test_expand_env_vars_list(self, monkeypatch):
         """Test expansion in list"""
         monkeypatch.setenv("CONTINUUM_MODEL", "gpt-4")
-        data = {
-            "models": ["${CONTINUUM_MODEL}", "claude"]
-        }
+        data = {"models": ["${CONTINUUM_MODEL}", "claude"]}
         result = Config._expand_env_vars(data)
         assert result["models"][0] == "gpt-4"
 
@@ -772,6 +751,7 @@ class TestConfigDefaultModel:
         mock_default = "mock-default-model"
         # Patch the imported function in loader module
         import continuum_sdk.config.loader as loader_module
+
         original_func = loader_module._get_provider_default_model
         loader_module._get_provider_default_model = lambda p: mock_default
 
@@ -796,23 +776,25 @@ class TestTomllibImportFallback:
         import importlib
 
         # Save current state
-        original_tomllib = sys.modules.get('tomllib')
-        original_tomli = sys.modules.get('tomli')
+        original_tomllib = sys.modules.get("tomllib")
+        original_tomli = sys.modules.get("tomli")
 
         # Remove tomllib to force fallback
-        if 'tomllib' in sys.modules:
-            del sys.modules['tomllib']
+        if "tomllib" in sys.modules:
+            del sys.modules["tomllib"]
 
         # Make sure tomli is available
         try:
             import tomli
-            sys.modules['tomli'] = tomli
+
+            sys.modules["tomli"] = tomli
         except ImportError:
             pytest.skip("tomli not available for fallback test")
 
         try:
             # Re-import the loader module to trigger the import block
             import continuum_sdk.config.loader as loader_module
+
             importlib.reload(loader_module)
 
             # The module should have loaded tomli as tomllib
@@ -821,9 +803,9 @@ class TestTomllibImportFallback:
         finally:
             # Restore original state
             if original_tomllib:
-                sys.modules['tomllib'] = original_tomllib
+                sys.modules["tomllib"] = original_tomllib
             if original_tomli:
-                sys.modules['tomli'] = original_tomli
+                sys.modules["tomli"] = original_tomli
 
             # Reload to restore original state
             importlib.reload(loader_module)
@@ -833,21 +815,22 @@ class TestTomllibImportFallback:
         import importlib
 
         # Save current state
-        original_tomllib = sys.modules.get('tomllib')
-        original_tomli = sys.modules.get('tomli')
+        original_tomllib = sys.modules.get("tomllib")
+        original_tomli = sys.modules.get("tomli")
 
         # Remove both to simulate complete absence
-        if 'tomllib' in sys.modules:
-            del sys.modules['tomllib']
-        if 'tomli' in sys.modules:
-            del sys.modules['tomli']
+        if "tomllib" in sys.modules:
+            del sys.modules["tomllib"]
+        if "tomli" in sys.modules:
+            del sys.modules["tomli"]
 
         # Mock both imports to fail
         import builtins
+
         original_import = builtins.__import__
 
         def mock_import(name, *args, **kwargs):
-            if name in ('tomllib', 'tomli'):
+            if name in ("tomllib", "tomli"):
                 raise ImportError(f"No module named '{name}'")
             return original_import(name, *args, **kwargs)
 
@@ -856,6 +839,7 @@ class TestTomllibImportFallback:
         try:
             # Re-import to trigger both import failures
             import continuum_sdk.config.loader as loader_module
+
             importlib.reload(loader_module)
 
             # tomllib should be None when both imports fail
@@ -865,9 +849,9 @@ class TestTomllibImportFallback:
             # Restore original state
             builtins.__import__ = original_import
             if original_tomllib:
-                sys.modules['tomllib'] = original_tomllib
+                sys.modules["tomllib"] = original_tomllib
             if original_tomli:
-                sys.modules['tomli'] = original_tomli
+                sys.modules["tomli"] = original_tomli
 
             # Reload to restore original state
             importlib.reload(loader_module)
@@ -884,7 +868,7 @@ class TestConfigUseProviderMissingFields:
             "test_provider",
             api_key=None,  # None - should NOT update
             base_url="https://test.url",
-            model="test-model"
+            model="test-model",
         )
         config.use("test_provider")
 
@@ -901,7 +885,7 @@ class TestConfigUseProviderMissingFields:
             "test_provider",
             api_key="test-key",
             base_url=None,  # None - should NOT update
-            model="test-model"
+            model="test-model",
         )
         config.use("test_provider")
 
@@ -918,7 +902,7 @@ class TestConfigUseProviderMissingFields:
             "test_provider",
             api_key="test-key",
             base_url="https://test.url",
-            model=None  # None - should NOT update
+            model=None,  # None - should NOT update
         )
         config.use("test_provider")
 
@@ -999,8 +983,8 @@ class TestExpandEnvVarsPrimitiveTypes:
             "enabled": True,  # bool (line 619)
             "nested": {  # dict
                 "value": None,  # None (line 619)
-                "list": [1, 2, "${CONTINUUM_API_KEY}"]  # list with primitives
-            }
+                "list": [1, 2, "${CONTINUUM_API_KEY}"],  # list with primitives
+            },
         }
 
         result = Config._expand_env_vars(data)
@@ -1015,4 +999,11 @@ class TestExpandEnvVarsPrimitiveTypes:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=continuum_sdk.config.loader", "--cov-report=term-missing"])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--cov=continuum_sdk.config.loader",
+            "--cov-report=term-missing",
+        ]
+    )

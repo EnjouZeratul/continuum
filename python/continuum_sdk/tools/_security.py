@@ -84,9 +84,7 @@ def resolve_security(
         )
         _WARNED_NO_WORKSPACE.add(tool_name)
 
-    return SecurityContext(
-        validator=None, checker=None, auditor=None, enforced=False
-    )
+    return SecurityContext(validator=None, checker=None, auditor=None, enforced=False)
 
 
 def enforce_path(
@@ -126,7 +124,9 @@ def enforce_path(
             message=f"path validation failed: {result.reason}",
         )
 
-    if result.resolved_path:  # pragma: no cover - path validator always returns resolved_path when is_valid
+    if (
+        result.resolved_path
+    ):  # pragma: no cover - path validator always returns resolved_path when is_valid
         resolved = Path(result.resolved_path)
 
     if ctx.checker is not None:
@@ -251,7 +251,7 @@ def secure_file_read(
 
     try:
         # Linux: verify real path through /proc/self/fd
-        if os.name != 'nt':
+        if os.name != "nt":
             try:
                 real_path = Path(os.readlink(f"/proc/self/fd/{fd}"))
             except (OSError, FileNotFoundError):
@@ -276,7 +276,7 @@ def secure_file_read(
             )
 
         # Read content through fd
-        with os.fdopen(fd, 'rb') as f:
+        with os.fdopen(fd, "rb") as f:
             content = f.read()
 
         yield content
@@ -325,11 +325,11 @@ def secure_file_write(
         if create_dirs and not file_path.parent.exists():
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        temp_path = file_path.with_suffix(file_path.suffix + '.tmp')
+        temp_path = file_path.with_suffix(file_path.suffix + ".tmp")
         try:
-            with open(temp_path, 'wb') as f:
+            with open(temp_path, "wb") as f:
                 f.write(content)
-            if os.name == 'nt':
+            if os.name == "nt":
                 os.replace(temp_path, file_path)
             else:
                 os.rename(temp_path, file_path)
@@ -363,14 +363,14 @@ def secure_file_write(
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Atomic write: temp file -> rename
-    temp_path = file_path.with_suffix(file_path.suffix + '.tmp')
+    temp_path = file_path.with_suffix(file_path.suffix + ".tmp")
     try:
-        with open(temp_path, 'wb') as f:
+        with open(temp_path, "wb") as f:
             f.write(content)
             f.flush()
             os.fsync(f.fileno())
 
-        if os.name == 'nt':
+        if os.name == "nt":
             os.replace(temp_path, file_path)
         else:
             os.rename(temp_path, file_path)

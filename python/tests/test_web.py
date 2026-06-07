@@ -153,7 +153,9 @@ class TestWebSearchDuckDuckGo:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_duckduckgo("Python programming", 10)
 
@@ -169,7 +171,9 @@ class TestWebSearchDuckDuckGo:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_duckduckgo("nonexistent query xyz", 10)
 
@@ -180,8 +184,8 @@ class TestWebSearchDuckDuckGo:
     def test_search_duckduckgo_connection_error(self):
         """Test DuckDuckGo search handles connection errors."""
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.side_effect = ConnectionError(
-                "Network error"
+            mock_client.return_value.__enter__.return_value.get.side_effect = (
+                ConnectionError("Network error")
             )
 
             with pytest.raises((ConnectionError, ToolError)):
@@ -198,7 +202,9 @@ class TestWebSearchGoogle:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_google("Python", "test-api-key", None, 10)
 
@@ -213,7 +219,9 @@ class TestWebSearchGoogle:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_google("Python", "test-api-key", "custom-cx-id", 10)
 
@@ -226,7 +234,9 @@ class TestWebSearchGoogle:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_google("Python", "test-api-key", None, 10)
 
@@ -243,7 +253,9 @@ class TestWebSearchBing:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_bing("Python", "test-api-key", 10)
 
@@ -258,7 +270,9 @@ class TestWebSearchBing:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_bing("Python", "test-api-key", 10)
 
@@ -275,7 +289,9 @@ class TestWebSearchFunction:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python programming", engine="duckduckgo")
 
@@ -312,7 +328,9 @@ class TestWebSearchFunction:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python", engine="duckduckgo", max_results=1)
 
@@ -326,7 +344,9 @@ class TestWebSearchFunction:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python", engine="google", api_key="test-key")
 
@@ -340,7 +360,9 @@ class TestWebSearchFunction:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python", engine="bing", api_key="test-key")
 
@@ -370,7 +392,9 @@ class TestWebSearchTool:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             tool = WebSearchTool()
             result = tool.search("Python programming")
@@ -385,7 +409,9 @@ class TestWebSearchTool:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             tool = WebSearchTool()
             result = tool("Python")
@@ -403,7 +429,9 @@ class TestConvenienceFunctions:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = duckduckgo("Python")
 
@@ -417,7 +445,9 @@ class TestConvenienceFunctions:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = google("Python", api_key="test-key")
 
@@ -431,7 +461,9 @@ class TestConvenienceFunctions:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = bing("Python", api_key="test-key")
 
@@ -449,7 +481,9 @@ class TestURLValidation:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python")
 
@@ -460,7 +494,9 @@ class TestURLValidation:
                 for line in lines:
                     if "URL:" in line:
                         url_part = line.split("URL:")[-1].strip()
-                        assert url_part.startswith("http://") or url_part.startswith("https://")
+                        assert url_part.startswith("http://") or url_part.startswith(
+                            "https://"
+                        )
 
 
 class TestSSRFProtection:
@@ -485,7 +521,9 @@ class TestSSRFProtection:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_duckduckgo("test", 10)
 
@@ -507,7 +545,9 @@ class TestSSRFProtection:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_duckduckgo("test", 10)
 
@@ -539,8 +579,8 @@ class TestErrorHandling:
     def test_connection_error_handling(self):
         """Test handling of connection errors."""
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.side_effect = ConnectionError(
-                "Connection failed"
+            mock_client.return_value.__enter__.return_value.get.side_effect = (
+                ConnectionError("Connection failed")
             )
 
             with pytest.raises(ToolError):
@@ -549,8 +589,8 @@ class TestErrorHandling:
     def test_timeout_error_handling(self):
         """Test handling of timeout errors."""
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.side_effect = TimeoutError(
-                "Request timed out"
+            mock_client.return_value.__enter__.return_value.get.side_effect = (
+                TimeoutError("Request timed out")
             )
 
             with pytest.raises(ToolError):
@@ -562,7 +602,9 @@ class TestErrorHandling:
         mock_response.raise_for_status.side_effect = Exception("HTTP 500 Error")
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             # The exception propagates since it's not in the caught exceptions
             with pytest.raises(Exception) as exc_info:
@@ -577,7 +619,9 @@ class TestErrorHandling:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             with pytest.raises(ToolError):
                 web_search("test")
@@ -589,7 +633,9 @@ class TestErrorHandling:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             # Empty query should still work but return fallback
             result = web_search("", engine="duckduckgo")
@@ -602,7 +648,9 @@ class TestErrorHandling:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             # Special characters should be handled
             result = web_search("test & query <script>", engine="duckduckgo")
@@ -631,7 +679,9 @@ class TestToolResultFormat:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python")
 
@@ -650,7 +700,9 @@ class TestToolResultFormat:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python")
 
@@ -689,7 +741,9 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             long_query = "Python " * 1000
             result = web_search(long_query, engine="duckduckgo")
@@ -702,7 +756,9 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             result = web_search("Python 编程", engine="duckduckgo")
             assert isinstance(result, ToolResult)
@@ -714,7 +770,9 @@ class TestEdgeCases:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             # Zero should return minimal results or empty
             result = web_search("Python", engine="duckduckgo", max_results=0)
@@ -748,13 +806,18 @@ class TestMissingCoverage:
         mock_response.json.return_value = {
             "AbstractText": "",
             "RelatedTopics": [
-                {"Text": "Some topic text without dash separator", "FirstURL": "https://example.com"},
+                {
+                    "Text": "Some topic text without dash separator",
+                    "FirstURL": "https://example.com",
+                },
             ],
         }
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_duckduckgo("test query", 10)
 
@@ -777,7 +840,9 @@ class TestMissingCoverage:
         mock_response.raise_for_status = MagicMock()
 
         with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             response = _search_duckduckgo("test query", 10)
 

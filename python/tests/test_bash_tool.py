@@ -381,10 +381,23 @@ class TestBuildSafeEnv:
         env = _build_safe_env(None, inherit=False)
         # Should only contain safe environment variables
         for key in env:
-            assert key.upper() in {"PATH", "HOME", "USER", "USERNAME", "LOGNAME",
-                                   "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL",
-                                   "LC_CTYPE", "SYSTEMROOT", "WINDIR", "COMSPEC",
-                                   "PATHEXT"}
+            assert key.upper() in {
+                "PATH",
+                "HOME",
+                "USER",
+                "USERNAME",
+                "LOGNAME",
+                "TEMP",
+                "TMP",
+                "TMPDIR",
+                "LANG",
+                "LC_ALL",
+                "LC_CTYPE",
+                "SYSTEMROOT",
+                "WINDIR",
+                "COMSPEC",
+                "PATHEXT",
+            }
 
     def test_user_env_merged(self):
         """Test user-provided env is merged"""
@@ -406,11 +419,14 @@ class TestBuildSafeEnv:
 
     def test_multiple_dangerous_env_vars_blocked(self, caplog):
         """Test multiple dangerous env vars are all blocked"""
-        env = _build_safe_env({
-            "LD_PRELOAD": "/evil1",
-            "PYTHONPATH": "/evil2",
-            "DYLD_INSERT_LIBRARIES": "/evil3",
-        }, inherit=False)
+        env = _build_safe_env(
+            {
+                "LD_PRELOAD": "/evil1",
+                "PYTHONPATH": "/evil2",
+                "DYLD_INSERT_LIBRARIES": "/evil3",
+            },
+            inherit=False,
+        )
         assert "LD_PRELOAD" not in env
         assert "PYTHONPATH" not in env
         assert "DYLD_INSERT_LIBRARIES" not in env
@@ -505,7 +521,8 @@ class TestBashExecute:
         """Test command with non-zero exit code"""
         # Use a command that exists but fails
         result = await bash_execute(
-            "dir nonexistent_xyz_12345" if os.name == "nt"
+            "dir nonexistent_xyz_12345"
+            if os.name == "nt"
             else "ls /nonexistent_xyz_12345"
         )
         assert result.is_error is True
@@ -517,12 +534,17 @@ class TestBashExecute:
         # Use a command that produces stderr output
         # Note: && is blocked by injection detection, so we test simple failure
         result = await bash_execute(
-            "dir nonexistent_xyz_12345" if os.name == "nt"
+            "dir nonexistent_xyz_12345"
+            if os.name == "nt"
             else "ls /nonexistent_xyz_12345"
         )
         assert result.is_error is True
         # Should include Error section
-        assert "Error:" in result.content or "not found" in result.content.lower() or "Exit code" in result.content
+        assert (
+            "Error:" in result.content
+            or "not found" in result.content.lower()
+            or "Exit code" in result.content
+        )
 
     @pytest.mark.asyncio
     async def test_dangerous_command_requires_confirm(self):
@@ -555,7 +577,10 @@ class TestBashExecute:
         """Test shell mode is rejected when exec is sufficient"""
         with pytest.raises(ToolError) as exc_info:
             await bash_execute("ls -la", allow_shell=True)
-        assert "shell" in str(exc_info.value).lower() or "exec" in str(exc_info.value).lower()
+        assert (
+            "shell" in str(exc_info.value).lower()
+            or "exec" in str(exc_info.value).lower()
+        )
 
     @pytest.mark.asyncio
     async def test_shell_mode_allowed_for_glob(self):
@@ -566,9 +591,8 @@ class TestBashExecute:
                 open(os.path.join(tmpdir, f"test{i}.txt"), "w").close()
 
             result = await bash_execute(
-                f"dir /b {tmpdir}\\*.txt" if os.name == "nt"
-                else f"ls {tmpdir}/*.txt",
-                allow_shell=True
+                f"dir /b {tmpdir}\\*.txt" if os.name == "nt" else f"ls {tmpdir}/*.txt",
+                allow_shell=True,
             )
             # Shell mode should be allowed for glob
             assert result.is_error is False or "shell" in result.content.lower()
@@ -598,20 +622,14 @@ class TestBashExecute:
                 script_path = os.path.join(tmpdir, "test_env.bat")
                 with open(script_path, "w") as f:
                     f.write("@echo %MY_VAR%")
-                result = await bash_execute(
-                    script_path,
-                    env={"MY_VAR": "custom_value"}
-                )
+                result = await bash_execute(script_path, env={"MY_VAR": "custom_value"})
             else:
                 # Create a shell script that echoes the var
                 script_path = os.path.join(tmpdir, "test_env.sh")
                 with open(script_path, "w") as f:
                     f.write("#!/bin/sh\necho $MY_VAR")
                 os.chmod(script_path, 0o755)
-                result = await bash_execute(
-                    script_path,
-                    env={"MY_VAR": "custom_value"}
-                )
+                result = await bash_execute(script_path, env={"MY_VAR": "custom_value"})
             # The variable should be set in the subprocess
             assert "custom_value" in result.content
 
@@ -627,7 +645,10 @@ class TestBashExecute:
         """Test command not found raises ToolError"""
         with pytest.raises(ToolError) as exc_info:
             await bash_execute("nonexistent_command_xyz_12345")
-        assert "not found" in str(exc_info.value).lower() or "command" in str(exc_info.value).lower()
+        assert (
+            "not found" in str(exc_info.value).lower()
+            or "command" in str(exc_info.value).lower()
+        )
 
 
 # ==============================================================================
@@ -670,9 +691,7 @@ class TestBashToolClass:
     def test_init_custom_params(self):
         """Test BashTool initialization with custom params"""
         tool = BashTool(
-            default_timeout=60.0,
-            default_working_dir="/tmp",
-            workspace="/workspace"
+            default_timeout=60.0, default_working_dir="/tmp", workspace="/workspace"
         )
         assert tool.default_timeout == 60.0
         assert tool.default_working_dir == "/tmp"
@@ -814,7 +833,7 @@ class TestEdgeCases:
             result = await bash_execute(
                 "echo test",
                 working_dir=subdir,
-                workspace=tmpdir  # Enable security with workspace
+                workspace=tmpdir,  # Enable security with workspace
             )
             assert result.is_error is False
 
@@ -823,7 +842,8 @@ class TestEdgeCases:
         """Test command that fails with only stderr output"""
         # This tests lines 471-476: non-zero exit with stderr handling
         result = await bash_execute(
-            "dir nonexistent_xyz_file_12345" if os.name == "nt"
+            "dir nonexistent_xyz_file_12345"
+            if os.name == "nt"
             else "ls /nonexistent_xyz_file_12345"
         )
         assert result.is_error is True
@@ -877,4 +897,6 @@ class TestEdgeCases:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=continuum_sdk.tools.bash", "--cov-report=term-missing"])
+    pytest.main(
+        [__file__, "-v", "--cov=continuum_sdk.tools.bash", "--cov-report=term-missing"]
+    )

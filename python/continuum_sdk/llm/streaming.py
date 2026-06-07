@@ -232,10 +232,15 @@ class StreamState:
             message = event_data.get("message", {})
             if not self.message_started:
                 self.message_started = True
-                events.append(StreamEvent(
-                    event_type="message_start",
-                    data={"id": message.get("id", ""), "model": message.get("model", self.model)}
-                ))
+                events.append(
+                    StreamEvent(
+                        event_type="message_start",
+                        data={
+                            "id": message.get("id", ""),
+                            "model": message.get("model", self.model),
+                        },
+                    )
+                )
 
         elif event_type == "content_block_start":
             index = event_data.get("index", 0)
@@ -255,10 +260,17 @@ class StreamState:
                 tool_id = content_block.get("id")
                 tool_name = content_block.get("name")
 
-            events.append(StreamEvent(
-                event_type="content_block_start",
-                data={"index": index, "block_type": block_type.value, "tool_id": tool_id, "tool_name": tool_name}
-            ))
+            events.append(
+                StreamEvent(
+                    event_type="content_block_start",
+                    data={
+                        "index": index,
+                        "block_type": block_type.value,
+                        "tool_id": tool_id,
+                        "tool_name": tool_name,
+                    },
+                )
+            )
 
         elif event_type == "content_block_delta":
             index = event_data.get("index", 0)
@@ -273,17 +285,18 @@ class StreamState:
             elif delta_type == "input_json_delta":
                 content = delta.get("partial_json", "")
 
-            events.append(StreamEvent(
-                event_type="content_block_delta",
-                data={"index": index, "delta_type": delta_type, "content": content}
-            ))
+            events.append(
+                StreamEvent(
+                    event_type="content_block_delta",
+                    data={"index": index, "delta_type": delta_type, "content": content},
+                )
+            )
 
         elif event_type == "content_block_stop":
             index = event_data.get("index", 0)
-            events.append(StreamEvent(
-                event_type="content_block_stop",
-                data={"index": index}
-            ))
+            events.append(
+                StreamEvent(event_type="content_block_stop", data={"index": index})
+            )
 
         elif event_type == "message_delta":
             delta = event_data.get("delta", {})
@@ -292,13 +305,21 @@ class StreamState:
             self.stop_reason = delta.get("stop_reason")
             self.usage = StreamUsage(
                 input_tokens=usage_data.get("input_tokens", 0),
-                output_tokens=usage_data.get("output_tokens", 0)
+                output_tokens=usage_data.get("output_tokens", 0),
             )
 
-            events.append(StreamEvent(
-                event_type="message_delta",
-                data={"stop_reason": self.stop_reason, "usage": {"input_tokens": self.usage.input_tokens, "output_tokens": self.usage.output_tokens}}
-            ))
+            events.append(
+                StreamEvent(
+                    event_type="message_delta",
+                    data={
+                        "stop_reason": self.stop_reason,
+                        "usage": {
+                            "input_tokens": self.usage.input_tokens,
+                            "output_tokens": self.usage.output_tokens,
+                        },
+                    },
+                )
+            )
 
         elif event_type == "message_stop":
             events.append(StreamEvent(event_type="message_stop"))
@@ -311,17 +332,22 @@ class StreamState:
 
         if not self.message_started:
             self.message_started = True
-            events.append(StreamEvent(
-                event_type="message_start",
-                data={"id": chunk_data.get("id", ""), "model": chunk_data.get("model", self.model)}
-            ))
+            events.append(
+                StreamEvent(
+                    event_type="message_start",
+                    data={
+                        "id": chunk_data.get("id", ""),
+                        "model": chunk_data.get("model", self.model),
+                    },
+                )
+            )
 
         # Handle usage
         usage_data = chunk_data.get("usage")
         if usage_data:
             self.usage = StreamUsage(
                 input_tokens=usage_data.get("prompt_tokens", 0),
-                output_tokens=usage_data.get("completion_tokens", 0)
+                output_tokens=usage_data.get("completion_tokens", 0),
             )
 
         choices = chunk_data.get("choices", [])
@@ -333,14 +359,22 @@ class StreamState:
             if reasoning:
                 if not self.thinking_started:
                     self.thinking_started = True
-                    events.append(StreamEvent(
-                        event_type="content_block_start",
-                        data={"index": 0, "block_type": "thinking"}
-                    ))
-                events.append(StreamEvent(
-                    event_type="content_block_delta",
-                    data={"index": 0, "delta_type": "thinking_delta", "content": reasoning}
-                ))
+                    events.append(
+                        StreamEvent(
+                            event_type="content_block_start",
+                            data={"index": 0, "block_type": "thinking"},
+                        )
+                    )
+                events.append(
+                    StreamEvent(
+                        event_type="content_block_delta",
+                        data={
+                            "index": 0,
+                            "delta_type": "thinking_delta",
+                            "content": reasoning,
+                        },
+                    )
+                )
 
             # Handle regular content
             content = delta.get("content")
@@ -348,22 +382,29 @@ class StreamState:
                 # If there was a previous thinking block, close it first
                 if self.thinking_started and not self.thinking_finished:
                     self.thinking_finished = True
-                    events.append(StreamEvent(
-                        event_type="content_block_stop",
-                        data={"index": 0}
-                    ))
+                    events.append(
+                        StreamEvent(event_type="content_block_stop", data={"index": 0})
+                    )
 
                 text_index = 1 if self.thinking_started else 0
                 if not self.text_started:
                     self.text_started = True
-                    events.append(StreamEvent(
-                        event_type="content_block_start",
-                        data={"index": text_index, "block_type": "text"}
-                    ))
-                events.append(StreamEvent(
-                    event_type="content_block_delta",
-                    data={"index": text_index, "delta_type": "text_delta", "content": content}
-                ))
+                    events.append(
+                        StreamEvent(
+                            event_type="content_block_start",
+                            data={"index": text_index, "block_type": "text"},
+                        )
+                    )
+                events.append(
+                    StreamEvent(
+                        event_type="content_block_delta",
+                        data={
+                            "index": text_index,
+                            "delta_type": "text_delta",
+                            "content": content,
+                        },
+                    )
+                )
 
             # Handle finish reason
             finish_reason = choice.get("finish_reason")
@@ -391,23 +432,36 @@ class StreamState:
         # Close thinking block
         if self.thinking_started and not self.thinking_finished:
             self.thinking_finished = True
-            events.append(StreamEvent(event_type="content_block_stop", data={"index": 0}))
+            events.append(
+                StreamEvent(event_type="content_block_stop", data={"index": 0})
+            )
 
         # Close text block
         if self.text_started and not self.text_finished:
             self.text_finished = True
             text_index = 1 if self.thinking_started else 0
-            events.append(StreamEvent(event_type="content_block_stop", data={"index": text_index}))
+            events.append(
+                StreamEvent(event_type="content_block_stop", data={"index": text_index})
+            )
 
         # Send message delta
         if self.message_started:
-            events.append(StreamEvent(
-                event_type="message_delta",
-                data={
-                    "stop_reason": self.stop_reason or "end_turn",
-                    "usage": {"input_tokens": self.usage.input_tokens if self.usage else 0, "output_tokens": self.usage.output_tokens if self.usage else 0}
-                }
-            ))
+            events.append(
+                StreamEvent(
+                    event_type="message_delta",
+                    data={
+                        "stop_reason": self.stop_reason or "end_turn",
+                        "usage": {
+                            "input_tokens": (
+                                self.usage.input_tokens if self.usage else 0
+                            ),
+                            "output_tokens": (
+                                self.usage.output_tokens if self.usage else 0
+                            ),
+                        },
+                    },
+                )
+            )
             events.append(StreamEvent(event_type="message_stop"))
 
         return events
@@ -443,7 +497,9 @@ class CallbackStream:
         """Check if aborted"""
         return self._abort_flag
 
-    def push_sse_event(self, sse_event: SseEvent, state: StreamState, provider: str) -> list[StreamEvent]:
+    def push_sse_event(
+        self, sse_event: SseEvent, state: StreamState, provider: str
+    ) -> list[StreamEvent]:
         """Push SSE event and process
 
         Args:

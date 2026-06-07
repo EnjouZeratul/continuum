@@ -542,11 +542,13 @@ class TestImportErrorHandling:
             if RICH_AVAILABLE:
                 # Rich is available, verify it's working
                 from continuum_sdk.render import Console, Markdown
+
                 assert Console is not None
                 assert Markdown is not None
             else:
                 # Rich is not available, verify fallback values are None
                 from continuum_sdk.render import Console, Markdown
+
                 assert Console is None
                 assert Markdown is None
         except ImportError:
@@ -712,4 +714,6 @@ class TestEdgeCases:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v", "--cov=continuum_sdk.render", "--cov-report=term-missing"])
+    pytest.main(
+        [__file__, "-v", "--cov=continuum_sdk.render", "--cov-report=term-missing"]
+    )

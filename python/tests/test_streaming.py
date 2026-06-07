@@ -20,7 +20,7 @@ class TestSseParser:
 
     def test_parse_single_frame(self):
         """解析单个帧"""
-        frame = "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n"
+        frame = 'event: content_block_start\ndata: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n'
 
         parser = SseParser()
         events = parser.push(frame)
@@ -34,12 +34,12 @@ class TestSseParser:
         parser = SseParser()
 
         # 第一块（不完整）
-        first = "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hel"
+        first = 'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hel'
         events = parser.push(first)
         assert len(events) == 0  # 还没有完整帧
 
         # 第二块（完成帧）
-        second = "lo\"}}\n\n"
+        second = 'lo"}}\n\n'
         events = parser.push(second)
         assert len(events) == 1
         assert "Hello" in events[0].data
@@ -48,7 +48,7 @@ class TestSseParser:
         """忽略 ping 事件和 [DONE] 标记"""
         parser = SseParser()
 
-        payload = ": keepalive\nevent: ping\ndata: {\"type\":\"ping\"}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}\n\ndata: [DONE]\n\n"
+        payload = ': keepalive\nevent: ping\ndata: {"type":"ping"}\n\nevent: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\ndata: [DONE]\n\n'
         events = parser.push(payload)
 
         assert len(events) == 1  # 只有 message_delta，ping 和 [DONE] 被忽略
@@ -218,7 +218,7 @@ class TestStreamState:
                 "type": "message",
                 "role": "assistant",
                 "model": "claude-sonnet-4-6",
-            }
+            },
         }
 
         events = state.ingest_anthropic(event_data)
@@ -233,7 +233,7 @@ class TestStreamState:
         # 第一个 message_start
         event_data = {
             "type": "message_start",
-            "message": {"id": "msg_1", "model": "claude-sonnet-4-6"}
+            "message": {"id": "msg_1", "model": "claude-sonnet-4-6"},
         }
         events = state.ingest_anthropic(event_data)
         assert len(events) == 1
@@ -250,10 +250,7 @@ class TestStreamState:
         event_data = {
             "type": "content_block_delta",
             "index": 0,
-            "delta": {
-                "type": "text_delta",
-                "text": "Hello"
-            }
+            "delta": {"type": "text_delta", "text": "Hello"},
         }
 
         events = state.ingest_anthropic(event_data)
@@ -269,11 +266,7 @@ class TestStreamState:
         event_data = {
             "type": "content_block_start",
             "index": 0,
-            "content_block": {
-                "type": "tool_use",
-                "id": "tool_123",
-                "name": "search"
-            }
+            "content_block": {"type": "tool_use", "id": "tool_123", "name": "search"},
         }
         events = state.ingest_anthropic(event_data)
 
@@ -290,10 +283,7 @@ class TestStreamState:
         event_data = {
             "type": "content_block_start",
             "index": 0,
-            "content_block": {
-                "type": "thinking",
-                "thinking": ""
-            }
+            "content_block": {"type": "thinking", "thinking": ""},
         }
         events = state.ingest_anthropic(event_data)
 
@@ -308,10 +298,7 @@ class TestStreamState:
         event_data = {
             "type": "content_block_delta",
             "index": 0,
-            "delta": {
-                "type": "thinking_delta",
-                "thinking": "Let me think..."
-            }
+            "delta": {"type": "thinking_delta", "thinking": "Let me think..."},
         }
         events = state.ingest_anthropic(event_data)
 
@@ -327,10 +314,7 @@ class TestStreamState:
         event_data = {
             "type": "content_block_delta",
             "index": 0,
-            "delta": {
-                "type": "input_json_delta",
-                "partial_json": '{"query": "test'
-            }
+            "delta": {"type": "input_json_delta", "partial_json": '{"query": "test'},
         }
         events = state.ingest_anthropic(event_data)
 
@@ -356,10 +340,7 @@ class TestStreamState:
         chunk_data = {
             "id": "chatcmpl_123",
             "model": "gpt-4o",
-            "choices": [{
-                "delta": {"content": "Hello"},
-                "finish_reason": None
-            }]
+            "choices": [{"delta": {"content": "Hello"}, "finish_reason": None}],
         }
 
         events = state.ingest_openai(chunk_data)
@@ -374,10 +355,9 @@ class TestStreamState:
         chunk1 = {
             "id": "chatcmpl_123",
             "model": "gpt-4o",
-            "choices": [{
-                "delta": {"reasoning_content": "Thinking..."},
-                "finish_reason": None
-            }]
+            "choices": [
+                {"delta": {"reasoning_content": "Thinking..."}, "finish_reason": None}
+            ],
         }
         events = state.ingest_openai(chunk1)
 
@@ -388,10 +368,7 @@ class TestStreamState:
         chunk2 = {
             "id": "chatcmpl_123",
             "model": "gpt-4o",
-            "choices": [{
-                "delta": {"content": "Answer"},
-                "finish_reason": None
-            }]
+            "choices": [{"delta": {"content": "Answer"}, "finish_reason": None}],
         }
         events = state.ingest_openai(chunk2)
 
@@ -408,10 +385,12 @@ class TestStreamState:
         chunk = {
             "id": "chatcmpl_1",
             "model": "gpt-4o",
-            "choices": [{
-                "delta": {"reasoning_content": "More thoughts..."},
-                "finish_reason": None
-            }]
+            "choices": [
+                {
+                    "delta": {"reasoning_content": "More thoughts..."},
+                    "finish_reason": None,
+                }
+            ],
         }
         events = state.ingest_openai(chunk)
 
@@ -430,11 +409,8 @@ class TestStreamState:
         chunk_data = {
             "id": "chatcmpl_1",
             "model": "gpt-4o",
-            "usage": {
-                "prompt_tokens": 10,
-                "completion_tokens": 20
-            },
-            "choices": []
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20},
+            "choices": [],
         }
         state.ingest_openai(chunk_data)
 
@@ -450,16 +426,23 @@ class TestStreamState:
         chunk = {
             "id": "chatcmpl_1",
             "model": "gpt-4o",
-            "choices": [{
-                "delta": {"reasoning_content": "Thinking..."},
-                "finish_reason": None
-            }]
+            "choices": [
+                {"delta": {"reasoning_content": "Thinking..."}, "finish_reason": None}
+            ],
         }
         events = state.ingest_openai(chunk)
 
         # 应该产生 thinking block start 和 delta
-        assert any(e.event_type == "content_block_start" and e.data.get("block_type") == "thinking" for e in events)
-        assert any(e.event_type == "content_block_delta" and e.data.get("delta_type") == "thinking_delta" for e in events)
+        assert any(
+            e.event_type == "content_block_start"
+            and e.data.get("block_type") == "thinking"
+            for e in events
+        )
+        assert any(
+            e.event_type == "content_block_delta"
+            and e.data.get("delta_type") == "thinking_delta"
+            for e in events
+        )
 
     def test_openai_normalize_finish_reason(self):
         """测试 OpenAI finish reason 标准化"""
@@ -469,7 +452,7 @@ class TestStreamState:
         chunk = {
             "id": "chatcmpl_1",
             "model": "gpt-4o",
-            "choices": [{"delta": {}, "finish_reason": "stop"}]
+            "choices": [{"delta": {}, "finish_reason": "stop"}],
         }
         state.ingest_openai(chunk)
         assert state.stop_reason == "end_turn"
@@ -479,7 +462,7 @@ class TestStreamState:
         chunk2 = {
             "id": "chatcmpl_2",
             "model": "gpt-4o",
-            "choices": [{"delta": {}, "finish_reason": "tool_calls"}]
+            "choices": [{"delta": {}, "finish_reason": "tool_calls"}],
         }
         state2.ingest_openai(chunk2)
         assert state2.stop_reason == "tool_use"
@@ -489,7 +472,7 @@ class TestStreamState:
         chunk3 = {
             "id": "chatcmpl_3",
             "model": "gpt-4o",
-            "choices": [{"delta": {}, "finish_reason": "length"}]
+            "choices": [{"delta": {}, "finish_reason": "length"}],
         }
         state3.ingest_openai(chunk3)
         assert state3.stop_reason == "length"
@@ -521,7 +504,10 @@ class TestStreamState:
         state.thinking_finished = False
 
         events = state.finish()
-        assert any(e.event_type == "content_block_stop" and e.data.get("index") == 0 for e in events)
+        assert any(
+            e.event_type == "content_block_stop" and e.data.get("index") == 0
+            for e in events
+        )
 
     def test_finish_close_text_block_with_thinking(self):
         """测试 finish 在有 thinking 的情况下关闭 text 块"""
@@ -534,7 +520,10 @@ class TestStreamState:
 
         events = state.finish()
         # text block 应该在 index 1
-        assert any(e.event_type == "content_block_stop" and e.data.get("index") == 1 for e in events)
+        assert any(
+            e.event_type == "content_block_stop" and e.data.get("index") == 1
+            for e in events
+        )
 
     def test_finish_close_text_block_without_thinking(self):
         """测试 finish 在没有 thinking 的情况下关闭 text 块"""
@@ -545,7 +534,10 @@ class TestStreamState:
 
         events = state.finish()
         # text block 应该在 index 0
-        assert any(e.event_type == "content_block_stop" and e.data.get("index") == 0 for e in events)
+        assert any(
+            e.event_type == "content_block_stop" and e.data.get("index") == 0
+            for e in events
+        )
 
     def test_finish_with_message_started(self):
         """测试 finish 当 message_started 为 True"""
@@ -580,7 +572,7 @@ class TestCallbackStream:
 
         sse_event = SseEvent(
             event="content_block_delta",
-            data='{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}'
+            data='{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}',
         )
 
         stream.push_sse_event(sse_event, state, "anthropic")
@@ -597,7 +589,7 @@ class TestCallbackStream:
 
         sse_event = SseEvent(
             event="message_start",
-            data='{"type":"message_start","message":{"id":"msg_123","model":"claude-sonnet-4-6"}}'
+            data='{"type":"message_start","message":{"id":"msg_123","model":"claude-sonnet-4-6"}}',
         )
 
         stream.push_sse_event(sse_event, state, "anthropic")
@@ -617,7 +609,7 @@ class TestCallbackStream:
 
         sse_event = SseEvent(
             event="content_block_delta",
-            data='{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}'
+            data='{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}',
         )
 
         events = stream.push_sse_event(sse_event, state, "anthropic")
@@ -639,10 +631,7 @@ class TestCallbackStream:
         stream = CallbackStream()
         state = StreamState("claude-sonnet-4-6")
 
-        sse_event = SseEvent(
-            event="content_block_delta",
-            data="invalid json {{{"
-        )
+        sse_event = SseEvent(event="content_block_delta", data="invalid json {{{")
 
         events = stream.push_sse_event(sse_event, state, "anthropic")
         assert len(events) == 0
@@ -656,7 +645,7 @@ class TestCallbackStream:
 
         sse_event = SseEvent(
             event="content_block_delta",
-            data='{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":""}}'
+            data='{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":""}}',
         )
 
         stream.push_sse_event(sse_event, state, "anthropic")
@@ -679,7 +668,7 @@ class TestCallbackStream:
 
         stream = CallbackStream(
             on_chunk=lambda c: chunks_received.append(c),
-            on_event=lambda e: events_received.append(e)
+            on_event=lambda e: events_received.append(e),
         )
         state = StreamState("gpt-4o")
         state.message_started = True
@@ -710,7 +699,7 @@ class TestCallbackStream:
 
         sse_event = SseEvent(
             event="message_start",
-            data='{"id": "chatcmpl_1", "model": "gpt-4o", "choices": []}'
+            data='{"id": "chatcmpl_1", "model": "gpt-4o", "choices": []}',
         )
 
         stream.push_sse_event(sse_event, state, "openai")
@@ -725,7 +714,7 @@ class TestCallbackStream:
 
         sse_event = SseEvent(
             event="message_start",
-            data='{"type": "message_start", "message": {"id": "msg_1"}}'
+            data='{"type": "message_start", "message": {"id": "msg_1"}}',
         )
 
         # ANTHropic 大写也应该路由到 ingest_anthropic
@@ -745,8 +734,7 @@ class TestCallbackStream:
         # Mock state.finish() to return a content_block_delta event
         # This tests the edge case where finish returns content_block_delta
         mock_event = StreamEvent(
-            event_type="content_block_delta",
-            data={"content": "final chunk"}
+            event_type="content_block_delta", data={"content": "final chunk"}
         )
         state.finish = lambda: [mock_event]
 
@@ -766,10 +754,7 @@ class TestCallbackStream:
         state.message_started = True
 
         # Mock state.finish() to return a content_block_delta with empty content
-        mock_event = StreamEvent(
-            event_type="content_block_delta",
-            data={"content": ""}
-        )
+        mock_event = StreamEvent(event_type="content_block_delta", data={"content": ""})
         state.finish = lambda: [mock_event]
 
         stream.finish(state)
@@ -791,13 +776,13 @@ class TestIntegration:
 
         # 模拟 Anthropic 流式响应
         frames = [
-            "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"model\":\"claude-sonnet-4-6\"}}\n\n",
-            "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\"}}\n\n",
-            "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Hello\"}}\n\n",
-            "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\" world\"}}\n\n",
-            "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
-            "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"}}\n\n",
-            "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+            'event: message_start\ndata: {"type":"message_start","message":{"id":"msg_1","model":"claude-sonnet-4-6"}}\n\n',
+            'event: content_block_start\ndata: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}\n\n',
+            'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}\n\n',
+            'event: content_block_delta\ndata: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}\n\n',
+            'event: content_block_stop\ndata: {"type":"content_block_stop","index":0}\n\n',
+            'event: message_delta\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}\n\n',
+            'event: message_stop\ndata: {"type":"message_stop"}\n\n',
         ]
 
         for frame in frames:
@@ -818,9 +803,9 @@ class TestIntegration:
 
         # 模拟 OpenAI 流式响应
         frames = [
-            "data: {\"id\":\"chatcmpl_1\",\"model\":\"gpt-4o\",\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n",
-            "data: {\"id\":\"chatcmpl_1\",\"model\":\"gpt-4o\",\"choices\":[{\"delta\":{\"content\":\" world\"}}]}\n\n",
-            "data: {\"id\":\"chatcmpl_1\",\"model\":\"gpt-4o\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n",
+            'data: {"id":"chatcmpl_1","model":"gpt-4o","choices":[{"delta":{"content":"Hello"}}]}\n\n',
+            'data: {"id":"chatcmpl_1","model":"gpt-4o","choices":[{"delta":{"content":" world"}}]}\n\n',
+            'data: {"id":"chatcmpl_1","model":"gpt-4o","choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
             "data: [DONE]\n\n",
         ]
 
@@ -906,9 +891,7 @@ class TestStreamStateEdgeCases:
         event_data = {
             "type": "content_block_start",
             "index": 0,
-            "content_block": {
-                "type": "unknown_type"
-            }
+            "content_block": {"type": "unknown_type"},
         }
         events = state.ingest_anthropic(event_data)
 
@@ -924,10 +907,7 @@ class TestStreamStateEdgeCases:
         event_data = {
             "type": "content_block_delta",
             "index": 0,
-            "delta": {
-                "type": "unknown_delta_type",
-                "value": "test"
-            }
+            "delta": {"type": "unknown_delta_type", "value": "test"},
         }
         events = state.ingest_anthropic(event_data)
 
@@ -940,9 +920,7 @@ class TestStreamStateEdgeCases:
         state = StreamState("claude-sonnet-4-6")
         state.message_started = True
 
-        event_data = {
-            "type": "unknown_event_type"
-        }
+        event_data = {"type": "unknown_event_type"}
         events = state.ingest_anthropic(event_data)
 
         # 未知事件类型应该返回空列表

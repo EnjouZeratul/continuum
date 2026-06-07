@@ -180,9 +180,7 @@ class PathValidator:
 
         # Ensure project root exists
         if not self._project_root.exists():
-            logger.warning(
-                f"Project root does not exist: {self._project_root}"
-            )
+            logger.warning(f"Project root does not exist: {self._project_root}")
 
     @property
     def project_root(self) -> Path:
@@ -234,7 +232,9 @@ class PathValidator:
         # 3. Check blacklist paths
         for denied in self._denied_paths:
             # Blacklist can be relative or absolute path
-            denied_abs = denied if denied.is_absolute() else (self._project_root / denied)
+            denied_abs = (
+                denied if denied.is_absolute() else (self._project_root / denied)
+            )
             if self._path_contains(resolved, denied_abs):
                 return ValidationResult(
                     is_valid=False,

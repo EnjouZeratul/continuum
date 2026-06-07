@@ -30,7 +30,9 @@ try:
     from . import _continuum as _rust_binding  # pragma: no cover
 
     HAS_RUST_BINDING = True  # pragma: no cover
-    logger.debug("Rust binding (continuum_sdk._continuum) available")  # pragma: no cover
+    logger.debug(
+        "Rust binding (continuum_sdk._continuum) available"
+    )  # pragma: no cover
 except ImportError:  # pragma: no cover
     try:
         import sh_python as _rust_binding  # pragma: no cover
@@ -40,7 +42,9 @@ except ImportError:  # pragma: no cover
     except ImportError:
         _rust_binding = None  # pragma: no cover
         HAS_RUST_BINDING = False  # pragma: no cover
-        logger.debug("Rust binding not available - using pure Python mode")  # pragma: no cover
+        logger.debug(
+            "Rust binding not available - using pure Python mode"
+        )  # pragma: no cover
 
 from .agent.session import Session
 
@@ -278,7 +282,9 @@ class QueryEngine:
         """Get complete symbol information."""
         return self._engine.full_symbol_info(language, file_path, line, column)
 
-    def get_document_symbols(self, language: str, file_path: str) -> list[dict[str, Any]]:
+    def get_document_symbols(
+        self, language: str, file_path: str
+    ) -> list[dict[str, Any]]:
         """Get all symbols in a document."""
         return self._engine.get_document_symbols(language, file_path)
 
@@ -406,15 +412,21 @@ class MultimodalHandler:
 
             self._handler = PythonMultimodalHandler()
 
-    def encode_image(self, image_path: str, media_type: str | None = None) -> dict[str, Any]:
+    def encode_image(
+        self, image_path: str, media_type: str | None = None
+    ) -> dict[str, Any]:
         """Encode image for LLM."""
         return self._handler.encode_image(image_path, media_type)
 
-    def encode_document(self, doc_path: str, media_type: str | None = None) -> dict[str, Any]:
+    def encode_document(
+        self, doc_path: str, media_type: str | None = None
+    ) -> dict[str, Any]:
         """Encode document for LLM."""
         return self._handler.encode_document(doc_path, media_type)
 
-    def create_message(self, role: str, content: str | list[dict[str, Any]]) -> dict[str, Any]:
+    def create_message(
+        self, role: str, content: str | list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Create multimodal message."""
         return self._handler.create_message(role, content)
 
@@ -499,6 +511,7 @@ class ImageInput:
         """Create from file path."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
+
         instance._impl = PyImageInput.from_path(path, media_type)
         return instance
 
@@ -507,6 +520,7 @@ class ImageInput:
         """Create from URL."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
+
         instance._impl = PyImageInput.from_url(url)
         return instance
 
@@ -515,6 +529,7 @@ class ImageInput:
         """Create from base64 data."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
+
         instance._impl = PyImageInput.from_base64(data, media_type)
         return instance
 
@@ -523,6 +538,7 @@ class ImageInput:
         """Create from raw bytes."""
         instance = cls.__new__(cls)
         from .python_impl import ImageInput as PyImageInput
+
         instance._impl = PyImageInput.from_bytes(data, media_type)
         return instance
 
@@ -671,7 +687,11 @@ class Role:
     """
 
     def __init__(
-        self, name: str, permissions: list[Permission] | None = None, *, impl: str | None = None
+        self,
+        name: str,
+        permissions: list[Permission] | None = None,
+        *,
+        impl: str | None = None,
     ):
         impl_type = impl or get_implementation_preference()
 

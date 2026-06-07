@@ -168,7 +168,9 @@ class TestGetInt:
         assert result == 30
         assert "Cannot convert" in caplog.text
 
-    def test_get_int_invalid_value_returns_none_without_default(self, caplog, monkeypatch):
+    def test_get_int_invalid_value_returns_none_without_default(
+        self, caplog, monkeypatch
+    ):
         """Test that get_int returns None for invalid value without default.
         测试无效值且无默认值时 get_int 返回 None。"""
         monkeypatch.setenv("TIMEOUT", "invalid")
@@ -220,18 +222,21 @@ class TestGetBool:
     """Tests for get_bool function.
     get_bool 函数测试。"""
 
-    @pytest.mark.parametrize("value,expected", [
-        ("true", True),
-        ("True", True),
-        ("TRUE", True),
-        ("1", True),
-        ("yes", True),
-        ("Yes", True),
-        ("YES", True),
-        ("on", True),
-        ("On", True),
-        ("ON", True),
-    ])
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("true", True),
+            ("True", True),
+            ("TRUE", True),
+            ("1", True),
+            ("yes", True),
+            ("Yes", True),
+            ("YES", True),
+            ("on", True),
+            ("On", True),
+            ("ON", True),
+        ],
+    )
     def test_get_bool_truthy_values(self, monkeypatch, value, expected):
         """Test that get_bool correctly identifies truthy values.
         测试 get_bool 正确识别真值。"""
@@ -239,18 +244,21 @@ class TestGetBool:
         result = get_bool("DEBUG")
         assert result is expected
 
-    @pytest.mark.parametrize("value,expected", [
-        ("false", False),
-        ("False", False),
-        ("FALSE", False),
-        ("0", False),
-        ("no", False),
-        ("No", False),
-        ("NO", False),
-        ("off", False),
-        ("Off", False),
-        ("OFF", False),
-    ])
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("false", False),
+            ("False", False),
+            ("FALSE", False),
+            ("0", False),
+            ("no", False),
+            ("No", False),
+            ("NO", False),
+            ("off", False),
+            ("Off", False),
+            ("OFF", False),
+        ],
+    )
     def test_get_bool_falsy_values(self, monkeypatch, value, expected):
         """Test that get_bool correctly identifies falsy values.
         测试 get_bool 正确识别假值。"""
@@ -279,7 +287,9 @@ class TestGetBool:
         result = get_bool("DEBUG", default=False)
         assert result is False
 
-    def test_get_bool_unrecognized_value_returns_none_without_default(self, monkeypatch):
+    def test_get_bool_unrecognized_value_returns_none_without_default(
+        self, monkeypatch
+    ):
         """Test that get_bool returns None for unrecognized value without default.
         测试无法识别的值且无默认值时 get_bool 返回 None。"""
         monkeypatch.setenv("DEBUG", "invalid")

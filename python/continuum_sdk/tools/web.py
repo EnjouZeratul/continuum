@@ -187,7 +187,7 @@ def _search_duckduckgo(query: str, max_results: int) -> SearchResponse:
 
     # Parse related topics
     topics = data.get("RelatedTopics", [])
-    for _i, topic in enumerate(topics[:max_results - len(results)]):
+    for _i, topic in enumerate(topics[: max_results - len(results)]):
         text = topic.get("Text", "")
         first_url = topic.get("FirstURL", "")
         if text and first_url:
@@ -224,7 +224,9 @@ def _search_duckduckgo(query: str, max_results: int) -> SearchResponse:
     )
 
 
-def _search_google(query: str, api_key: str, cx: str | None, max_results: int) -> SearchResponse:
+def _search_google(
+    query: str, api_key: str, cx: str | None, max_results: int
+) -> SearchResponse:
     """Search using Google Custom Search API."""
 
     # Default CX if not provided
@@ -340,9 +342,13 @@ def duckduckgo(query: str, max_results: int = 10) -> ToolResult:
     return web_search(query, engine="duckduckgo", max_results=max_results)
 
 
-def google(query: str, api_key: str, cx: str | None = None, max_results: int = 10) -> ToolResult:
+def google(
+    query: str, api_key: str, cx: str | None = None, max_results: int = 10
+) -> ToolResult:
     """Quick Google search (requires API key)."""
-    return web_search(query, engine="google", api_key=api_key, cx=cx, max_results=max_results)
+    return web_search(
+        query, engine="google", api_key=api_key, cx=cx, max_results=max_results
+    )
 
 
 def bing(query: str, api_key: str, max_results: int = 10) -> ToolResult:

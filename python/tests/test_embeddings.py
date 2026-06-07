@@ -441,11 +441,7 @@ class TestCohereEmbedding:
         """Test Cohere embedding with mocked response."""
         mock_client = MagicMock()
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "embeddings": {
-                "float": [[0.1] * 1024]
-            }
-        }
+        mock_response.json.return_value = {"embeddings": {"float": [[0.1] * 1024]}}
         mock_response.raise_for_status = MagicMock()
         mock_client.post.return_value = mock_response
 
@@ -551,9 +547,7 @@ class TestHttpxClientFallback:
         # Simulate httpx client (no embeddings attribute)
         del mock_client.embeddings
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "data": [{"embedding": [0.1] * 1536}]
-        }
+        mock_response.json.return_value = {"data": [{"embedding": [0.1] * 1536}]}
         mock_response.raise_for_status = MagicMock()
         mock_client.post.return_value = mock_response
 
@@ -579,7 +573,9 @@ class TestRustBindingsPath:
         mock_rust_embeddings.embed.return_value = [0.1] * 1536
 
         with patch("continuum_sdk.rag.embeddings._RUST_AVAILABLE", True):
-            with patch("continuum_sdk.rag.embeddings.RustEmbeddings") as MockRustEmbeddings:
+            with patch(
+                "continuum_sdk.rag.embeddings.RustEmbeddings"
+            ) as MockRustEmbeddings:
                 MockRustEmbeddings.return_value = mock_rust_embeddings
 
                 embeddings = Embeddings(
@@ -599,7 +595,9 @@ class TestRustBindingsPath:
         mock_rust_embeddings.embed_batch.return_value = [[0.1] * 1536, [0.2] * 1536]
 
         with patch("continuum_sdk.rag.embeddings._RUST_AVAILABLE", True):
-            with patch("continuum_sdk.rag.embeddings.RustEmbeddings") as MockRustEmbeddings:
+            with patch(
+                "continuum_sdk.rag.embeddings.RustEmbeddings"
+            ) as MockRustEmbeddings:
                 MockRustEmbeddings.return_value = mock_rust_embeddings
 
                 embeddings = Embeddings(
@@ -611,12 +609,16 @@ class TestRustBindingsPath:
 
                 vectors = embeddings.embed_batch(["text one", "text two"])
                 assert len(vectors) == 2
-                mock_rust_embeddings.embed_batch.assert_called_once_with(["text one", "text two"])
+                mock_rust_embeddings.embed_batch.assert_called_once_with(
+                    ["text one", "text two"]
+                )
 
     def test_rust_initialization_exception_fallback(self):
         """Test fallback when Rust initialization raises exception."""
         with patch("continuum_sdk.rag.embeddings._RUST_AVAILABLE", True):
-            with patch("continuum_sdk.rag.embeddings.RustEmbeddings") as MockRustEmbeddings:
+            with patch(
+                "continuum_sdk.rag.embeddings.RustEmbeddings"
+            ) as MockRustEmbeddings:
                 # Simulate Rust initialization failure
                 MockRustEmbeddings.side_effect = RuntimeError("Rust init failed")
 
@@ -650,7 +652,9 @@ class TestOpenAISDKClientInit:
                 del sys.modules["continuum_sdk.rag.embeddings"]
 
             with patch("continuum_sdk.rag.embeddings._OPENAI_SDK_AVAILABLE", True):
-                from continuum_sdk.rag.embeddings import Embeddings as ReimportedEmbeddings
+                from continuum_sdk.rag.embeddings import (
+                    Embeddings as ReimportedEmbeddings,
+                )
 
                 embeddings = ReimportedEmbeddings(
                     provider="openai",
@@ -697,7 +701,7 @@ class TestNoHTTPClientWarning:
                 assert not emb_module._HTTPX_AVAILABLE
 
                 # Now test the warning is logged
-                with patch.object(emb_module.logger, 'warning') as mock_warning:
+                with patch.object(emb_module.logger, "warning") as mock_warning:
                     emb_module.Embeddings(
                         provider="openai",
                         model="text-embedding-3-small",
@@ -739,6 +743,7 @@ class TestImportErrorHandling:
                 # We can't easily test this without modifying import machinery
                 # So we just verify the current state
                 from continuum_sdk.rag.embeddings import _RUST_AVAILABLE as rust_avail
+
                 # Either True or False is fine, just checking it's defined
                 assert isinstance(rust_avail, bool)
         finally:
@@ -749,11 +754,13 @@ class TestImportErrorHandling:
     def test_openai_sdk_import_error_path(self):
         """Test that _OPENAI_SDK_AVAILABLE handles import error."""
         from continuum_sdk.rag.embeddings import _OPENAI_SDK_AVAILABLE as openai_avail
+
         assert isinstance(openai_avail, bool)
 
     def test_httpx_import_error_path(self):
         """Test that _HTTPX_AVAILABLE handles import error."""
         from continuum_sdk.rag.embeddings import _HTTPX_AVAILABLE as httpx_avail
+
         assert isinstance(httpx_avail, bool)
 
 
@@ -780,7 +787,7 @@ class TestMockEmbeddingZeroNorm:
         def mocked_sum(iterable, start=0):
             # Check if this is the norm calculation (sum of squares)
             # If it looks like it's computing v*v, return 0
-            if hasattr(iterable, '__iter__'):
+            if hasattr(iterable, "__iter__"):
                 try:
                     first = next(iter(iterable))
                     # If the value looks like a squared float, we're in norm calc
@@ -792,7 +799,8 @@ class TestMockEmbeddingZeroNorm:
 
         # Patch builtins.sum within the _mock_embed method
         import builtins
-        with patch.object(builtins, 'sum', mocked_sum):
+
+        with patch.object(builtins, "sum", mocked_sum):
             vector = embeddings._mock_embed("test text")
             # With norm=0, the embedding should not be normalized (return raw values)
             assert len(vector) == 128

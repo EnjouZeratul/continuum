@@ -195,7 +195,9 @@ class FallbackLlmClient:
 
     def _calculate_delay(self, attempt: int) -> float:
         """Calculate exponential backoff delay in milliseconds."""
-        delay = self.config.initial_delay_ms * (self.config.backoff_multiplier ** (attempt - 1))
+        delay = self.config.initial_delay_ms * (
+            self.config.backoff_multiplier ** (attempt - 1)
+        )
         return min(delay, self.config.max_delay_ms)
 
     def _log_event(self, event: FallbackEvent):
@@ -216,18 +218,22 @@ class FallbackLlmClient:
 
         logger.info(log_msg)
 
-    def _emit_degradation_notice(self, from_provider: str, to_provider: str, reason: str):
+    def _emit_degradation_notice(
+        self, from_provider: str, to_provider: str, reason: str
+    ):
         """Emit a degradation notice when falling back to a backup provider."""
         message = (
             f"Service degradation: {from_provider} is unavailable ({reason}). "
             f"Falling back to {to_provider}. Response quality may vary."
         )
-        self._log_event(FallbackEvent(
-            event_type=FallbackEventType.DEGRADATION_NOTICE,
-            provider=from_provider,
-            next_provider=to_provider,
-            message=message,
-        ))
+        self._log_event(
+            FallbackEvent(
+                event_type=FallbackEventType.DEGRADATION_NOTICE,
+                provider=from_provider,
+                next_provider=to_provider,
+                message=message,
+            )
+        )
         logger.warning(message)
 
     async def _execute_with_retry(
@@ -256,22 +262,26 @@ class FallbackLlmClient:
 
                 if attempt < self.config.max_retries:
                     delay_ms = self._calculate_delay(attempt)
-                    self._log_event(FallbackEvent(
-                        event_type=FallbackEventType.RETRY,
-                        provider=provider,
-                        error=e,
-                        attempt=attempt,
-                        delay_ms=delay_ms,
-                    ))
+                    self._log_event(
+                        FallbackEvent(
+                            event_type=FallbackEventType.RETRY,
+                            provider=provider,
+                            error=e,
+                            attempt=attempt,
+                            delay_ms=delay_ms,
+                        )
+                    )
                     await asyncio.sleep(delay_ms / 1000.0)
 
         # Max retries exceeded
-        self._log_event(FallbackEvent(
-            event_type=FallbackEventType.MAX_RETRIES_EXCEEDED,
-            provider=provider,
-            error=last_error,
-            attempt=self.config.max_retries,
-        ))
+        self._log_event(
+            FallbackEvent(
+                event_type=FallbackEventType.MAX_RETRIES_EXCEEDED,
+                provider=provider,
+                error=last_error,
+                attempt=self.config.max_retries,
+            )
+        )
         raise last_error
 
     async def chat(
@@ -331,13 +341,17 @@ class FallbackLlmClient:
                     raise
 
                 # Log provider switch
-                next_provider = all_providers[i + 1] if i + 1 < len(all_providers) else None
-                self._log_event(FallbackEvent(
-                    event_type=FallbackEventType.PROVIDER_SWITCH,
-                    provider=provider,
-                    error=e,
-                    next_provider=next_provider,
-                ))
+                next_provider = (
+                    all_providers[i + 1] if i + 1 < len(all_providers) else None
+                )
+                self._log_event(
+                    FallbackEvent(
+                        event_type=FallbackEventType.PROVIDER_SWITCH,
+                        provider=provider,
+                        error=e,
+                        next_provider=next_provider,
+                    )
+                )
 
                 # Emit degradation notice if we have a fallback target
                 if next_provider:
@@ -345,11 +359,13 @@ class FallbackLlmClient:
                     self._emit_degradation_notice(provider, next_provider, reason)
 
         # All providers failed
-        self._log_event(FallbackEvent(
-            event_type=FallbackEventType.ALL_PROVIDERS_FAILED,
-            provider="all",
-            error=last_error,
-        ))
+        self._log_event(
+            FallbackEvent(
+                event_type=FallbackEventType.ALL_PROVIDERS_FAILED,
+                provider="all",
+                error=last_error,
+            )
+        )
         raise last_error or LlmError("All providers failed")
 
     async def chat_stream(
@@ -413,26 +429,32 @@ class FallbackLlmClient:
                     # Retry with backoff if we have attempts left
                     if attempt < self.config.max_retries:
                         delay_ms = self._calculate_delay(attempt)
-                        self._log_event(FallbackEvent(
-                            event_type=FallbackEventType.RETRY,
-                            provider=provider,
-                            error=e,
-                            attempt=attempt,
-                            delay_ms=delay_ms,
-                        ))
+                        self._log_event(
+                            FallbackEvent(
+                                event_type=FallbackEventType.RETRY,
+                                provider=provider,
+                                error=e,
+                                attempt=attempt,
+                                delay_ms=delay_ms,
+                            )
+                        )
                         await asyncio.sleep(delay_ms / 1000.0)
                         continue
 
             # Provider exhausted, try fallback
             if last_provider_error:  # pragma: no branch (loop continuation branch)
                 # Log provider switch
-                next_provider = all_providers[i + 1] if i + 1 < len(all_providers) else None
-                self._log_event(FallbackEvent(
-                    event_type=FallbackEventType.PROVIDER_SWITCH,
-                    provider=provider,
-                    error=last_provider_error,
-                    next_provider=next_provider,
-                ))
+                next_provider = (
+                    all_providers[i + 1] if i + 1 < len(all_providers) else None
+                )
+                self._log_event(
+                    FallbackEvent(
+                        event_type=FallbackEventType.PROVIDER_SWITCH,
+                        provider=provider,
+                        error=last_provider_error,
+                        next_provider=next_provider,
+                    )
+                )
 
                 # Emit degradation notice if we have a fallback target
                 if next_provider:
@@ -440,11 +462,13 @@ class FallbackLlmClient:
                     self._emit_degradation_notice(provider, next_provider, reason)
 
         # All providers failed
-        self._log_event(FallbackEvent(
-            event_type=FallbackEventType.ALL_PROVIDERS_FAILED,
-            provider="all",
-            error=last_error,
-        ))
+        self._log_event(
+            FallbackEvent(
+                event_type=FallbackEventType.ALL_PROVIDERS_FAILED,
+                provider="all",
+                error=last_error,
+            )
+        )
         raise last_error or LlmError("All providers failed")
 
     async def close(self):

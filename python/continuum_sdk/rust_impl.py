@@ -156,9 +156,7 @@ logger = logging.getLogger(__name__)
 class RustAgent:
     """Rust-backed Agent implementation."""
 
-    def __init__(
-        self, name: str = "default", model: str | None = None, **kwargs: Any
-    ):
+    def __init__(self, name: str = "default", model: str | None = None, **kwargs: Any):
         if not HAS_BINDING:
             raise RuntimeError("Rust binding not available")
 
@@ -191,7 +189,9 @@ class RustAgent:
         """Register a custom tool."""
         self._tools[name] = func
         # Note: Rust binding tool registration may require additional setup
-        logger.warning(f"Tool '{name}' registered but Rust binding tool setup is limited")
+        logger.warning(
+            f"Tool '{name}' registered but Rust binding tool setup is limited"
+        )
 
     def create_session(self) -> RustSession:
         """Create a new session."""
@@ -298,9 +298,12 @@ class RustVectorStore:
 
         self._store = RustVectorStoreBinding(metric=metric)
 
-    def upsert(self, id: str, vector: list[float], metadata: dict[str, Any] | None = None) -> bool:
+    def upsert(
+        self, id: str, vector: list[float], metadata: dict[str, Any] | None = None
+    ) -> bool:
         """Insert or update a vector."""
         import json
+
         return self._store.upsert(id, vector, json.dumps(metadata or {}))
 
     def search(self, vector: list[float], top_k: int = 10) -> list[dict[str, Any]]:
@@ -337,11 +340,16 @@ class RustRetrieverEngine:
         if not HAS_BINDING:
             raise RuntimeError("Rust binding not available")
 
-        self._engine = RustRetrieverEngineBinding(embedding_dimension=embedding_dimension)
+        self._engine = RustRetrieverEngineBinding(
+            embedding_dimension=embedding_dimension
+        )
 
-    def add_document(self, doc_id: str, content: str, metadata: dict[str, Any] | None = None) -> None:
+    def add_document(
+        self, doc_id: str, content: str, metadata: dict[str, Any] | None = None
+    ) -> None:
         """Add a document to the knowledge base."""
         import json
+
         self._engine.add_document(doc_id, content, json.dumps(metadata or {}))
 
     def retrieve(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
@@ -415,7 +423,9 @@ class RustTextSplitter:
         if not HAS_BINDING:
             raise RuntimeError("Rust binding not available")
 
-        self._splitter = RustTextSplitterBinding(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        self._splitter = RustTextSplitterBinding(
+            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        )
 
     def split(self, text: str) -> list[str]:
         """Split text into chunks."""
@@ -471,7 +481,9 @@ class RustLlmClient:
         if not HAS_BINDING:
             raise RuntimeError("Rust binding not available")
 
-        self._client = RustLlmClientBinding(provider=provider, api_key=api_key, base_url=base_url)
+        self._client = RustLlmClientBinding(
+            provider=provider, api_key=api_key, base_url=base_url
+        )
 
     def connect(self) -> bool:
         """Connect and verify API."""
@@ -492,7 +504,9 @@ class RustLlmClient:
         response_binding = self._client.send(messages, config._config)
         return RustLlmResponse.from_binding(response_binding)
 
-    def send_message(self, message: str, config: RustLlmRequestConfig | None = None) -> RustLlmResponse:
+    def send_message(
+        self, message: str, config: RustLlmRequestConfig | None = None
+    ) -> RustLlmResponse:
         """Send a single message."""
         if config is None:
             config = RustLlmRequestConfig()
@@ -615,7 +629,9 @@ class RustCostTracker:
         self, model: str, estimated_input: int, estimated_output: int
     ) -> RustCostEstimate:
         """Estimate cost for next step."""
-        estimate_binding = self._tracker.estimate_next_step(model, estimated_input, estimated_output)
+        estimate_binding = self._tracker.estimate_next_step(
+            model, estimated_input, estimated_output
+        )
         return RustCostEstimate.from_binding(estimate_binding)
 
     def generate_report(self) -> str:
@@ -754,7 +770,11 @@ class RustAgentRuntime:
         self._runtime.send_message(session_id, message)
 
     def register_tool(
-        self, name: str, description: str, callable_func: Callable, parameters: dict | None = None
+        self,
+        name: str,
+        description: str,
+        callable_func: Callable,
+        parameters: dict | None = None,
     ) -> None:
         """Register a Python tool."""
         self._runtime.register_tool(name, description, callable_func, parameters)
@@ -766,9 +786,11 @@ class RustAgentRuntime:
     def _make_config(self, config: dict[str, Any]) -> Any:
         """Make PyAgentConfig from dict."""
         from sh_python import AgentConfig
+
         return AgentConfig(
             agent_id=config.get("agent_id"),
-            model=config.get("model") or get_default_model("openai"),  # Default to openai config
+            model=config.get("model")
+            or get_default_model("openai"),  # Default to openai config
             temperature=config.get("temperature", 0.7),
             max_iterations=config.get("max_iterations", 100),
             system_prompt=config.get("system_prompt"),
@@ -874,17 +896,28 @@ class RustQueryEngine:
         return [dict(r) for r in results]
 
     def find_references(
-        self, language: str, file_path: str, line: int, column: int, include_declaration: bool = True
+        self,
+        language: str,
+        file_path: str,
+        line: int,
+        column: int,
+        include_declaration: bool = True,
     ) -> list[dict[str, Any]]:
         """Find references."""
-        results = self._engine.find_references(language, file_path, line, column, include_declaration)
+        results = self._engine.find_references(
+            language, file_path, line, column, include_declaration
+        )
         return [dict(r) for r in results]
 
-    def hover(self, language: str, file_path: str, line: int, column: int) -> str | None:
+    def hover(
+        self, language: str, file_path: str, line: int, column: int
+    ) -> str | None:
         """Get hover info."""
         return self._engine.hover(language, file_path, line, column)
 
-    def get_document_symbols(self, language: str, file_path: str) -> list[dict[str, Any]]:
+    def get_document_symbols(
+        self, language: str, file_path: str
+    ) -> list[dict[str, Any]]:
         """Get document symbols (outline of classes, functions, etc.)."""
         results = self._engine.get_document_symbols(language, file_path)
         return [dict(r) for r in results]
@@ -977,19 +1010,27 @@ class RustMemorySystem:
         """Store in long-term memory."""
         return self._memory.store_longterm(content)
 
-    def query_working(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
+    def query_working(
+        self, query: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
         """Query working memory."""
         return [dict(r) for r in self._memory.query_working(query, limit)]
 
-    def query_session(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
+    def query_session(
+        self, query: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
         """Query session memory."""
         return [dict(r) for r in self._memory.query_session(query, limit)]
 
-    def query_project(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
+    def query_project(
+        self, query: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
         """Query project memory."""
         return [dict(r) for r in self._memory.query_project(query, limit)]
 
-    def query_longterm(self, query: str, limit: int | None = None) -> list[dict[str, Any]]:
+    def query_longterm(
+        self, query: str, limit: int | None = None
+    ) -> list[dict[str, Any]]:
         """Query long-term memory."""
         return [dict(r) for r in self._memory.query_longterm(query, limit)]
 
@@ -1192,10 +1233,7 @@ class RustRole:
 
     @property
     def permissions(self) -> list[RustPermission]:
-        return [
-            RustPermission(p.resource, p.action)
-            for p in self._role.permissions
-        ]
+        return [RustPermission(p.resource, p.action) for p in self._role.permissions]
 
     def __repr__(self) -> str:
         return f"Role(name='{self.name}', permissions={len(self.permissions)})"

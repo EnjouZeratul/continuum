@@ -153,7 +153,11 @@ class TestToolResult:
     def test_tool_result_str_error(self):
         """Test string representation of error result."""
         result = ToolResult(
-            call_id="call-2", name="read", content="file not found", is_error=True, duration_ms=50
+            call_id="call-2",
+            name="read",
+            content="file not found",
+            is_error=True,
+            duration_ms=50,
         )
         str_repr = str(result)
         assert "[ERROR]" in str_repr
@@ -492,7 +496,9 @@ class TestRealToolImplementations:
         writer.write(os.path.join(temp_dir, "b.py"), "import json")
 
         grep_tool = GrepTool()
-        result = grep_tool.search("import", path=temp_dir, output_mode="files_with_matches")
+        result = grep_tool.search(
+            "import", path=temp_dir, output_mode="files_with_matches"
+        )
         assert result.is_error is False
         assert ".py" in result.content
 
@@ -623,6 +629,7 @@ class TestCustomTool:
 
     def test_custom_tool_auto_infer_types(self):
         """Test auto-inference of parameter types."""
+
         @tool(name="multi_types", description="Multiple param types")
         def multi_types(a: int, b: float, c: bool, d: list, e: dict, f: str) -> str:
             return "ok"
@@ -640,6 +647,7 @@ class TestCustomTool:
 
     def test_custom_tool_default_values(self):
         """Test tool with default parameter values (not required)."""
+
         @tool(name="with_defaults", description="Has defaults")
         def with_defaults(required_param: str, optional_param: int = 42) -> str:
             return "ok"
@@ -651,6 +659,7 @@ class TestCustomTool:
 
     def test_custom_tool_no_type_hints(self):
         """Test tool without type hints defaults to string."""
+
         @tool(name="no_hints", description="No hints")
         def no_hints(x, y) -> str:
             return "ok"
@@ -663,7 +672,9 @@ class TestCustomTool:
     def test_custom_tool_requires_confirmation(self):
         """Test custom tool with confirmation requirement."""
 
-        @tool(name="dangerous", description="Dangerous tool", requires_confirmation=True)
+        @tool(
+            name="dangerous", description="Dangerous tool", requires_confirmation=True
+        )
         def dangerous_op() -> str:
             return "executed"
 
@@ -937,6 +948,7 @@ class TestBashValidation:
 
     def test_bash_execute_async(self):
         """Test bash_execute async function."""
+
         async def run_async():
             return await bash_execute("echo async_test", timeout=5.0)
 
@@ -1082,7 +1094,9 @@ class TestWebSearch:
 
         with patch("continuum_sdk.tools.web.HAS_HTTPX", True):
             with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-                mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+                mock_client.return_value.__enter__.return_value.get.return_value = (
+                    mock_response
+                )
                 result = web_search("test", engine="google", api_key="fake_key")
                 assert result.is_error is False
                 assert result.name == "web_search"
@@ -1095,7 +1109,9 @@ class TestWebSearch:
 
         with patch("continuum_sdk.tools.web.HAS_HTTPX", True):
             with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-                mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+                mock_client.return_value.__enter__.return_value.get.return_value = (
+                    mock_response
+                )
                 result = web_search("test", engine="bing", api_key="fake_key")
                 assert result.is_error is False
 
@@ -1107,15 +1123,21 @@ class TestWebSearch:
 
         with patch("continuum_sdk.tools.web.HAS_HTTPX", True):
             with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-                mock_client.return_value.__enter__.return_value.get.return_value = mock_response
-                result = web_search("test", engine="google", api_key="fake_key", cx="custom_cx")
+                mock_client.return_value.__enter__.return_value.get.return_value = (
+                    mock_response
+                )
+                result = web_search(
+                    "test", engine="google", api_key="fake_key", cx="custom_cx"
+                )
                 assert result.is_error is False
 
     def test_web_search_network_error(self):
         """Test web_search handles network errors."""
         with patch("continuum_sdk.tools.web.HAS_HTTPX", True):
             with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-                mock_client.return_value.__enter__.return_value.get.side_effect = ConnectionError("Network error")
+                mock_client.return_value.__enter__.return_value.get.side_effect = (
+                    ConnectionError("Network error")
+                )
                 with pytest.raises(ToolError):
                     web_search("test", engine="duckduckgo")
 
@@ -1123,7 +1145,9 @@ class TestWebSearch:
         """Test web_search handles timeout errors."""
         with patch("continuum_sdk.tools.web.HAS_HTTPX", True):
             with patch("continuum_sdk.tools.web.httpx.Client") as mock_client:
-                mock_client.return_value.__enter__.return_value.get.side_effect = TimeoutError("Timeout")
+                mock_client.return_value.__enter__.return_value.get.side_effect = (
+                    TimeoutError("Timeout")
+                )
                 with pytest.raises(ToolError):
                     web_search("test", engine="duckduckgo")
 
@@ -1152,19 +1176,49 @@ class TestModuleExports:
     def test_all_list_contains_exports(self):
         """Test __all__ list matches expected exports."""
         import continuum_sdk.tools
+
         expected_exports = [
-            "ToolResult", "ToolError", "ToolNotAvailableError", "ToolMeta", "ToolCategory",
-            "BashTool", "bash_execute", "bash_execute_sync", "validate_command",
-            "ReadTool", "read_file", "detect_encoding",
-            "WriteTool", "write_file",
-            "EditTool", "edit_file",
-            "GrepTool", "GlobTool", "grep", "glob",
-            "WebSearchTool", "SearchEngine", "SearchResult", "SearchResponse",
-            "web_search", "duckduckgo", "google", "bing",
-            "CustomTool", "ToolRegistry", "tool", "register_tool", "get_registry",
-            "BuiltinTools", "get_builtin_tools",
-            "_MCP_AVAILABLE", "MCPToolRegistry", "MCPTool",
-            "ContinuumMCPAdapter", "create_mcp_registry", "PREDEFINED_MCP_SERVERS",
+            "ToolResult",
+            "ToolError",
+            "ToolNotAvailableError",
+            "ToolMeta",
+            "ToolCategory",
+            "BashTool",
+            "bash_execute",
+            "bash_execute_sync",
+            "validate_command",
+            "ReadTool",
+            "read_file",
+            "detect_encoding",
+            "WriteTool",
+            "write_file",
+            "EditTool",
+            "edit_file",
+            "GrepTool",
+            "GlobTool",
+            "grep",
+            "glob",
+            "WebSearchTool",
+            "SearchEngine",
+            "SearchResult",
+            "SearchResponse",
+            "web_search",
+            "duckduckgo",
+            "google",
+            "bing",
+            "CustomTool",
+            "ToolRegistry",
+            "tool",
+            "register_tool",
+            "get_registry",
+            "BuiltinTools",
+            "get_builtin_tools",
+            "_MCP_AVAILABLE",
+            "MCPToolRegistry",
+            "MCPTool",
+            "ContinuumMCPAdapter",
+            "create_mcp_registry",
+            "PREDEFINED_MCP_SERVERS",
         ]
         for name in expected_exports:
             assert name in continuum_sdk.tools.__all__
@@ -1191,7 +1245,11 @@ class TestModuleExports:
         # Mock mcp_adapter to raise ImportError
         with patch.dict(sys.modules, {"continuum_sdk.tools.mcp_adapter": None}):
             # Patch the import to raise ImportError
-            orig_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
+            orig_import = (
+                __builtins__["__import__"]
+                if isinstance(__builtins__, dict)
+                else __builtins__.__import__
+            )
 
             def mock_import(name, *args, **kwargs):
                 if "mcp_adapter" in name:
@@ -1201,6 +1259,7 @@ class TestModuleExports:
             with patch("builtins.__import__", side_effect=mock_import):
                 # Reload the module to trigger the ImportError handling
                 import continuum_sdk.tools as tools_module
+
                 importlib.reload(tools_module)
 
                 # Check the fallback values are set
@@ -1273,7 +1332,9 @@ class TestSearchFunctions:
 
     def test_grep_output_mode_count(self):
         """Test grep with output_mode='count'."""
-        result = grep("def", path="tests/", glob_pattern="test_tools.py", output_mode="count")
+        result = grep(
+            "def", path="tests/", glob_pattern="test_tools.py", output_mode="count"
+        )
         assert result.is_error is False
 
     def test_grep_head_limit(self):

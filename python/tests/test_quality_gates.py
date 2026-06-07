@@ -147,8 +147,12 @@ class TestPythonImportSmoke:
         agent = Agent.__new__(Agent)
 
         # These methods were removed from docs, should not exist
-        assert not hasattr(agent, "chat"), "Agent should not have 'chat' method - use 'run' instead"
-        assert not hasattr(agent, "use_tool"), "Agent should not have 'use_tool' - use BuiltinTools"
+        assert not hasattr(
+            agent, "chat"
+        ), "Agent should not have 'chat' method - use 'run' instead"
+        assert not hasattr(
+            agent, "use_tool"
+        ), "Agent should not have 'use_tool' - use BuiltinTools"
 
     def test_session_has_correct_public_methods(self):
         """Test that Session has the documented public methods."""
@@ -200,11 +204,15 @@ class TestReadmeSnippets:
 
         # Should use InMemoryVectorStore, not VectorStore(dimensions=...)
         assert "InMemoryVectorStore" in content, "README should use InMemoryVectorStore"
-        assert "VectorStore(dimensions" not in content, "README should not use VectorStore(dimensions=...)"
+        assert (
+            "VectorStore(dimensions" not in content
+        ), "README should not use VectorStore(dimensions=...)"
 
         # Should use top_k parameter, not k
         if "store.search" in content:
-            assert ", k=" not in content, "README should use 'top_k=' in store.search(), not 'k='"
+            assert (
+                ", k=" not in content
+            ), "README should use 'top_k=' in store.search(), not 'k='"
             assert "top_k=" in content, "README should use 'top_k=' in store.search()"
 
     def test_readme_workflow_snippet_is_valid(self, readme_path: Path):
@@ -212,26 +220,31 @@ class TestReadmeSnippets:
         content = readme_path.read_text(encoding="utf-8")
 
         # Should use DAG and Node
-        assert "from continuum_sdk.workflow import DAG, Node" in content, \
-            "README should import DAG and Node"
+        assert (
+            "from continuum_sdk.workflow import DAG, Node" in content
+        ), "README should import DAG and Node"
 
         # Should NOT use Workflow or Step
-        assert "from continuum_sdk.workflow import Workflow" not in content, \
-            "README should not use Workflow class"
-        assert "from continuum_sdk.workflow import Step" not in content, \
-            "README should not use Step class"
+        assert (
+            "from continuum_sdk.workflow import Workflow" not in content
+        ), "README should not use Workflow class"
+        assert (
+            "from continuum_sdk.workflow import Step" not in content
+        ), "README should not use Step class"
 
     def test_readme_memory_snippet_is_valid(self, readme_path: Path):
         """Test that memory snippet uses correct API."""
         content = readme_path.read_text(encoding="utf-8")
 
         # Should use store() method
-        assert 'memory.store("working"' in content, \
-            "README should use memory.store() method"
+        assert (
+            'memory.store("working"' in content
+        ), "README should use memory.store() method"
 
         # Should NOT use remember() method
-        assert "memory.remember(" not in content, \
-            "README should not use memory.remember() - use store() instead"
+        assert (
+            "memory.remember(" not in content
+        ), "README should not use memory.remember() - use store() instead"
 
     def test_readme_no_agent_run_await_in_sync_context(self, readme_path: Path):
         """Test that README does not show await agent.run() in sync context."""
@@ -302,7 +315,9 @@ class TestProviderConsistency:
         for provider in list_providers():
             default = get_default_model(provider)
             assert default is not None, f"Provider {provider} has no default model"
-            assert isinstance(default, str), f"Default model for {provider} should be string"
+            assert isinstance(
+                default, str
+            ), f"Default model for {provider} should be string"
 
             if provider not in providers_with_empty_defaults:
                 assert len(default) > 0, (
@@ -332,9 +347,9 @@ class TestProviderConsistency:
         for provider, expected_key in expected_env_keys.items():
             if provider in BUILTIN_PROVIDERS:
                 actual_key = get_env_key_name(provider)
-                assert actual_key == expected_key, (
-                    f"Provider {provider} env_key mismatch: expected {expected_key}, got {actual_key}"
-                )
+                assert (
+                    actual_key == expected_key
+                ), f"Provider {provider} env_key mismatch: expected {expected_key}, got {actual_key}"
 
 
 # =============================================================================
@@ -389,9 +404,9 @@ class TestSecurityBoundaries:
         expected_values = {"trusted", "standard", "strict", "paranoid"}
         actual_values = {level.value for level in SecurityLevel}
 
-        assert actual_values == expected_values, (
-            f"SecurityLevel values mismatch: expected {expected_values}, got {actual_values}"
-        )
+        assert (
+            actual_values == expected_values
+        ), f"SecurityLevel values mismatch: expected {expected_values}, got {actual_values}"
 
     def test_permission_policy_has_blocked_commands(self):
         """Test that PermissionPolicy has dangerous commands blocked by default."""
@@ -448,7 +463,10 @@ class TestPackagingModes:
 
         # Should return either "rust" or "python"
         pref = get_implementation_preference()
-        assert pref in ("rust", "python"), f"Unexpected implementation preference: {pref}"
+        assert pref in (
+            "rust",
+            "python",
+        ), f"Unexpected implementation preference: {pref}"
 
     def test_agent_works_in_both_modes(self, monkeypatch):
         """Test that Agent can be created regardless of binding availability."""
@@ -618,7 +636,9 @@ class TestAPIContracts:
         dag = DAG(id="test")
 
         assert hasattr(dag, "add"), "DAG should have 'add' method"
-        assert not hasattr(dag, "add_step"), "DAG should NOT have 'add_step' - use 'add' instead"
+        assert not hasattr(
+            dag, "add_step"
+        ), "DAG should NOT have 'add_step' - use 'add' instead"
 
 
 # =============================================================================
@@ -641,12 +661,15 @@ class TestDocumentationDrift:
         content = api_examples_path.read_text(encoding="utf-8")
 
         # Should use DAG/Node in import
-        assert "from continuum_sdk.workflow import DAG" in content, \
-            "API_EXAMPLES.md should import DAG"
+        assert (
+            "from continuum_sdk.workflow import DAG" in content
+        ), "API_EXAMPLES.md should import DAG"
 
         # The import may be combined: "from continuum_sdk.workflow import DAG, Node"
-        assert "DAG, Node" in content or "from continuum_sdk.workflow import Node" in content, \
-            "API_EXAMPLES.md should import Node (possibly with DAG)"
+        assert (
+            "DAG, Node" in content
+            or "from continuum_sdk.workflow import Node" in content
+        ), "API_EXAMPLES.md should import Node (possibly with DAG)"
 
     def test_api_examples_uses_arun_for_async(self, api_examples_path: Path):
         """Test that API_EXAMPLES.md uses arun() for async, not await run()."""
@@ -657,8 +680,9 @@ class TestDocumentationDrift:
 
         # Should NOT have "await agent.run" pattern
         # This pattern is incorrect - use arun() for async
-        assert "await agent.run(" not in content, \
-            "API_EXAMPLES.md should use 'await agent.arun()' not 'await agent.run()'"
+        assert (
+            "await agent.run(" not in content
+        ), "API_EXAMPLES.md should use 'await agent.arun()' not 'await agent.run()'"
 
     def test_api_examples_uses_inmemory_vectorstore(self, api_examples_path: Path):
         """Test that API_EXAMPLES.md uses InMemoryVectorStore correctly."""
@@ -668,9 +692,11 @@ class TestDocumentationDrift:
         content = api_examples_path.read_text(encoding="utf-8")
 
         # Should use InMemoryVectorStore
-        assert "InMemoryVectorStore" in content, \
-            "API_EXAMPLES.md should use InMemoryVectorStore"
+        assert (
+            "InMemoryVectorStore" in content
+        ), "API_EXAMPLES.md should use InMemoryVectorStore"
 
         # Should NOT use VectorStore(dimensions=...)
-        assert "VectorStore(dimensions" not in content, \
-            "API_EXAMPLES.md should not use VectorStore(dimensions=...)"
+        assert (
+            "VectorStore(dimensions" not in content
+        ), "API_EXAMPLES.md should not use VectorStore(dimensions=...)"

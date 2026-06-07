@@ -60,7 +60,9 @@ def detect_encoding(file_path: Path) -> str:
                 continue
 
         # Fallback to utf-8 with errors='replace'
-        return "utf-8"  # pragma: no cover - defensive fallback, all paths return earlier
+        return (
+            "utf-8"  # pragma: no cover - defensive fallback, all paths return earlier
+        )
     except (OSError, UnicodeDecodeError):
         return "utf-8"
 
@@ -137,8 +139,15 @@ def read_file(
                 }
 
                 record_audit(
-                    sec, AuditOperation.READ, Path(path).resolve(), success=True,
-                    metadata={"lines_read": len(selected_lines), "encoding": encoding, "secure_mode": True},
+                    sec,
+                    AuditOperation.READ,
+                    Path(path).resolve(),
+                    success=True,
+                    metadata={
+                        "lines_read": len(selected_lines),
+                        "encoding": encoding,
+                        "secure_mode": True,
+                    },
                 )
 
                 return ToolResult(
@@ -153,7 +162,9 @@ def read_file(
             raise
         except (OSError, UnicodeDecodeError) as e:
             file_path = Path(path).resolve()
-            record_audit(sec, AuditOperation.READ, file_path, success=False, details=str(e))
+            record_audit(
+                sec, AuditOperation.READ, file_path, success=False, details=str(e)
+            )
             raise ToolError(
                 call_id=call_id,
                 name="read",
@@ -167,8 +178,13 @@ def read_file(
 
         # Check if file exists
         if not file_path.exists():
-            record_audit(sec, AuditOperation.READ, file_path, success=False,
-                         details="file not found")
+            record_audit(
+                sec,
+                AuditOperation.READ,
+                file_path,
+                success=False,
+                details="file not found",
+            )
             raise ToolError(
                 call_id=call_id,
                 name="read",
@@ -177,8 +193,9 @@ def read_file(
 
         # Check if it's a file
         if not file_path.is_file():
-            record_audit(sec, AuditOperation.READ, file_path, success=False,
-                         details="not a file")
+            record_audit(
+                sec, AuditOperation.READ, file_path, success=False, details="not a file"
+            )
             raise ToolError(
                 call_id=call_id,
                 name="read",
@@ -227,7 +244,10 @@ def read_file(
             }
 
             record_audit(
-                sec, AuditOperation.READ, file_path, success=True,
+                sec,
+                AuditOperation.READ,
+                file_path,
+                success=True,
                 metadata={"lines_read": len(selected_lines), "encoding": encoding},
             )
 
@@ -241,16 +261,22 @@ def read_file(
             )
 
         except PermissionError:
-            record_audit(sec, AuditOperation.READ, file_path, success=False,
-                         details="permission denied")
+            record_audit(
+                sec,
+                AuditOperation.READ,
+                file_path,
+                success=False,
+                details="permission denied",
+            )
             raise ToolError(
                 call_id=call_id,
                 name="read",
                 message=f"Permission denied: {file_path}",
             )
         except (OSError, UnicodeDecodeError) as e:
-            record_audit(sec, AuditOperation.READ, file_path, success=False,
-                         details=str(e))
+            record_audit(
+                sec, AuditOperation.READ, file_path, success=False, details=str(e)
+            )
             raise ToolError(
                 call_id=call_id,
                 name="read",
@@ -368,9 +394,14 @@ def write_file(
         # TOCTOU-safe atomic write
         try:
             file_path = secure_file_write(
-                sec, path, content.encode(encoding),
-                Permission.CREATE, AuditOperation.CREATE, call_id, "write",
-                create_dirs=create_dirs
+                sec,
+                path,
+                content.encode(encoding),
+                Permission.CREATE,
+                AuditOperation.CREATE,
+                call_id,
+                "write",
+                create_dirs=create_dirs,
             )
 
             duration_ms = int((time.time() - start_time) * 1000)
@@ -382,9 +413,14 @@ def write_file(
             }
 
             record_audit(
-                sec, AuditOperation.WRITE if file_path.exists() else AuditOperation.CREATE,
-                file_path, success=True,
-                metadata={"bytes_written": metadata["bytes_written"], "secure_mode": True},
+                sec,
+                AuditOperation.WRITE if file_path.exists() else AuditOperation.CREATE,
+                file_path,
+                success=True,
+                metadata={
+                    "bytes_written": metadata["bytes_written"],
+                    "secure_mode": True,
+                },
             )
 
             return ToolResult(
@@ -399,7 +435,9 @@ def write_file(
             raise
         except (OSError, UnicodeEncodeError) as e:
             file_path = Path(path).resolve()
-            record_audit(sec, AuditOperation.WRITE, file_path, success=False, details=str(e))
+            record_audit(
+                sec, AuditOperation.WRITE, file_path, success=False, details=str(e)
+            )
             raise ToolError(
                 call_id=call_id,
                 name="write",
@@ -442,7 +480,10 @@ def write_file(
             }
 
             record_audit(
-                sec, audit_op, file_path, success=True,
+                sec,
+                audit_op,
+                file_path,
+                success=True,
                 metadata={"bytes_written": metadata["bytes_written"], "append": append},
             )
 
@@ -456,8 +497,9 @@ def write_file(
             )
 
         except PermissionError:
-            record_audit(sec, audit_op, file_path, success=False,
-                         details="permission denied")
+            record_audit(
+                sec, audit_op, file_path, success=False, details="permission denied"
+            )
             raise ToolError(
                 call_id=call_id,
                 name="write",
@@ -557,8 +599,13 @@ def edit_file(
 
     # Check file exists
     if not file_path.exists():
-        record_audit(sec, AuditOperation.MODIFY, file_path, success=False,
-                     details="file not found")
+        record_audit(
+            sec,
+            AuditOperation.MODIFY,
+            file_path,
+            success=False,
+            details="file not found",
+        )
         raise ToolError(
             call_id=call_id,
             name="edit",
@@ -571,8 +618,13 @@ def edit_file(
         with open(file_path, encoding=encoding, errors="replace") as f:
             content = f.read()
     except (OSError, PermissionError, UnicodeDecodeError) as e:
-        record_audit(sec, AuditOperation.MODIFY, file_path, success=False,
-                     details=f"read failed: {e}")
+        record_audit(
+            sec,
+            AuditOperation.MODIFY,
+            file_path,
+            success=False,
+            details=f"read failed: {e}",
+        )
         raise ToolError(
             call_id=call_id,
             name="edit",
@@ -581,8 +633,13 @@ def edit_file(
 
     # Check if old string exists
     if old not in content:
-        record_audit(sec, AuditOperation.MODIFY, file_path, success=False,
-                     details="search string not found")
+        record_audit(
+            sec,
+            AuditOperation.MODIFY,
+            file_path,
+            success=False,
+            details="search string not found",
+        )
         raise ToolError(
             call_id=call_id,
             name="edit",
@@ -609,12 +666,21 @@ def edit_file(
     try:
         with open(file_path, "w", encoding=encoding) as f:
             f.write(new_content)
-    except (OSError, PermissionError, UnicodeEncodeError) as e:  # pragma: no cover - hard to trigger write errors
+    except (
+        OSError,
+        PermissionError,
+        UnicodeEncodeError,
+    ) as e:  # pragma: no cover - hard to trigger write errors
         # Restore from backup
         if backup:
             shutil.move(backup_path, file_path)
-        record_audit(sec, AuditOperation.MODIFY, file_path, success=False,
-                     details=f"write failed: {e}")
+        record_audit(
+            sec,
+            AuditOperation.MODIFY,
+            file_path,
+            success=False,
+            details=f"write failed: {e}",
+        )
         raise ToolError(
             call_id=call_id,
             name="edit",
@@ -641,7 +707,10 @@ def edit_file(
     }
 
     record_audit(
-        sec, AuditOperation.MODIFY, file_path, success=True,
+        sec,
+        AuditOperation.MODIFY,
+        file_path,
+        success=True,
         metadata={"replacements": replacements},
     )
 
@@ -723,8 +792,13 @@ def list_directory(
     )
 
     if not dir_path.exists():
-        record_audit(sec, AuditOperation.LIST, dir_path, success=False,
-                     details="directory not found")
+        record_audit(
+            sec,
+            AuditOperation.LIST,
+            dir_path,
+            success=False,
+            details="directory not found",
+        )
         raise ToolError(
             call_id=call_id,
             name="list_directory",
@@ -732,8 +806,9 @@ def list_directory(
         )
 
     if not dir_path.is_dir():
-        record_audit(sec, AuditOperation.LIST, dir_path, success=False,
-                     details="not a directory")
+        record_audit(
+            sec, AuditOperation.LIST, dir_path, success=False, details="not a directory"
+        )
         raise ToolError(
             call_id=call_id,
             name="list_directory",
@@ -743,23 +818,29 @@ def list_directory(
     try:
         entries = []
         for entry in dir_path.iterdir():
-            entries.append({
-                "name": entry.name,
-                "type": "dir" if entry.is_dir() else "file",
-                "path": str(entry),
-            })
+            entries.append(
+                {
+                    "name": entry.name,
+                    "type": "dir" if entry.is_dir() else "file",
+                    "path": str(entry),
+                }
+            )
         entries.sort(key=lambda e: (e["type"], e["name"]))
     except PermissionError:
-        record_audit(sec, AuditOperation.LIST, dir_path, success=False,
-                     details="permission denied")
+        record_audit(
+            sec,
+            AuditOperation.LIST,
+            dir_path,
+            success=False,
+            details="permission denied",
+        )
         raise ToolError(
             call_id=call_id,
             name="list_directory",
             message=f"Permission denied: {dir_path}",
         )
     except OSError as e:
-        record_audit(sec, AuditOperation.LIST, dir_path, success=False,
-                     details=str(e))
+        record_audit(sec, AuditOperation.LIST, dir_path, success=False, details=str(e))
         raise ToolError(
             call_id=call_id,
             name="list_directory",
@@ -769,7 +850,10 @@ def list_directory(
     duration_ms = int((time.time() - start_time) * 1000)
 
     record_audit(
-        sec, AuditOperation.LIST, dir_path, success=True,
+        sec,
+        AuditOperation.LIST,
+        dir_path,
+        success=True,
         metadata={"entry_count": len(entries)},
     )
 
@@ -794,7 +878,9 @@ class ListDirectoryTool:
         workspace: str | Path | None = None,
         security_config: dict[str, Any] | None = None,
     ) -> ToolResult:
-        return list_directory(path, workspace=workspace, security_config=security_config)
+        return list_directory(
+            path, workspace=workspace, security_config=security_config
+        )
 
     def __call__(self, path: str, **kwargs) -> ToolResult:
         return self.list(path, **kwargs)

@@ -177,7 +177,10 @@ class AgentConfig:
         import logging
         import os
 
-        from continuum_sdk.config.providers import get_default_base_url, get_default_model
+        from continuum_sdk.config.providers import (
+            get_default_base_url,
+            get_default_model,
+        )
 
         self.name = name
         # Model default: priority: parameter > CONTINUUM_MODEL env > providers config
@@ -253,7 +256,9 @@ class AgentConfig:
             base_url=data.get("base_url"),
             budget=data.get("budget"),
             max_tokens=data.get("max_tokens", 4096),
-            max_iterations=data.get("max_iterations"),  # Let __init__ handle default values
+            max_iterations=data.get(
+                "max_iterations"
+            ),  # Let __init__ handle default values
             temperature=data.get("temperature", 0.7),
             system_prompt=data.get("system_prompt"),
             timeout=data.get("timeout", 60.0),
@@ -674,7 +679,7 @@ class Agent:
                 yield chunk
 
                 # Check for abort
-                if hasattr(rust_iterator, 'is_aborted') and rust_iterator.is_aborted():
+                if hasattr(rust_iterator, "is_aborted") and rust_iterator.is_aborted():
                     break
 
                 # Stop on final chunk

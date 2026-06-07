@@ -75,7 +75,9 @@ class TestDefaultModelFallback:
 
         验证 CONTINUUM_MODEL 环境变量具有最高优先级。
         """
-        with patch.dict(os.environ, {"CONTINUUM_MODEL": "custom-model-from-env"}, clear=False):
+        with patch.dict(
+            os.environ, {"CONTINUUM_MODEL": "custom-model-from-env"}, clear=False
+        ):
             result = get_default_model("anthropic")
             assert result == "custom-model-from-env"
 
@@ -91,6 +93,7 @@ class TestDefaultModelFallback:
             from importlib import reload
 
             import continuum_sdk.config.providers as providers_module
+
             reload(providers_module)
 
             # Get default model for a known provider
@@ -266,11 +269,14 @@ class TestEnvVarSecurity:
         验证 _get_env 对非白名单变量返回值并记录警告（软约束）。
         """
         import logging
+
         # Set a non-whitelisted env var
         with patch.dict(os.environ, {"SECRET_EVIL_VAR": "should-be-accessible"}):
             with caplog.at_level(logging.WARNING):
                 result = _get_env("SECRET_EVIL_VAR")
-            assert result == "should-be-accessible"  # Value is returned (soft constraint)
+            assert (
+                result == "should-be-accessible"
+            )  # Value is returned (soft constraint)
             assert "non-documented env var" in caplog.text
 
     def test_get_env_returns_whitelisted_value(self):
@@ -307,7 +313,10 @@ class TestLoggingFriendliness:
         log_messages = [record.message for record in caplog.records]
 
         # Should contain helpful information about fallback
-        assert any("fallback" in msg.lower() for msg in log_messages) or len(caplog.records) >= 0
+        assert (
+            any("fallback" in msg.lower() for msg in log_messages)
+            or len(caplog.records) >= 0
+        )
 
     def test_provider_not_found_logging(self, caplog):
         """
@@ -417,7 +426,9 @@ class TestConfigModelFallback:
         验证显式指定的模型参数会覆盖默认值。
         """
         with patch.dict(os.environ, {}, clear=True):
-            config = Config(provider="anthropic", api_key="test-key", model="explicit-model")
+            config = Config(
+                provider="anthropic", api_key="test-key", model="explicit-model"
+            )
             assert config.model == "explicit-model"
 
     def test_config_provider_switch_updates_model(self):
@@ -530,6 +541,7 @@ class TestFallbackChain:
             from importlib import reload
 
             import continuum_sdk.config.providers as providers_module
+
             reload(providers_module)
 
             model = providers_module.get_default_model("anthropic")

@@ -226,7 +226,7 @@ class TestSafeWriteAtomic:
     def test_atomic_write_preserves_permissions(self, tmp_path: Path):
         """Test atomic write preserves file permissions on overwrite."""
         # This test is platform-specific
-        if os.name == 'nt':
+        if os.name == "nt":
             pytest.skip("File permissions test not applicable on Windows")
 
         file_path = tmp_path / "perms.txt"
@@ -278,7 +278,9 @@ class TestSafeReadWithRetry:
 
         monkeypatch.setattr(os, "open", mock_os_open_retry)
 
-        content = safe_read_with_retry(file_path, validate_func, max_retries=3, retry_delay=0.01)
+        content = safe_read_with_retry(
+            file_path, validate_func, max_retries=3, retry_delay=0.01
+        )
 
         assert attempts[0] == 2
         assert content == b"Retry content"
@@ -297,7 +299,9 @@ class TestSafeReadWithRetry:
         monkeypatch.setattr(os, "open", mock_os_open_fail)
 
         with pytest.raises(FileNotFoundError):
-            safe_read_with_retry(file_path, validate_func, max_retries=3, retry_delay=0.01)
+            safe_read_with_retry(
+                file_path, validate_func, max_retries=3, retry_delay=0.01
+            )
 
     def test_retry_security_error_propagates(self, tmp_path: Path):
         """Test retry propagates SecurityError after exhausting retries."""
@@ -309,7 +313,9 @@ class TestSafeReadWithRetry:
             return FakeValidationResult(is_valid=False, reason="denied")
 
         with pytest.raises(SecurityError):
-            safe_read_with_retry(file_path, failing_validator, max_retries=3, retry_delay=0.01)
+            safe_read_with_retry(
+                file_path, failing_validator, max_retries=3, retry_delay=0.01
+            )
 
 
 class TestCrossPlatform:
@@ -317,7 +323,7 @@ class TestCrossPlatform:
 
     def test_linux_fd_path_resolution(self, tmp_path: Path):
         """Test Linux fd-based path resolution."""
-        if os.name == 'nt':
+        if os.name == "nt":
             pytest.skip("Linux-specific test")
 
         file_path = tmp_path / "linux.txt"
@@ -331,7 +337,7 @@ class TestCrossPlatform:
 
     def test_windows_direct_path_use(self, tmp_path: Path):
         """Test Windows uses direct path."""
-        if os.name != 'nt':
+        if os.name != "nt":
             pytest.skip("Windows-specific test")
 
         file_path = tmp_path / "windows.txt"
@@ -357,7 +363,7 @@ class TestCrossPlatform:
 
     def test_atomic_write_linux_rename(self, tmp_path: Path):
         """Test atomic write uses os.rename on Linux."""
-        if os.name == 'nt':
+        if os.name == "nt":
             pytest.skip("Linux-specific test")
 
         file_path = tmp_path / "rename.txt"
@@ -376,7 +382,7 @@ class TestSymlinkProtection:
 
     def test_symlink_escape_detection(self, tmp_path: Path):
         """Test detection of symlink escape attempts."""
-        if os.name == 'nt':
+        if os.name == "nt":
             pytest.skip("Symlink behavior differs on Windows")
 
         # Create a file outside project boundary
@@ -401,7 +407,7 @@ class TestSymlinkProtection:
 
     def test_symlink_within_project_allowed(self, tmp_path: Path):
         """Test symlinks within project boundary are allowed."""
-        if os.name == 'nt':
+        if os.name == "nt":
             pytest.skip("Symlink behavior differs on Windows")
 
         # Create file inside project

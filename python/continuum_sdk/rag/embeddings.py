@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 # Try to import Rust bindings
 try:
     from sh_python import Embeddings as RustEmbeddings
+
     _RUST_AVAILABLE = True
 except ImportError:
     _RUST_AVAILABLE = False
@@ -47,6 +48,7 @@ except ImportError:
 # Try to import OpenAI SDK (as fallback)
 try:
     import openai
+
     _OPENAI_SDK_AVAILABLE = True
 except ImportError:
     _OPENAI_SDK_AVAILABLE = False
@@ -54,6 +56,7 @@ except ImportError:
 # Try to import httpx (for other APIs)
 try:
     import httpx
+
     _HTTPX_AVAILABLE = True
 except ImportError:
     _HTTPX_AVAILABLE = False
@@ -62,6 +65,7 @@ except ImportError:
 @dataclass
 class EmbeddingConfig:
     """Embedding model configuration"""
+
     provider: str = "openai"
     model: str = "text-embedding-3-small"
     api_key: str | None = None
@@ -74,26 +78,33 @@ class EmbeddingConfig:
         if provider == "openai":
             return cls(
                 provider="openai",
-                model=_get_env("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small") or "text-embedding-3-small",
+                model=_get_env("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+                or "text-embedding-3-small",
                 api_key=_get_env("OPENAI_API_KEY"),
                 base_url=_get_env("OPENAI_BASE_URL"),
             )
         elif provider == "huggingface" or provider == "hf":
             return cls(
                 provider="huggingface",
-                model=_get_env("HUGGINGFACE_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2") or "sentence-transformers/all-MiniLM-L6-v2",
+                model=_get_env(
+                    "HUGGINGFACE_EMBEDDING_MODEL",
+                    "sentence-transformers/all-MiniLM-L6-v2",
+                )
+                or "sentence-transformers/all-MiniLM-L6-v2",
                 api_key=_get_env("HUGGINGFACE_API_KEY"),
             )
         elif provider == "cohere":
             return cls(
                 provider="cohere",
-                model=_get_env("COHERE_EMBEDDING_MODEL", "embed-english-v3.0") or "embed-english-v3.0",
+                model=_get_env("COHERE_EMBEDDING_MODEL", "embed-english-v3.0")
+                or "embed-english-v3.0",
                 api_key=_get_env("COHERE_API_KEY"),
             )
         elif provider == "local":
             return cls(
                 provider="local",
-                model=_get_env("LOCAL_EMBEDDING_MODEL", "all-MiniLM-L6-v2") or "all-MiniLM-L6-v2",
+                model=_get_env("LOCAL_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+                or "all-MiniLM-L6-v2",
                 dimension=384,
             )
         else:
@@ -261,7 +272,7 @@ class Embeddings:
 
     def _openai_embed(self, text: str) -> list[float]:
         """OpenAI API call"""
-        if hasattr(self._client, 'embeddings'):
+        if hasattr(self._client, "embeddings"):
             # Use OpenAI SDK
             response = self._client.embeddings.create(
                 model=self.model,

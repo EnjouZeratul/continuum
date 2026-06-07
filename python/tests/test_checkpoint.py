@@ -475,7 +475,10 @@ class TestCheckpointSerialization:
             state = {
                 "messages": [
                     {"role": "user", "content": "What is Python?"},
-                    {"role": "assistant", "content": "Python is a programming language."},
+                    {
+                        "role": "assistant",
+                        "content": "Python is a programming language.",
+                    },
                     {"role": "user", "content": "Tell me more."},
                     {
                         "role": "assistant",
@@ -497,7 +500,9 @@ class TestCheckpointSerialization:
             loaded_json = system.load("complex_session", checkpoint_id)
             loaded = json.loads(loaded_json)
 
-            assert loaded["messages"][1]["content"] == "Python is a programming language."
+            assert (
+                loaded["messages"][1]["content"] == "Python is a programming language."
+            )
             assert loaded["metadata"]["user_id"] == "user_12345"
             assert loaded["tools_used"] == ["search", "read_file", "execute_code"]
             assert loaded["cost"] == 0.0575
@@ -685,7 +690,9 @@ class TestCheckpointErrorHandling:
             system = PythonCheckpointSystem(storage_path=tmpdir)
 
             # Create a large state
-            large_messages = [{"role": "user", "content": f"Message {i}" * 100} for i in range(1000)]
+            large_messages = [
+                {"role": "user", "content": f"Message {i}" * 100} for i in range(1000)
+            ]
             state = json.dumps({"messages": large_messages})
 
             checkpoint_id = system.save("large_session", state)
@@ -754,23 +761,27 @@ class TestCheckpointLifecycle:
             time.sleep(0.01)  # Ensure different modification time
 
             # Simulate progress
-            state_v2 = json.dumps({
-                "iteration": 1,
-                "messages": [{"role": "user", "content": "Hello"}],
-                "status": "processing",
-            })
+            state_v2 = json.dumps(
+                {
+                    "iteration": 1,
+                    "messages": [{"role": "user", "content": "Hello"}],
+                    "status": "processing",
+                }
+            )
             system.save(session_id, state_v2)
             time.sleep(0.01)  # Ensure different modification time
 
             # Simulate more progress
-            state_v3 = json.dumps({
-                "iteration": 2,
-                "messages": [
-                    {"role": "user", "content": "Hello"},
-                    {"role": "assistant", "content": "Hi!"},
-                ],
-                "status": "processing",
-            })
+            state_v3 = json.dumps(
+                {
+                    "iteration": 2,
+                    "messages": [
+                        {"role": "user", "content": "Hello"},
+                        {"role": "assistant", "content": "Hi!"},
+                    ],
+                    "status": "processing",
+                }
+            )
             system.save(session_id, state_v3)
 
             # Simulate crash recovery - load latest
@@ -794,11 +805,13 @@ class TestCheckpointLifecycle:
 
             # Simulate periodic saves
             for i in range(5):
-                state = json.dumps({
-                    "iteration": i,
-                    "data": f"checkpoint_{i}",
-                    "timestamp": datetime.now().isoformat(),
-                })
+                state = json.dumps(
+                    {
+                        "iteration": i,
+                        "data": f"checkpoint_{i}",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
                 system.save(session_id, state)
                 time.sleep(0.01)  # Ensure different modification time
 
@@ -859,10 +872,12 @@ class TestCheckpointConcurrentSessions:
 
             # Save unique data to each session
             for session_id in sessions:
-                system.save(session_id, json.dumps({
-                    "session_id": session_id,
-                    "data": f"data_for_{session_id}"
-                }))
+                system.save(
+                    session_id,
+                    json.dumps(
+                        {"session_id": session_id, "data": f"data_for_{session_id}"}
+                    ),
+                )
 
             # Verify each session has its own data
             for session_id in sessions:
@@ -947,7 +962,9 @@ class TestCheckpointEdgeCases:
                 with patch.object(
                     type(checkpoint_files[0]),
                     "stem",
-                    new_callable=lambda: property(lambda self: (_ for _ in ()).throw(PermissionError("denied")))
+                    new_callable=lambda: property(
+                        lambda self: (_ for _ in ()).throw(PermissionError("denied"))
+                    ),
                 ):
                     # Should not crash, returns empty list
                     checkpoints = system.list("session_001")
@@ -1003,7 +1020,7 @@ class TestCheckpointEdgeCases:
                     # Return raw JSON string that will fail to parse
                     return '{"invalid json content": }'
 
-                with patch.object(client._system, 'load', side_effect=mock_system_load):
+                with patch.object(client._system, "load", side_effect=mock_system_load):
                     result = client.load("session_001", checkpoint_id)
                     # Should return raw result wrapped in dict when JSON decode fails
                     assert result is not None
@@ -1019,10 +1036,14 @@ class TestCheckpointEdgeCases:
 
             # Mock temp_path.unlink to raise an exception
             # This tests the exception handling in the finally block
-            with patch("pathlib.Path.unlink", side_effect=PermissionError("Access denied")):
+            with patch(
+                "pathlib.Path.unlink", side_effect=PermissionError("Access denied")
+            ):
                 with patch("pathlib.Path.exists", return_value=True):
                     # The save should still succeed even if temp cleanup fails
-                    checkpoint_id = system.save("session_001", json.dumps({"data": "test"}))
+                    checkpoint_id = system.save(
+                        "session_001", json.dumps({"data": "test"})
+                    )
                     assert checkpoint_id is not None
 
             # Verify the checkpoint was still saved
@@ -1069,6 +1090,7 @@ class TestModuleImportFallback:
 
             # Mock the import to raise ImportError
             import builtins
+
             original_import = builtins.__import__
 
             def mock_import(name, *args, **kwargs):
@@ -1180,7 +1202,7 @@ class TestClearSession:
                     return False  # First delete fails
                 return original_delete(session_id, cp_id)
 
-            with patch.object(client, 'delete', side_effect=mock_delete):
+            with patch.object(client, "delete", side_effect=mock_delete):
                 # This will count the failed delete but not increment counter
                 deleted_count = client.clear_session("session_001")
 
@@ -1211,8 +1233,8 @@ class TestRustBindingImportSuccess:
         # If the Rust binding is not available, the module should have
         # the PythonCheckpointSystem as a fallback
         if not checkpoint.HAS_RUST_BINDING:
-            assert hasattr(checkpoint, 'PythonCheckpointSystem')
-            assert hasattr(checkpoint, 'CheckpointClient')
+            assert hasattr(checkpoint, "PythonCheckpointSystem")
+            assert hasattr(checkpoint, "CheckpointClient")
 
 
 if __name__ == "__main__":

@@ -183,6 +183,7 @@ class IntelligentAgent:
 
         # max_iterations: priority: parameter > CONTINUUM_MAX_ITERATIONS env > 100
         import os
+
         if max_iterations is None:
             env_val = os.environ.get("CONTINUUM_MAX_ITERATIONS")
             if env_val is not None:
@@ -370,7 +371,10 @@ class IntelligentAgent:
                 )
 
                 self.logger.log(
-                    step.id, "error", error_message, {"error_type": error_ctx.error_type.value}
+                    step.id,
+                    "error",
+                    error_message,
+                    {"error_type": error_ctx.error_type.value},
                 )
 
                 # Propose correction
@@ -413,8 +417,15 @@ class IntelligentAgent:
                                 step.status = StepStatus.FAILED
                                 step.error = error_message
                                 break  # Abort
-                        except (TypeError, ValueError, RuntimeError) as callback_err:  # pragma: no cover
-                            logger.debug("on_error callback failed during recovery: %s", callback_err)
+                        except (
+                            TypeError,
+                            ValueError,
+                            RuntimeError,
+                        ) as callback_err:  # pragma: no cover
+                            logger.debug(
+                                "on_error callback failed during recovery: %s",
+                                callback_err,
+                            )
 
                 # Mark as failed
                 step.status = StepStatus.FAILED
@@ -436,7 +447,7 @@ class IntelligentAgent:
             logger.warning(
                 "Execution stopped after reaching max_iterations limit (%d). "
                 "Consider increasing max_iterations if the task requires more steps.",
-                self.max_iterations
+                self.max_iterations,
             )
 
         # Calculate result
