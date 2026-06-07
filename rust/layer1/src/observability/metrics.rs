@@ -106,6 +106,7 @@ impl Counter {
     }
 
     /// Increment the counter by the given delta.
+    #[allow(clippy::let_unit_value)]
     pub fn increment(&self, delta: u64) {
         #[cfg(feature = "prometheus")]
         {
@@ -144,6 +145,7 @@ impl Histogram {
     }
 
     /// Record a value in the histogram.
+    #[allow(clippy::let_unit_value)]
     pub fn record(&self, value: f64) {
         #[cfg(feature = "prometheus")]
         {
@@ -182,6 +184,7 @@ impl Gauge {
     }
 
     /// Set the gauge to a value.
+    #[allow(clippy::let_unit_value)]
     pub fn set(&self, value: f64) {
         #[cfg(feature = "prometheus")]
         {

@@ -809,12 +809,22 @@ struct CohereEmbeddingsData {
 ///
 /// 注意：此实现需要 `candle` 或 `ort` 特性启用。
 /// 在纯 Rust 环境下，使用占位实现。
-#[derive(Debug)]
 pub struct LocalEmbeddings {
     config: EmbeddingsConfig,
     cache: Option<Arc<EmbeddingCache>>,
     #[cfg(feature = "local-embeddings")]
+    #[allow(dead_code)]
     model: Option<std::sync::Mutex<Box<dyn LocalModelBackend>>>,
+}
+
+impl std::fmt::Debug for LocalEmbeddings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LocalEmbeddings")
+            .field("config", &self.config)
+            .field("cache", &self.cache)
+            .field("model", &"<model>")
+            .finish()
+    }
 }
 
 impl LocalEmbeddings {
@@ -928,6 +938,7 @@ impl EmbeddingModel for LocalEmbeddings {
 
 /// 本地模型后端 trait
 #[cfg(feature = "local-embeddings")]
+#[allow(dead_code)]
 trait LocalModelBackend: Send + Sync {
     fn encode(&self, text: &str) -> Result<Vec<f32>>;
 }

@@ -109,15 +109,6 @@ struct SlidingWindowCounter {
 }
 
 impl SlidingWindowCounter {
-    fn new() -> Self {
-        Self {
-            minute_requests: Vec::new(),
-            hour_requests: Vec::new(),
-            minute_capacity: 1000, // 默认上限
-            hour_capacity: 10000,  // 默认上限
-        }
-    }
-
     fn with_capacity(minute_capacity: usize, hour_capacity: usize) -> Self {
         Self {
             minute_requests: Vec::new(),

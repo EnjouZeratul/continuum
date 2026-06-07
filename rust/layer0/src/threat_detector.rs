@@ -28,9 +28,10 @@ pub enum ThreatError {
 }
 
 /// 威胁级别
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ThreatLevel {
     /// 信息级别 - 无威胁
+    #[default]
     Info,
     /// 低危 - 轻微异常
     Low,
@@ -40,12 +41,6 @@ pub enum ThreatLevel {
     High,
     /// 严重 - 紧急响应
     Critical,
-}
-
-impl Default for ThreatLevel {
-    fn default() -> Self {
-        Self::Info
-    }
 }
 
 impl ThreatLevel {
@@ -59,7 +54,8 @@ impl ThreatLevel {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Parse from string (non-standard name to avoid confusion with FromStr trait)
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "info" => Some(Self::Info),
             "low" => Some(Self::Low),
@@ -81,6 +77,7 @@ pub enum ThreatType {
     /// SQL 注入
     SqlInjection,
     /// XSS 攻击
+    #[allow(clippy::upper_case_acronyms)]
     XSS,
     /// 路径遍历
     PathTraversal,
@@ -482,7 +479,6 @@ impl ThreatDetector {
     }
 
     fn detect_with_rule(&self, rule: &DetectionRule, activity: &[ActivityRecord]) -> Vec<Threat> {
-        let now = Instant::now();
         let window = Duration::from_secs(rule.time_window_secs);
 
         let relevant_activities: Vec<_> = activity
@@ -615,7 +611,7 @@ impl ThreatDetector {
         response_rules
             .iter()
             .filter(|r| r.enabled && threat.level >= r.min_level)
-            .max_by_key(|r| r.min_level.clone() as i32)
+            .max_by_key(|r| r.min_level as i32)
             .map(|r| r.action.clone())
     }
 
@@ -729,14 +725,14 @@ mod tests {
         assert!(!threat.handled);
     }
 
-    #[test]
+#[test]
     fn test_threat_level_conversion() {
-        assert_eq!(ThreatLevel::from_str("high"), Some(ThreatLevel::High));
+        assert_eq!(ThreatLevel::parse("high"), Some(ThreatLevel::High));
         assert_eq!(
-            ThreatLevel::from_str("critical"),
+            ThreatLevel::parse("critical"),
             Some(ThreatLevel::Critical)
         );
-        assert_eq!(ThreatLevel::from_str("invalid"), None);
+        assert_eq!(ThreatLevel::parse("invalid"), None);
     }
 
     #[test]
@@ -872,10 +868,7 @@ mod tests {
         detector.record_activity("login", "192.168.1.1", serde_json::json!({}));
 
         let _threats = detector.detect();
-        let stats = detector.get_stats();
-
-        // 应该有统计记录
-        assert!(stats.total_detections >= 0);
+        let _stats = detector.get_stats();
     }
 
     #[test]

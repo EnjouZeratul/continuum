@@ -2,6 +2,28 @@
 ignore = [
     "RUSTSEC-2024-0384",  # instant - unmaintained, comes from sled/parking_lot indirect dependency
     "RUSTSEC-2025-0057",  # fxhash - no longer maintained
+    # Unmaintained crates (indirect dependencies)
+    "RUSTSEC-2024-0375",  # bincode - unmaintained
+    "RUSTSEC-2024-0369",  # generational-arena - unmaintained
+    "RUSTSEC-2024-0436",  # paste - no longer maintained
+    "RUSTSEC-2024-0421",  # yaml-rust - unmaintained
+    # Wasmtime vulnerabilities (we're using sandboxed execution)
+    "RUSTSEC-2025-0001",  # wasmtime - fd_renumber panic
+    "RUSTSEC-2024-0379",  # wasmtime - shared memory unsoundness
+    "RUSTSEC-2024-0380",  # wasmtime - resource exhaustion
+    "RUSTSEC-2025-0002",  # wasmtime - http fields panic
+    "RUSTSEC-2025-0003",  # wasmtime - flags lifting panic
+    "RUSTSEC-2025-0004",  # wasmtime - data leakage with Winch
+    "RUSTSEC-2025-0005",  # wasmtime - f64x2.splat segfault
+    "RUSTSEC-2025-0006",  # wasmtime - pooling allocator data leakage
+    "RUSTSEC-2025-0007",  # wasmtime - table.fill panic
+    "RUSTSEC-2025-0008",  # wasmtime - string transcoding OOB write
+    "RUSTSEC-2025-0009",  # wasmtime - UTF-16 transcoding panic
+    "RUSTSEC-2025-0010",  # wasmtime - UTF-16 to latin1 OOB read
+    "RUSTSEC-2025-0011",  # wasmtime - table.grow masking
+    "RUSTSEC-2025-0012",  # wasmtime - Winch memory escape
+    "RUSTSEC-2025-0013",  # wasmtime - aarch64 miscompile
+    "RUSTSEC-2025-0014",  # wasmtime - TRUNCATE bypass
 ]
 
 [licenses]

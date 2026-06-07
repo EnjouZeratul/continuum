@@ -58,18 +58,13 @@ pub enum EncryptionError {
 }
 
 /// 加密算法类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EncryptionAlgorithm {
     /// AES-256-GCM (推荐)
+    #[default]
     Aes256Gcm,
     /// ChaCha20-Poly1305
     ChaCha20Poly1305,
-}
-
-impl Default for EncryptionAlgorithm {
-    fn default() -> Self {
-        Self::Aes256Gcm
-    }
 }
 
 impl std::fmt::Display for EncryptionAlgorithm {
@@ -633,8 +628,10 @@ mod tests {
 
     #[test]
     fn test_chacha_encryption_decryption() {
-        let mut config = EncryptionConfig::default();
-        config.default_algorithm = EncryptionAlgorithm::ChaCha20Poly1305;
+        let config = EncryptionConfig {
+            default_algorithm: EncryptionAlgorithm::ChaCha20Poly1305,
+            ..Default::default()
+        };
         let engine = EncryptionEngine::with_config(config);
         engine.generate_key().unwrap();
 

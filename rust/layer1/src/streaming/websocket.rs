@@ -325,7 +325,7 @@ impl Stream for WebSocketReceiver {
         Pin::new(&mut self.stream.inner).poll_next(cx).map(|opt| {
             opt.map(|result| {
                 result
-                    .map(|ws_msg| WebSocketMessage::from(ws_msg))
+                    .map(WebSocketMessage::from)
                     .map_err(|e| anyhow::anyhow!("WebSocket error: {}", e))
             })
         })
