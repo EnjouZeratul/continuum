@@ -10,7 +10,27 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
-    {name = "Continuum Team"}
+    {name = "Continuum Team", email = "1281676337@qq.com"}
+]
+keywords = [
+    "agent",
+    "llm",
+    "ai",
+    "framework",
+    "sdk",
+    "anthropic",
+    "openai",
+    "gemini",
+    "deepseek",
+    "glm",
+    "qwen",
+    "kimi",
+    "session",
+    "persistence",
+    "checkpoint",
+    "tools",
+    "function-calling",
+    "production-ready",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -23,6 +43,9 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+    "Operating System :: OS Independent",
+    "Framework :: AsyncIO",
 ]
 dependencies = [
     "httpx>=0.25.0",

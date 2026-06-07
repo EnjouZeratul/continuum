@@ -2,6 +2,8 @@
 
 A production-grade agent framework with crash safety guarantees.
 
+English | [简体中文](README_CN.md)
+
 ## Quick Start (3 steps)
 
 ```python
