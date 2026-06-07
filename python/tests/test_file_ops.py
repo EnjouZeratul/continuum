@@ -759,8 +759,10 @@ class TestErrorHandling:
         assert exc_info.value.name == "read"
         assert "failed to read file" in exc_info.value.message.lower()
 
-    def test_write_permission_error_path(self, tmp_path: Path, monkeypatch):
+    def test_write_permission_error_path(self, tmp_path: Path):
         """Test write_file PermissionError handling (lines 312-319)."""
+        from unittest.mock import patch
+
         file_path = tmp_path / "write_protected.txt"
         file_path.write_text("original")
 
@@ -773,17 +775,19 @@ class TestErrorHandling:
                 raise PermissionError("Mock write permission denied")
             return original_open(*args, **kwargs)
 
-        monkeypatch.setattr("builtins.open", mock_open_raise_permission)
+        # Patch the open in the file_ops module directly
+        with patch("continuum_sdk.tools.file_ops.open", mock_open_raise_permission):
+            writer = WriteTool()
+            with pytest.raises(ToolError) as exc_info:
+                writer.write(str(file_path), "new content")
 
-        writer = WriteTool()
-        with pytest.raises(ToolError) as exc_info:
-            writer.write(str(file_path), "new content")
+            assert exc_info.value.name == "write"
+            assert "permission denied" in exc_info.value.message.lower()
 
-        assert exc_info.value.name == "write"
-        assert "permission denied" in exc_info.value.message.lower()
-
-    def test_write_oserror_with_backup_restore(self, tmp_path: Path, monkeypatch):
+    def test_write_oserror_with_backup_restore(self, tmp_path: Path):
         """Test write_file OSError handling with backup restore (lines 320-329)."""
+        from unittest.mock import patch
+
         file_path = tmp_path / "backup_restore.txt"
         original_content = "original content"
         file_path.write_text(original_content)
@@ -802,15 +806,15 @@ class TestErrorHandling:
                         raise OSError("Mock write error")
             return original_open(*args, **kwargs)
 
-        monkeypatch.setattr("builtins.open", mock_write_fail)
+        # Patch the open in the file_ops module directly
+        with patch("continuum_sdk.tools.file_ops.open", mock_write_fail):
+            writer = WriteTool(backup=True)
+            with pytest.raises(ToolError) as exc_info:
+                writer.write(str(file_path), "new content")
 
-        writer = WriteTool(backup=True)
-        with pytest.raises(ToolError) as exc_info:
-            writer.write(str(file_path), "new content")
-
-        assert exc_info.value.name == "write"
-        # Error should be raised
-        assert "failed to write file" in exc_info.value.message.lower()
+            assert exc_info.value.name == "write"
+            # Error should be raised
+            assert "failed to write file" in exc_info.value.message.lower()
 
     def test_edit_read_error_path(self, tmp_path: Path, monkeypatch):
         """Test edit_file read error handling (lines 427-434)."""
