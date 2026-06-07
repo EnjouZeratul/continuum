@@ -5,7 +5,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::types::{AgentId, AgentState, Message, SessionId, ToolCall, ToolResult};
+use crate::types::{AgentId, AgentState, Message, MessageRole, SessionId, ToolCall, ToolResult};
 
 /// 会话配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -14,15 +14,30 @@ pub struct SessionConfig {
     pub temperature: f32,
     pub max_iterations: i32,
     pub system_prompt: Option<String>,
+    /// 最大消息数量（防止内存无限增长）
+    #[serde(default = "default_max_messages")]
+    pub max_messages: usize,
+    /// 最大工具注册数量
+    #[serde(default = "default_max_tools")]
+    pub max_tools: usize,
+}
+
+fn default_max_messages() -> usize {
+    1000
+}
+fn default_max_tools() -> usize {
+    100
 }
 
 impl Default for SessionConfig {
     fn default() -> Self {
         Self {
-            model: "gpt-4o".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             temperature: 0.7,
             max_iterations: 100,
             system_prompt: None,
+            max_messages: 1000,
+            max_tools: 100,
         }
     }
 }
@@ -66,6 +81,12 @@ pub struct Session {
     pub last_updated: DateTime<Utc>,
     /// 检查点计数
     pub checkpoint_count: i32,
+    /// 最大消息数量
+    #[serde(default = "default_max_messages")]
+    pub max_messages: usize,
+    /// 最大工具数量
+    #[serde(default = "default_max_tools")]
+    pub max_tools: usize,
 }
 
 impl Session {
@@ -92,12 +113,15 @@ impl Session {
             created_at: now,
             last_updated: now,
             checkpoint_count: 0,
+            max_messages: config.max_messages,
+            max_tools: config.max_tools,
         }
     }
 
     /// 添加用户消息
     pub fn add_user_message(&mut self, content: &str) {
         self.messages.push(Message::user(content));
+        self.trim_messages();
         self.iteration += 1;
         self.touch();
     }
@@ -105,13 +129,48 @@ impl Session {
     /// 添加助手消息
     pub fn add_assistant_message(&mut self, content: &str) {
         self.messages.push(Message::assistant(content));
+        self.trim_messages();
         self.touch();
     }
 
     /// 添加系统消息
     pub fn add_system_message(&mut self, content: &str) {
         self.messages.push(Message::system(content));
+        self.trim_messages();
         self.touch();
+    }
+
+    /// 当消息超过上限时，删除最旧的消息（保留第一条系统消息）
+    fn trim_messages(&mut self) {
+        if self.messages.len() > self.max_messages {
+            let excess = self.messages.len() - self.max_messages;
+            // 保留第一条消息（通常是系统提示）
+            let first_is_system = self
+                .messages
+                .first()
+                .map(|m| m.role == MessageRole::System)
+                .unwrap_or(false);
+
+            if first_is_system && excess > 0 {
+                // 删除第二条到第excess+1条
+                self.messages.drain(1..=excess.min(self.messages.len() - 1));
+            } else {
+                // 删除最旧的excess条
+                self.messages.drain(0..excess);
+            }
+        }
+    }
+
+    /// 注册工具，如果超过上限则移除最旧的
+    pub fn register_tool(&mut self, tool_name: &str) {
+        if !self.tools_registered.contains(&tool_name.to_string()) {
+            if self.tools_registered.len() >= self.max_tools {
+                // 移除最旧的工具
+                self.tools_registered.remove(0);
+            }
+            self.tools_registered.push(tool_name.to_string());
+            self.touch();
+        }
     }
 
     /// 更新最后修改时间
@@ -201,5 +260,76 @@ mod tests {
 
         assert_eq!(session.session_id, restored.session_id);
         assert_eq!(session.state, restored.state);
+    }
+
+    #[test]
+    fn test_session_max_messages_limit() {
+        let config = SessionConfig {
+            max_messages: 5,
+            ..Default::default()
+        };
+        let mut session = Session::new(&config);
+
+        // 添加超过上限的消息
+        for i in 0..10 {
+            session.add_user_message(&format!("Message {}", i));
+        }
+
+        // 应该被限制在 max_messages
+        assert_eq!(session.messages.len(), 5);
+    }
+
+    #[test]
+    fn test_session_preserves_system_message() {
+        let config = SessionConfig {
+            max_messages: 3,
+            system_prompt: Some("System prompt".to_string()),
+            ..Default::default()
+        };
+        let mut session = Session::new(&config);
+
+        session.add_system_message("System prompt");
+        for i in 0..5 {
+            session.add_user_message(&format!("User {}", i));
+        }
+
+        // 第一条系统消息应该保留
+        assert_eq!(session.messages.len(), 3);
+        assert!(session
+            .messages
+            .first()
+            .map(|m| m.role == MessageRole::System)
+            .unwrap_or(false));
+    }
+
+    #[test]
+    fn test_session_max_tools_limit() {
+        let config = SessionConfig {
+            max_tools: 3,
+            ..Default::default()
+        };
+        let mut session = Session::new(&config);
+
+        for i in 0..5 {
+            session.register_tool(&format!("tool_{}", i));
+        }
+
+        // 应该被限制在 max_tools
+        assert_eq!(session.tools_registered.len(), 3);
+        // 最旧的工具应该被移除
+        assert!(!session.tools_registered.contains(&"tool_0".to_string()));
+        assert!(!session.tools_registered.contains(&"tool_1".to_string()));
+    }
+
+    #[test]
+    fn test_session_no_duplicate_tools() {
+        let config = SessionConfig::default();
+        let mut session = Session::new(&config);
+
+        session.register_tool("tool_a");
+        session.register_tool("tool_a");
+        session.register_tool("tool_a");
+
+        assert_eq!(session.tools_registered.len(), 1);
     }
 }

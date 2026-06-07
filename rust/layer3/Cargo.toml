@@ -13,6 +13,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+sh-layer1.workspace = true
 sh-layer2.workspace = true
 
 tokio.workspace = true
@@ -28,6 +29,35 @@ uuid.workspace = true
 parking_lot.workspace = true
 regex.workspace = true
 futures.workspace = true
+url.workspace = true
+
+# WebSocket support
+tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+
+# Data processing
+serde_yaml = "0.9"
+toml = "0.8"
+base64 = "0.22"
+urlencoding = "2.1"
+sha2 = "0.10"
+md-5 = "0.10"
+
+# System tools
+sysinfo = "0.30"
+hostname = "0.4"
+dirs = "5.0"
+
+# PDF processing
+lopdf = "0.34"
 
 [dev-dependencies]
 tempfile.workspace = true
+sh-layer1 = { workspace = true, features = ["mock"] }
+
+[features]
+default = []
+msgpack = ["rmp-serde"]
+
+[dependencies.rmp-serde]
+version = "1.1"
+optional = true

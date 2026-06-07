@@ -7,6 +7,7 @@ pub mod adapter;
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use sh_layer3::generate_short_id;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -84,7 +85,7 @@ impl InboundMessage {
         content: impl Into<String>,
     ) -> Self {
         Self {
-            message_id: uuid::Uuid::new_v4().to_string(),
+            message_id: generate_short_id(),
             channel_id: channel_id.into(),
             user_id: user_id.into(),
             session_id: None,
@@ -126,7 +127,7 @@ pub struct OutboundMessage {
 impl OutboundMessage {
     pub fn new(content: impl Into<String>, target: MessageTarget) -> Self {
         Self {
-            message_id: uuid::Uuid::new_v4().to_string(),
+            message_id: generate_short_id(),
             content: content.into(),
             message_type: MessageType::Text,
             target,

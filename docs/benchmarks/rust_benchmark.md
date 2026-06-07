@@ -1,5 +1,9 @@
 # Rust 性能基准报告
 
+> **Note**: These benchmarks were run on a specific development machine (Windows 10, Rust 2021 Edition).
+> Results are provided as reference points, not reproducible scientific measurements.
+> "Industry typical" values in the comparison table are estimated ranges from public sources, not controlled measurements.
+
 > 生成日期: 2026-05-12
 > 环境: Windows 10, Rust 2021 Edition
 > 测试框架: criterion 0.5

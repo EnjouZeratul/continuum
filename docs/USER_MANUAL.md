@@ -326,7 +326,8 @@ from continuum_sdk.tools import tool, get_registry
 
 @tool(name="calculate", description="执行数学运算")
 async def calculate(expression: str) -> float:
-    return eval(expression)
+    import ast
+    return ast.literal_eval(expression)
 
 # 注册工具
 registry = get_registry()

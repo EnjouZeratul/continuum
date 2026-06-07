@@ -705,7 +705,10 @@ mod tests {
 
         // 应该只有一条 Set 记录（最后一次）
         let log = manager.get_audit_log();
-        let set_count = log.iter().filter(|e| matches!(e.action, AuditAction::Set)).count();
+        let set_count = log
+            .iter()
+            .filter(|e| matches!(e.action, AuditAction::Set))
+            .count();
         assert_eq!(set_count, 2);
     }
 
@@ -743,7 +746,12 @@ mod tests {
         storage.set("key", "value");
 
         // 获取加密后的数据
-        let encrypted = storage.encrypted_secrets.read().get("key").cloned().unwrap();
+        let encrypted = storage
+            .encrypted_secrets
+            .read()
+            .get("key")
+            .cloned()
+            .unwrap();
 
         // 手动破坏加密数据使其无法解码为 UTF-8
         let mut corrupted = encrypted.clone();
@@ -753,7 +761,10 @@ mod tests {
         }
 
         // 重新设置破坏的数据
-        storage.encrypted_secrets.write().insert("key".to_string(), corrupted);
+        storage
+            .encrypted_secrets
+            .write()
+            .insert("key".to_string(), corrupted);
 
         // 解密应该失败并返回 EncryptionError
         let result = storage.get("key");

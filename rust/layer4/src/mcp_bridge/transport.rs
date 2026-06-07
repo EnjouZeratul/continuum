@@ -1,10 +1,12 @@
 //! MCP 传输层
 //!
-//! 支持 stdio 和 socket 两种传输方式。
+//! 支持 stdio、TCP 和 Unix socket 三种传输方式。
 
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
+#[cfg(unix)]
+use tokio::net::UnixStream;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 
@@ -296,6 +298,95 @@ fn parse_content_length(header: &str) -> Result<usize> {
         }
     }
     Err(anyhow!("Content-Length header not found"))
+}
+
+/// Unix Socket 传输实现 (仅 Unix 系统)
+#[cfg(unix)]
+pub struct UnixSocketTransport {
+    /// Unix socket 流
+    stream: Arc<Mutex<Option<UnixStream>>>,
+}
+
+#[cfg(unix)]
+impl UnixSocketTransport {
+    /// 连接到 Unix socket
+    pub async fn connect(path: &str) -> Result<Self> {
+        let stream = UnixStream::connect(path).await?;
+        Ok(Self {
+            stream: Arc::new(Mutex::new(Some(stream))),
+        })
+    }
+}
+
+#[cfg(unix)]
+#[async_trait]
+impl McpTransport for UnixSocketTransport {
+    async fn send(&self, message: &McpMessage) -> Result<()> {
+        let mut stream_guard = self.stream.lock().await;
+        let stream = stream_guard
+            .as_mut()
+            .ok_or_else(|| anyhow!("Not connected"))?;
+
+        let json = serde_json::to_string(message)?;
+        let frame = format!("Content-Length: {}\r\n\r\n{}", json.len(), json);
+        stream.write_all(frame.as_bytes()).await?;
+        stream.flush().await?;
+        Ok(())
+    }
+
+    async fn receive(&self) -> Result<Option<McpMessage>> {
+        let mut stream_guard = self.stream.lock().await;
+        let stream = stream_guard
+            .as_mut()
+            .ok_or_else(|| anyhow!("Not connected"))?;
+
+        // 读取 Content-Length 头
+        let mut header_buf = vec![0u8; 1024];
+        let mut total_read = 0;
+
+        loop {
+            let n = stream.read(&mut header_buf[total_read..]).await?;
+            if n == 0 {
+                return Ok(None); // 连接关闭
+            }
+            total_read += n;
+
+            // 查找 \r\n\r\n 分隔符
+            if let Some(pos) = find_header_end(&header_buf[..total_read]) {
+                let header = String::from_utf8_lossy(&header_buf[..pos]);
+                let content_length = parse_content_length(&header)?;
+
+                // 读取消息体
+                let header_size = pos + 4; // 包含 \r\n\r\n
+                let body_size = content_length;
+                let mut body_buf = vec![0u8; body_size];
+
+                // 处理已经读取的部分
+                let already_read = total_read - header_size;
+                if already_read > 0 {
+                    body_buf[..already_read].copy_from_slice(&header_buf[header_size..total_read]);
+                }
+
+                // 读取剩余部分
+                if already_read < body_size {
+                    stream.read_exact(&mut body_buf[already_read..]).await?;
+                }
+
+                let message: McpMessage = serde_json::from_slice(&body_buf)?;
+                return Ok(Some(message));
+            }
+
+            if total_read >= header_buf.len() {
+                return Err(anyhow!("Header too large"));
+            }
+        }
+    }
+
+    async fn close(&self) -> Result<()> {
+        let mut stream_guard = self.stream.lock().await;
+        stream_guard.take();
+        Ok(())
+    }
 }
 
 /// 内存传输 (用于测试)

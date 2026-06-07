@@ -1,0 +1,104 @@
+# Continuum Development Environment
+# docker-compose.yml for local development
+
+version: "3.8"
+
+services:
+  # =================================
+  # Continuum CLI
+  # =================================
+  continuum:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: continuum:latest
+    container_name: continuum
+    environment:
+      - RUST_LOG=debug
+      - CONTINUUM_API_KEY=${CONTINUUM_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - continuum-home:/home/continuum/.continuum
+      - ./examples:/app/examples:ro
+    command: ["--help"]
+
+  # =================================
+  # Development Shell
+  # =================================
+  dev:
+    image: rust:1.82-bookworm
+    container_name: continuum-dev
+    working_dir: /app
+    volumes:
+      - .:/app
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - target-cache:/app/target
+    environment:
+      - RUST_LOG=debug
+      - CONTINUUM_API_KEY=${CONTINUUM_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    command: ["bash"]
+    stdin_open: true
+    tty: true
+
+  # =================================
+  # OpenTelemetry Collector (optional)
+  # =================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.100.0
+    container_name: continuum-otel
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./deploy/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics
+    profiles:
+      - observability
+
+  # =================================
+  # Prometheus (optional)
+  # =================================
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: continuum-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    profiles:
+      - observability
+
+  # =================================
+  # Grafana (optional)
+  # =================================
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: continuum-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    profiles:
+      - observability
+
+volumes:
+  continuum-home:
+  cargo-registry:
+  cargo-git:
+  target-cache:
+  prometheus-data:
+  grafana-data:

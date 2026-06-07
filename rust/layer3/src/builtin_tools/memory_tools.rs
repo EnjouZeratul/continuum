@@ -7,6 +7,7 @@ use crate::memory_system::{MemoryStore, WorkingMemory};
 use crate::types::{Layer3Result, MemoryEntry, MemoryQuery, MemoryTier, ToolCategory};
 use async_trait::async_trait;
 use chrono::Utc;
+use sh_layer2::generate_short_id;
 use std::sync::Arc;
 
 /// Save Memory Tool
@@ -92,7 +93,7 @@ impl BuiltinTool for SaveMemoryTool {
 
         // Create memory entry
         let entry = MemoryEntry {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: generate_short_id(),
             content: content.to_string(),
             tier,
             created_at: Utc::now(),

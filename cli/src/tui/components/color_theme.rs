@@ -154,7 +154,7 @@ impl ColorTheme {
             background: Color::Reset,
 
             // 消息角色颜色
-            user_message: Color::Rgb(0, 100, 0),    // Dark Green
+            user_message: Color::Rgb(0, 100, 0), // Dark Green
             assistant_message: Color::Rgb(0, 128, 128), // Teal
             system_message: Color::Rgb(139, 69, 19), // Saddle Brown
             error_message: Color::Rgb(178, 34, 34), // Fire Brick
@@ -162,21 +162,21 @@ impl ColorTheme {
             success_message: Color::Rgb(0, 128, 0), // Green
 
             // 语法高亮颜色
-            keyword: Color::Rgb(128, 0, 128),      // Purple
-            string: Color::Rgb(0, 128, 0),         // Green
-            comment: Color::Rgb(105, 105, 105),    // Dim Gray
-            number: Color::Rgb(184, 134, 11),      // Dark Goldenrod
-            function: Color::Rgb(0, 0, 139),      // Dark Blue
-            type_name: Color::Rgb(70, 130, 180),   // Steel Blue
+            keyword: Color::Rgb(128, 0, 128),    // Purple
+            string: Color::Rgb(0, 128, 0),       // Green
+            comment: Color::Rgb(105, 105, 105),  // Dim Gray
+            number: Color::Rgb(184, 134, 11),    // Dark Goldenrod
+            function: Color::Rgb(0, 0, 139),     // Dark Blue
+            type_name: Color::Rgb(70, 130, 180), // Steel Blue
             variable: Color::Black,
-            operator: Color::Rgb(255, 140, 0),     // Dark Orange
-            bracket: Color::Rgb(184, 134, 11),     // Dark Goldenrod
+            operator: Color::Rgb(255, 140, 0), // Dark Orange
+            bracket: Color::Rgb(184, 134, 11), // Dark Goldenrod
             punctuation: Color::Gray,
 
             // UI 组件颜色
-            border: Color::Rgb(70, 130, 180),      // Steel Blue
-            title: Color::Rgb(0, 128, 128),        // Teal
-            highlight: Color::Rgb(255, 215, 0),    // Gold
+            border: Color::Rgb(70, 130, 180),        // Steel Blue
+            title: Color::Rgb(0, 128, 128),          // Teal
+            highlight: Color::Rgb(255, 215, 0),      // Gold
             selection_bg: Color::Rgb(211, 211, 211), // Light Gray
             cursor: Color::Black,
 
@@ -207,20 +207,20 @@ impl ColorTheme {
             background: Color::Rgb(39, 40, 34),
 
             // 消息角色颜色
-            user_message: Color::Rgb(166, 226, 46),   // Green
+            user_message: Color::Rgb(166, 226, 46), // Green
             assistant_message: Color::Rgb(102, 217, 239), // Cyan
             system_message: Color::Rgb(253, 151, 31), // Orange
-            error_message: Color::Rgb(249, 38, 114),  // Pink/Red
+            error_message: Color::Rgb(249, 38, 114), // Pink/Red
             warning_message: Color::Rgb(253, 151, 31),
             success_message: Color::Rgb(166, 226, 46),
 
             // 语法高亮颜色
-            keyword: Color::Rgb(249, 38, 114),       // Pink
-            string: Color::Rgb(230, 219, 116),       // Yellow
-            comment: Color::Rgb(117, 113, 94),       // Gray
-            number: Color::Rgb(174, 129, 255),       // Purple
-            function: Color::Rgb(166, 226, 46),      // Green
-            type_name: Color::Rgb(102, 217, 239),    // Cyan
+            keyword: Color::Rgb(249, 38, 114),    // Pink
+            string: Color::Rgb(230, 219, 116),    // Yellow
+            comment: Color::Rgb(117, 113, 94),    // Gray
+            number: Color::Rgb(174, 129, 255),    // Purple
+            function: Color::Rgb(166, 226, 46),   // Green
+            type_name: Color::Rgb(102, 217, 239), // Cyan
             variable: Color::Rgb(248, 248, 242),
             operator: Color::Rgb(249, 38, 114),
             bracket: Color::Rgb(253, 151, 31),
@@ -260,20 +260,20 @@ impl ColorTheme {
             background: Color::Rgb(40, 42, 54),
 
             // 消息角色颜色
-            user_message: Color::Rgb(80, 250, 123),   // Green
+            user_message: Color::Rgb(80, 250, 123), // Green
             assistant_message: Color::Rgb(139, 233, 253), // Cyan
             system_message: Color::Rgb(255, 184, 108), // Orange
-            error_message: Color::Rgb(255, 85, 85),    // Red
+            error_message: Color::Rgb(255, 85, 85), // Red
             warning_message: Color::Rgb(255, 184, 108),
             success_message: Color::Rgb(80, 250, 123),
 
             // 语法高亮颜色
-            keyword: Color::Rgb(255, 121, 198),       // Pink
-            string: Color::Rgb(241, 250, 140),        // Yellow
-            comment: Color::Rgb(98, 114, 164),        // Comment
-            number: Color::Rgb(189, 147, 249),        // Purple
-            function: Color::Rgb(80, 250, 123),       // Green
-            type_name: Color::Rgb(139, 233, 253),     // Cyan
+            keyword: Color::Rgb(255, 121, 198),   // Pink
+            string: Color::Rgb(241, 250, 140),    // Yellow
+            comment: Color::Rgb(98, 114, 164),    // Comment
+            number: Color::Rgb(189, 147, 249),    // Purple
+            function: Color::Rgb(80, 250, 123),   // Green
+            type_name: Color::Rgb(139, 233, 253), // Cyan
             variable: Color::Rgb(248, 250, 252),
             operator: Color::Rgb(255, 121, 198),
             bracket: Color::Rgb(255, 184, 108),
@@ -309,34 +309,34 @@ impl ColorTheme {
             name: "nord".to_string(),
 
             // 基础颜色
-            foreground: Color::Rgb(216, 222, 233),    // Snow Storm
-            background: Color::Rgb(46, 52, 64),      // Polar Night
+            foreground: Color::Rgb(216, 222, 233), // Snow Storm
+            background: Color::Rgb(46, 52, 64),    // Polar Night
 
             // 消息角色颜色
-            user_message: Color::Rgb(163, 190, 140),  // Aurora Green
+            user_message: Color::Rgb(163, 190, 140), // Aurora Green
             assistant_message: Color::Rgb(136, 192, 208), // Frost
             system_message: Color::Rgb(235, 203, 139), // Aurora Yellow
-            error_message: Color::Rgb(191, 97, 106),  // Aurora Red
+            error_message: Color::Rgb(191, 97, 106), // Aurora Red
             warning_message: Color::Rgb(235, 203, 139),
             success_message: Color::Rgb(163, 190, 140),
 
             // 语法高亮颜色
-            keyword: Color::Rgb(180, 142, 173),       // Aurora Purple
-            string: Color::Rgb(163, 190, 140),        // Aurora Green
-            comment: Color::Rgb(143, 188, 187),       // Frost
-            number: Color::Rgb(208, 135, 112),        // Aurora Orange
-            function: Color::Rgb(136, 192, 208),      // Frost
-            type_name: Color::Rgb(129, 161, 193),     // Frost
+            keyword: Color::Rgb(180, 142, 173),   // Aurora Purple
+            string: Color::Rgb(163, 190, 140),    // Aurora Green
+            comment: Color::Rgb(143, 188, 187),   // Frost
+            number: Color::Rgb(208, 135, 112),    // Aurora Orange
+            function: Color::Rgb(136, 192, 208),  // Frost
+            type_name: Color::Rgb(129, 161, 193), // Frost
             variable: Color::Rgb(216, 222, 233),
             operator: Color::Rgb(180, 142, 173),
             bracket: Color::Rgb(235, 203, 139),
             punctuation: Color::Rgb(143, 188, 187),
 
             // UI 组件颜色
-            border: Color::Rgb(94, 129, 172),         // Frost
+            border: Color::Rgb(94, 129, 172), // Frost
             title: Color::Rgb(136, 192, 208),
             highlight: Color::Rgb(235, 203, 139),
-            selection_bg: Color::Rgb(59, 66, 82),     // Polar Night
+            selection_bg: Color::Rgb(59, 66, 82), // Polar Night
             cursor: Color::Rgb(216, 222, 233),
 
             // 工具状态颜色
@@ -356,6 +356,114 @@ impl ColorTheme {
         }
     }
 
+    /// 创建高对比度深色主题 (WCAG AA compliant)
+    /// 背景纯黑，前景纯白，对比度 21:1 (远超 AA 4.5:1)
+    pub fn high_contrast_dark() -> Self {
+        Self {
+            name: "high_contrast_dark".to_string(),
+
+            // 基础颜色 - 最高对比度
+            foreground: Color::Rgb(255, 255, 255), // 纯白
+            background: Color::Rgb(0, 0, 0),       // 纯黑
+
+            // 消息角色颜色 - 高对比度
+            user_message: Color::Rgb(0, 255, 0),        // 纯绿
+            assistant_message: Color::Rgb(0, 255, 255), // 纯青
+            system_message: Color::Rgb(255, 255, 0),    // 纯黄
+            error_message: Color::Rgb(255, 0, 0),       // 纯红
+            warning_message: Color::Rgb(255, 255, 0),   // 纯黄
+            success_message: Color::Rgb(0, 255, 0),     // 纯绿
+
+            // 语法高亮颜色 - 高对比度
+            keyword: Color::Rgb(255, 0, 255),       // 纯紫
+            string: Color::Rgb(0, 255, 0),          // 纯绿
+            comment: Color::Rgb(192, 192, 192),     // 亮灰
+            number: Color::Rgb(255, 255, 0),        // 纯黄
+            function: Color::Rgb(0, 255, 255),      // 纯青
+            type_name: Color::Rgb(255, 0, 255),     // 纯紫
+            variable: Color::Rgb(255, 255, 255),    // 纯白
+            operator: Color::Rgb(255, 255, 0),      // 纯黄
+            bracket: Color::Rgb(255, 255, 0),       // 纯黄
+            punctuation: Color::Rgb(192, 192, 192), // 亮灰
+
+            // UI 组件颜色 - 高对比度
+            border: Color::Rgb(255, 255, 255),    // 纯白
+            title: Color::Rgb(255, 255, 0),       // 纯黄
+            highlight: Color::Rgb(255, 255, 0),   // 纯黄
+            selection_bg: Color::Rgb(48, 48, 48), // 深灰背景
+            cursor: Color::Rgb(255, 255, 255),    // 纯白
+
+            // 工具状态颜色 - 高对比度
+            tool_pending: Color::Rgb(192, 192, 192), // 亮灰
+            tool_running: Color::Rgb(255, 255, 0),   // 纯黄
+            tool_success: Color::Rgb(0, 255, 0),     // 纯绿
+            tool_failed: Color::Rgb(255, 0, 0),      // 纯红
+
+            // 状态栏颜色 - 高对比度
+            status_bar_bg: Color::Rgb(0, 0, 0),       // 纯黑
+            status_bar_fg: Color::Rgb(255, 255, 255), // 纯白
+
+            // Token/成本颜色 - 高对比度
+            token_count: Color::Rgb(255, 0, 255),    // 纯紫
+            cost: Color::Rgb(0, 255, 0),             // 纯绿
+            budget_warning: Color::Rgb(255, 255, 0), // 纯黄
+        }
+    }
+
+    /// 创建高对比度浅色主题 (WCAG AA compliant)
+    /// 背景纯白，前景纯黑，对比度 21:1 (远超 AA 4.5:1)
+    pub fn high_contrast_light() -> Self {
+        Self {
+            name: "high_contrast_light".to_string(),
+
+            // 基础颜色 - 最高对比度
+            foreground: Color::Rgb(0, 0, 0),       // 纯黑
+            background: Color::Rgb(255, 255, 255), // 纯白
+
+            // 消息角色颜色 - 高对比度深色
+            user_message: Color::Rgb(0, 128, 0),      // 深绿
+            assistant_message: Color::Rgb(0, 0, 128), // 深蓝
+            system_message: Color::Rgb(128, 128, 0),  // 深黄绿
+            error_message: Color::Rgb(128, 0, 0),     // 深红
+            warning_message: Color::Rgb(128, 128, 0), // 深黄绿
+            success_message: Color::Rgb(0, 128, 0),   // 深绿
+
+            // 语法高亮颜色 - 高对比度深色
+            keyword: Color::Rgb(128, 0, 128),    // 深紫
+            string: Color::Rgb(0, 128, 0),       // 深绿
+            comment: Color::Rgb(64, 64, 64),     // 深灰
+            number: Color::Rgb(0, 0, 128),       // 深蓝
+            function: Color::Rgb(0, 0, 128),     // 深蓝
+            type_name: Color::Rgb(128, 0, 128),  // 深紫
+            variable: Color::Rgb(0, 0, 0),       // 纯黑
+            operator: Color::Rgb(128, 128, 0),   // 深黄绿
+            bracket: Color::Rgb(0, 0, 128),      // 深蓝
+            punctuation: Color::Rgb(64, 64, 64), // 深灰
+
+            // UI 组件颜色 - 高对比度
+            border: Color::Rgb(0, 0, 0),             // 纯黑
+            title: Color::Rgb(0, 0, 128),            // 深蓝
+            highlight: Color::Rgb(0, 0, 128),        // 深蓝
+            selection_bg: Color::Rgb(192, 192, 192), // 浅灰背景
+            cursor: Color::Rgb(0, 0, 0),             // 纯黑
+
+            // 工具状态颜色 - 高对比度
+            tool_pending: Color::Rgb(64, 64, 64),  // 深灰
+            tool_running: Color::Rgb(128, 128, 0), // 深黄绿
+            tool_success: Color::Rgb(0, 128, 0),   // 深绿
+            tool_failed: Color::Rgb(128, 0, 0),    // 深红
+
+            // 状态栏颜色 - 高对比度
+            status_bar_bg: Color::Rgb(192, 192, 192), // 浅灰
+            status_bar_fg: Color::Rgb(0, 0, 0),       // 纯黑
+
+            // Token/成本颜色 - 高对比度
+            token_count: Color::Rgb(128, 0, 128),    // 深紫
+            cost: Color::Rgb(0, 128, 0),             // 深绿
+            budget_warning: Color::Rgb(128, 128, 0), // 深黄绿
+        }
+    }
+
     /// 根据名称获取主题
     pub fn from_name(name: &str) -> Self {
         match name.to_lowercase().as_str() {
@@ -364,13 +472,23 @@ impl ColorTheme {
             "monokai" => Self::monokai(),
             "dracula" => Self::dracula(),
             "nord" => Self::nord(),
+            "high_contrast_dark" => Self::high_contrast_dark(),
+            "high_contrast_light" => Self::high_contrast_light(),
             _ => Self::dark(),
         }
     }
 
     /// 获取所有可用主题名称
     pub fn available_themes() -> Vec<&'static str> {
-        vec!["dark", "light", "monokai", "dracula", "nord"]
+        vec![
+            "dark",
+            "light",
+            "monokai",
+            "dracula",
+            "nord",
+            "high_contrast_dark",
+            "high_contrast_light",
+        ]
     }
 }
 
@@ -399,12 +517,16 @@ impl ThemeManager {
         let monokai = ColorTheme::monokai();
         let dracula = ColorTheme::dracula();
         let nord = ColorTheme::nord();
+        let high_contrast_dark = ColorTheme::high_contrast_dark();
+        let high_contrast_light = ColorTheme::high_contrast_light();
 
         themes.insert(dark.name.clone(), dark);
         themes.insert(light.name.clone(), light);
         themes.insert(monokai.name.clone(), monokai);
         themes.insert(dracula.name.clone(), dracula);
         themes.insert(nord.name.clone(), nord);
+        themes.insert(high_contrast_dark.name.clone(), high_contrast_dark);
+        themes.insert(high_contrast_light.name.clone(), high_contrast_light);
 
         Self {
             current_theme: ColorTheme::dark(),
@@ -430,7 +552,8 @@ impl ThemeManager {
     /// 切换到下一个主题
     pub fn next_theme(&mut self) {
         let themes = ColorTheme::available_themes();
-        let current_idx = themes.iter()
+        let current_idx = themes
+            .iter()
             .position(|t| *t == self.current_theme.name.as_str())
             .unwrap_or(0);
         let next_idx = (current_idx + 1) % themes.len();
@@ -440,7 +563,8 @@ impl ThemeManager {
     /// 切换到上一个主题
     pub fn prev_theme(&mut self) {
         let themes = ColorTheme::available_themes();
-        let current_idx = themes.iter()
+        let current_idx = themes
+            .iter()
             .position(|t| *t == self.current_theme.name.as_str())
             .unwrap_or(0);
         let prev_idx = if current_idx == 0 {
@@ -617,7 +741,8 @@ fn color_to_hex(color: Color) -> String {
         Color::LightCyan => "#80ffff".to_string(),
         Color::Reset => "#ffffff".to_string(),
         _ => "#ffffff".to_string(),
-    }.to_string()
+    }
+    .to_string()
 }
 
 /// 将十六进制字符串转换为 Color
@@ -687,9 +812,38 @@ mod tests {
     #[test]
     fn test_available_themes() {
         let themes = ColorTheme::available_themes();
-        assert_eq!(themes.len(), 5);
+        assert_eq!(themes.len(), 7);
         assert!(themes.contains(&"dark"));
         assert!(themes.contains(&"light"));
+        assert!(themes.contains(&"high_contrast_dark"));
+        assert!(themes.contains(&"high_contrast_light"));
+    }
+
+    #[test]
+    fn test_high_contrast_dark_theme() {
+        let theme = ColorTheme::high_contrast_dark();
+        assert_eq!(theme.name, "high_contrast_dark");
+        // WCAG AA: 黑底白字对比度 21:1，远超 4.5:1
+        assert_eq!(theme.foreground, Color::Rgb(255, 255, 255));
+        assert_eq!(theme.background, Color::Rgb(0, 0, 0));
+    }
+
+    #[test]
+    fn test_high_contrast_light_theme() {
+        let theme = ColorTheme::high_contrast_light();
+        assert_eq!(theme.name, "high_contrast_light");
+        // WCAG AA: 白底黑字对比度 21:1，远超 4.5:1
+        assert_eq!(theme.foreground, Color::Rgb(0, 0, 0));
+        assert_eq!(theme.background, Color::Rgb(255, 255, 255));
+    }
+
+    #[test]
+    fn test_high_contrast_from_name() {
+        let dark = ColorTheme::from_name("high_contrast_dark");
+        assert_eq!(dark.name, "high_contrast_dark");
+
+        let light = ColorTheme::from_name("high_contrast_light");
+        assert_eq!(light.name, "high_contrast_light");
     }
 
     #[test]

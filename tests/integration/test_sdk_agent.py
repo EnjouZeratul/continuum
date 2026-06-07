@@ -119,7 +119,8 @@ class TestAgentChat:
         """测试单次对话"""
         from continuum_sdk.agent import Agent
 
-        agent = Agent(api_key="test-key")
+        # Disable Rust bindings for testing
+        agent = Agent(api_key="test-key", _use_rust=False)
         agent.start()
 
         with patch.object(agent, '_get_llm_client') as mock_get_client:
@@ -351,7 +352,9 @@ class TestAgentStream:
             for chunk in chunks:
                 yield StreamChunk(content=chunk)
 
-        agent = Agent(api_key="test-key")
+        # Disable Rust bindings for testing
+        agent = Agent(api_key="test-key", _use_rust=False)
+        agent.start()
 
         with patch.object(agent, '_get_llm_client') as mock_get_client:
             mock_client = MagicMock()
@@ -359,7 +362,7 @@ class TestAgentStream:
             mock_get_client.return_value = mock_client
 
             chunks = []
-            async for chunk in agent.run_stream("写一个故事"):
+            async for chunk in agent.execute_stream("写一个故事"):
                 chunks.append(chunk)
 
         assert len(chunks) >= 4
@@ -379,14 +382,16 @@ class TestAgentStream:
             for i in range(3):
                 yield StreamChunk(content=f"chunk{i}")
 
-        agent = Agent(api_key="test-key")
+        # Disable Rust bindings for testing
+        agent = Agent(api_key="test-key", _use_rust=False)
+        agent.start()
 
         with patch.object(agent, '_get_llm_client') as mock_get_client:
             mock_client = MagicMock()
             mock_client.chat_stream = mock_stream
             mock_get_client.return_value = mock_client
 
-            async for chunk in agent.run_stream("hello"):
+            async for chunk in agent.execute_stream("hello"):
                 events.append(chunk)
 
         assert len(events) == 3
@@ -413,7 +418,8 @@ class TestAgentError:
         from continuum_sdk.agent import Agent
         from continuum_sdk.llm import LlmError
 
-        agent = Agent(api_key="test-key")
+        # Disable Rust bindings for testing
+        agent = Agent(api_key="test-key", _use_rust=False)
         agent.start()
 
         with patch.object(agent, '_get_llm_client') as mock_get_client:
@@ -435,7 +441,8 @@ class TestAgentError:
         from continuum_sdk.agent import Agent
         from continuum_sdk.llm import LlmError
 
-        agent = Agent(api_key="test-key")
+        # Disable Rust bindings for testing
+        agent = Agent(api_key="test-key", _use_rust=False)
         agent.start()
 
         with patch.object(agent, '_get_llm_client') as mock_get_client:
@@ -456,7 +463,8 @@ class TestAgentError:
         from continuum_sdk.agent import Agent
         from continuum_sdk.llm.errors import AuthenticationError
 
-        agent = Agent(api_key="invalid-key")
+        # Disable Rust bindings for testing
+        agent = Agent(api_key="invalid-key", _use_rust=False)
         agent.start()
 
         with patch.object(agent, '_get_llm_client') as mock_get_client:

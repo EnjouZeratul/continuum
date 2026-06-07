@@ -123,7 +123,9 @@ impl SyntaxHighlighter {
         let mut lines = Vec::new();
 
         for line in LinesWithEndings::from(code) {
-            let ranges: Vec<(Style, &str)> = highlighter.highlight_line(line, &self.syntax_set).unwrap_or_default();
+            let ranges: Vec<(Style, &str)> = highlighter
+                .highlight_line(line, &self.syntax_set)
+                .unwrap_or_default();
             let spans: Vec<HighlightedSpan> = ranges
                 .into_iter()
                 .map(|(style, text)| HighlightedSpan {
@@ -459,7 +461,7 @@ impl SyntaxHighlighter {
             (theme.operator, false)
         } else if token.starts_with(|c: char| c.is_uppercase()) {
             (theme.type_name, false)
-        } else if token.starts_with(|c: char| c == '$' || c == '@' || c == ':') {
+        } else if token.starts_with(['$', '@', ':']) {
             (theme.variable, false)
         } else {
             (theme.foreground, false)

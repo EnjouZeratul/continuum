@@ -5,6 +5,14 @@
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// 全局 handler ID 计数器
+static HANDLER_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+/// Handler ID 用于取消订阅
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HandlerId(usize);
 
 /// 事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,12 +23,15 @@ pub struct Event {
     pub timestamp: String,
 }
 
-/// 事件处理器
-pub type EventHandler = Box<dyn Fn(&Event) + Send + Sync>;
+/// 事件处理器（带 ID）
+struct HandlerEntry {
+    id: HandlerId,
+    handler: Box<dyn Fn(&Event) + Send + Sync>,
+}
 
 /// 事件总线
 pub struct EventBus {
-    handlers: RwLock<HashMap<String, Vec<EventHandler>>>,
+    handlers: RwLock<HashMap<String, Vec<HandlerEntry>>>,
 }
 
 impl EventBus {
@@ -30,25 +41,73 @@ impl EventBus {
         }
     }
 
-    /// 订阅事件
-    pub fn subscribe<F>(&self, event_type: &str, handler: F)
+    /// 订阅事件，返回 handler ID 用于取消订阅
+    pub fn subscribe<F>(&self, event_type: &str, handler: F) -> HandlerId
     where
         F: Fn(&Event) + Send + Sync + 'static,
     {
+        let id = HandlerId(HANDLER_ID_COUNTER.fetch_add(1, Ordering::Relaxed));
+        let entry = HandlerEntry {
+            id,
+            handler: Box::new(handler),
+        };
         self.handlers
             .write()
             .entry(event_type.to_string())
             .or_default()
-            .push(Box::new(handler));
+            .push(entry);
+        id
+    }
+
+    /// 取消订阅
+    pub fn unsubscribe(&self, event_type: &str, handler_id: HandlerId) -> bool {
+        let mut handlers = self.handlers.write();
+
+        // 获取条目，执行 retain，并记录结果
+        let (removed, is_empty) = if let Some(entries) = handlers.get_mut(event_type) {
+            let original_len = entries.len();
+            entries.retain(|e| e.id != handler_id);
+            let new_len = entries.len();
+            (original_len > new_len, new_len == 0)
+        } else {
+            return false;
+        };
+
+        // 现在可以安全地移除 key（entries 的借用已结束）
+        if is_empty {
+            handlers.remove(event_type);
+        }
+
+        removed
+    }
+
+    /// 取消某事件类型的所有订阅
+    pub fn unsubscribe_all(&self, event_type: &str) -> usize {
+        let mut handlers = self.handlers.write();
+        handlers.remove(event_type).map(|v| v.len()).unwrap_or(0)
     }
 
     /// 发布事件
     pub fn publish(&self, event: &Event) {
         if let Some(handlers) = self.handlers.read().get(&event.event_type) {
-            for handler in handlers {
-                handler(event);
+            for entry in handlers {
+                (entry.handler)(event);
             }
         }
+    }
+
+    /// 获取某事件类型的订阅数量
+    pub fn subscriber_count(&self, event_type: &str) -> usize {
+        self.handlers
+            .read()
+            .get(event_type)
+            .map(|v| v.len())
+            .unwrap_or(0)
+    }
+
+    /// 获取所有事件类型的订阅总数
+    pub fn total_subscribers(&self) -> usize {
+        self.handlers.read().values().map(|v| v.len()).sum()
     }
 }
 
@@ -260,5 +319,64 @@ mod tests {
         bus.publish(&event);
 
         assert!(*received.lock().unwrap());
+    }
+
+    #[test]
+    fn test_unsubscribe() {
+        let bus = EventBus::new();
+        let counter = Arc::new(Mutex::new(0));
+        let c1 = Arc::clone(&counter);
+
+        let handler_id = bus.subscribe("test", move |_| {
+            *c1.lock().unwrap() += 1;
+        });
+
+        assert_eq!(bus.subscriber_count("test"), 1);
+
+        let event = Event {
+            id: "1".to_string(),
+            event_type: "test".to_string(),
+            payload: String::new(),
+            timestamp: String::new(),
+        };
+
+        bus.publish(&event);
+        assert_eq!(*counter.lock().unwrap(), 1);
+
+        // 取消订阅
+        assert!(bus.unsubscribe("test", handler_id));
+        assert_eq!(bus.subscriber_count("test"), 0);
+
+        // 再次发布不应该触发
+        bus.publish(&event);
+        assert_eq!(*counter.lock().unwrap(), 1);
+
+        // 重复取消应该返回 false
+        assert!(!bus.unsubscribe("test", handler_id));
+    }
+
+    #[test]
+    fn test_unsubscribe_all() {
+        let bus = EventBus::new();
+
+        bus.subscribe("a", |_| {});
+        bus.subscribe("a", |_| {});
+        bus.subscribe("b", |_| {});
+
+        assert_eq!(bus.total_subscribers(), 3);
+
+        let removed = bus.unsubscribe_all("a");
+        assert_eq!(removed, 2);
+        assert_eq!(bus.total_subscribers(), 1);
+        assert_eq!(bus.subscriber_count("a"), 0);
+        assert_eq!(bus.subscriber_count("b"), 1);
+    }
+
+    #[test]
+    fn test_handler_id_unique() {
+        let bus = EventBus::new();
+        let id1 = bus.subscribe("test", |_| {});
+        let id2 = bus.subscribe("test", |_| {});
+        assert_ne!(id1, id2);
     }
 }

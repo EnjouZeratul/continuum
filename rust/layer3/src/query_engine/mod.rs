@@ -2,9 +2,14 @@
 //!
 //! 代码查询引擎：基于 LSP 的代码分析能力。
 
+pub mod lsp_query_engine;
+
 use crate::types::{CodeLocation, CodeRange, Layer3Result, QueryResult, QueryType};
 use async_trait::async_trait;
 use std::path::PathBuf;
+
+// Re-export the LSP implementation
+pub use lsp_query_engine::{LspCodeAnalyzer, LspQueryEngine};
 
 /// 查询引擎 trait
 ///

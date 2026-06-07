@@ -25,7 +25,7 @@ pub enum PiiType {
     Email,
     Phone,
     CreditCard,
-    SSN,
+    Ssn,
     IPAddress,
     Address,
     Name,
@@ -55,7 +55,7 @@ impl PiiPatterns {
                     Regex::new(r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b").unwrap(),
                 ),
                 (
-                    PiiType::SSN,
+                    PiiType::Ssn,
                     Regex::new(r"\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b").unwrap(),
                 ),
                 (

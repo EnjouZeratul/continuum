@@ -3,8 +3,8 @@
 //! 定义 Layer 2 使用的核心类型，供所有模块共享。
 
 use serde::{Deserialize, Serialize};
+use sh_layer1::generate_short_id;
 use std::fmt;
-use uuid::Uuid;
 
 /// 会话 ID
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -12,7 +12,7 @@ pub struct SessionId(pub String);
 
 impl SessionId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string()[..8].to_string())
+        Self(generate_short_id())
     }
 }
 
@@ -62,7 +62,7 @@ pub struct TaskId(pub String);
 
 impl TaskId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string()[..8].to_string())
+        Self(generate_short_id())
     }
 }
 
@@ -84,7 +84,7 @@ pub struct CheckpointId(pub String);
 
 impl CheckpointId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string()[..8].to_string())
+        Self(generate_short_id())
     }
 }
 
@@ -236,6 +236,7 @@ pub struct CheckpointMeta {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub trigger: String,
     pub iteration: i32,
+    #[serde(rename = "_checksum")]
     pub checksum: String,
 }
 
@@ -295,6 +296,9 @@ pub enum Layer2Error {
 
     #[error("Max sessions reached: {0}")]
     MaxSessionsReached(usize),
+
+    #[error("Permission denied: {0}")]
+    PermissionDenied(String),
 }
 
 // 注意：不需要手动实现 From<Layer2Error> for anyhow::Error，

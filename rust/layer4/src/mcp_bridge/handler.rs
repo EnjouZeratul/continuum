@@ -186,7 +186,10 @@ impl McpHandler for DefaultHandler {
     }
 }
 
-/// 简单工具执行器 (用于测试)
+/// 简单工具执行器
+///
+/// 将闭包包装为 `ToolExecutor` trait 实现。
+/// 适用于不需要异步执行的简单工具。
 pub struct SimpleToolExecutor<F>(pub F)
 where
     F: Fn(&str, Value) -> Result<ToolResult> + Send + Sync;

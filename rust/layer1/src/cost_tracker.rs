@@ -2,6 +2,7 @@
 //!
 //! Token 计数、费用计算、预算控制。
 
+use crate::utils::generate_short_id;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -77,10 +78,10 @@ fn default_pricing() -> HashMap<String, ModelPricing> {
 
     // OpenAI 模型定价
     pricing.insert(
-        "gpt-4o".to_string(),
+        "claude-sonnet-4-6".to_string(),
         ModelPricing {
-            input_price_per_million: 2.5,
-            output_price_per_million: 10.0,
+            input_price_per_million: 3.0,
+            output_price_per_million: 15.0,
         },
     );
     pricing.insert(
@@ -163,7 +164,7 @@ impl CostTracker {
         }
 
         // 更新记录
-        let record_id = uuid::Uuid::new_v4().to_string();
+        let record_id = generate_short_id();
         self.usage.write().insert(
             record_id,
             UsageRecord {

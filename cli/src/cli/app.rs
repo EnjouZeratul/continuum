@@ -176,6 +176,7 @@ impl CliApp {
             }
             Commands::Tui { session } => self.tui_command(session.clone()).await,
             Commands::Checkpoint { cmd } => self.checkpoint_command(cmd.clone()).await,
+            Commands::Dashboard { cmd } => self.dashboard_command(cmd.clone()).await,
 
             // 工具链命令
             Commands::Bash {
@@ -354,6 +355,12 @@ impl CliApp {
             }
         }
         Ok(())
+    }
+
+    /// 执行 dashboard 子命令
+    async fn dashboard_command(&self, cmd: super::args::DashboardCmd) -> Result<()> {
+        use crate::commands::dashboard;
+        dashboard::execute(cmd)
     }
 
     // ===== 工具链命令处理 =====

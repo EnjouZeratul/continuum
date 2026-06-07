@@ -68,10 +68,7 @@ impl ConfirmationDialog {
             RiskLevel::High => "确认操作 (高风险)".to_string(),
         };
 
-        self.message = format!(
-            "是否执行: /{}?",
-            command.command.name
-        );
+        self.message = format!("是否执行: /{}?", command.command.name);
     }
 
     /// 显示权限请求对话框
@@ -215,10 +212,10 @@ impl ConfirmationDialog {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(2),  // 消息
-                Constraint::Min(3),     // 详情
-                Constraint::Length(3),  // 按钮
-                Constraint::Length(1),  // 快捷键提示
+                Constraint::Length(2), // 消息
+                Constraint::Min(3),    // 详情
+                Constraint::Length(3), // 按钮
+                Constraint::Length(1), // 快捷键提示
             ])
             .split(inner_area);
 
@@ -226,7 +223,9 @@ impl ConfirmationDialog {
         let message_style = match self.risk_level {
             RiskLevel::Low => Style::default().fg(self.theme.foreground),
             RiskLevel::Medium => Style::default().fg(self.theme.warning_message),
-            RiskLevel::High => Style::default().fg(self.theme.error_message).add_modifier(Modifier::BOLD),
+            RiskLevel::High => Style::default()
+                .fg(self.theme.error_message)
+                .add_modifier(Modifier::BOLD),
         };
 
         let message = Paragraph::new(self.message.clone())
@@ -247,8 +246,7 @@ impl ConfirmationDialog {
                 })
                 .collect();
 
-            let details = Paragraph::new(details_text)
-                .wrap(Wrap { trim: true });
+            let details = Paragraph::new(details_text).wrap(Wrap { trim: true });
             f.render_widget(details, chunks[1]);
         }
 
@@ -257,9 +255,19 @@ impl ConfirmationDialog {
 
         // 渲染快捷键提示
         let hints = Paragraph::new(Line::from(vec![
-            Span::styled("[Y]", Style::default().fg(self.theme.success_message).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "[Y]",
+                Style::default()
+                    .fg(self.theme.success_message)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" 确认  "),
-            Span::styled("[N/Esc]", Style::default().fg(self.theme.error_message).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "[N/Esc]",
+                Style::default()
+                    .fg(self.theme.error_message)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" 取消  "),
             Span::styled("[←→]", Style::default().fg(self.theme.punctuation)),
             Span::raw(" 切换"),
@@ -272,10 +280,7 @@ impl ConfirmationDialog {
     fn render_buttons(&self, f: &mut Frame, area: Rect) {
         let buttons_layout = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ])
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
         // 确认按钮

@@ -57,8 +57,26 @@ class ScenarioQA:
         for result in results:
             # 检查响应非空
             assert result["response"], "响应不应为空"
-            # 检查响应相关（人工验证）
-            # TODO: 实现自动相关性检查
+            # 自动相关性检查：验证响应包含关键概念
+            expected = result["expected"]
+            response = result["response"]
+
+            # 根据预期类型进行验证
+            if expected == "包含自我介绍的响应":
+                # 验证包含自我介绍关键词
+                keywords = ["助手", "AI", "帮助", "assistant", "help"]
+                assert any(kw in response.lower() for kw in keywords), \
+                    f"响应应包含自我介绍关键词: {response}"
+            elif expected == "包含 Python 解释的响应":
+                # 验证包含 Python 解释关键词
+                keywords = ["python", "编程", "语言", "programming", "language"]
+                assert any(kw in response.lower() for kw in keywords), \
+                    f"响应应包含 Python 解释关键词: {response}"
+            elif expected == "无法获取天气或说明需要工具":
+                # 验证说明无法获取或需要工具
+                keywords = ["无法", "不能", "需要", "天气", "工具", "获取", "cannot", "need", "weather"]
+                assert any(kw in response.lower() for kw in keywords), \
+                    f"响应应说明天气相关限制: {response}"
         return True
 
 

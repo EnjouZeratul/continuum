@@ -41,7 +41,7 @@ pub enum AnsiColor {
 
 impl AnsiColor {
     /// 获取 ANSI 转义码
-    pub fn to_ansi(&self) -> String {
+    pub fn to_ansi(self) -> String {
         match self {
             AnsiColor::Black => "\x1b[30m".to_string(),
             AnsiColor::Red => "\x1b[31m".to_string(),
@@ -65,7 +65,7 @@ impl AnsiColor {
     }
 
     /// 获取背景色 ANSI 转义码
-    pub fn to_bg_ansi(&self) -> String {
+    pub fn to_bg_ansi(self) -> String {
         match self {
             AnsiColor::Black => "\x1b[40m".to_string(),
             AnsiColor::Red => "\x1b[41m".to_string(),
@@ -104,7 +104,7 @@ pub enum TextStyle {
 
 impl TextStyle {
     /// 获取 ANSI 转义码
-    pub fn to_ansi(&self) -> &'static str {
+    pub fn to_ansi(self) -> &'static str {
         match self {
             TextStyle::Bold => "\x1b[1m",
             TextStyle::Dim => "\x1b[2m",
@@ -118,7 +118,7 @@ impl TextStyle {
     }
 
     /// 获取重置码
-    pub fn reset_ansi(&self) -> &'static str {
+    pub fn reset_ansi(self) -> &'static str {
         match self {
             TextStyle::Bold => "\x1b[22m",
             TextStyle::Dim => "\x1b[22m",
@@ -199,17 +199,17 @@ impl ColoredText {
         let mut result = String::new();
 
         // 添加背景色
-        if let Some(bg) = &self.bg_color {
+        if let Some(bg) = self.bg_color {
             result.push_str(&bg.to_bg_ansi());
         }
 
         // 添加前景色
-        if let Some(fg) = &self.fg_color {
+        if let Some(fg) = self.fg_color {
             result.push_str(&fg.to_ansi());
         }
 
         // 添加样式
-        for style in &self.styles {
+        for &style in &self.styles {
             result.push_str(style.to_ansi());
         }
 
@@ -390,32 +390,32 @@ impl TerminalTheme {
             name: "monokai".to_string(),
 
             // Markdown
-            heading: AnsiColor::Rgb(102, 217, 239),   // Cyan
-            bold: AnsiColor::Rgb(248, 248, 242),     // White
-            italic: AnsiColor::Rgb(102, 217, 239),   // Cyan
-            code_block: AnsiColor::Rgb(166, 226, 46), // Green
+            heading: AnsiColor::Rgb(102, 217, 239),     // Cyan
+            bold: AnsiColor::Rgb(248, 248, 242),        // White
+            italic: AnsiColor::Rgb(102, 217, 239),      // Cyan
+            code_block: AnsiColor::Rgb(166, 226, 46),   // Green
             inline_code: AnsiColor::Rgb(230, 219, 116), // Yellow
-            link: AnsiColor::Rgb(102, 217, 239),     // Cyan
-            quote: AnsiColor::Rgb(117, 113, 94),     // Comment gray
-            list_marker: AnsiColor::Rgb(253, 151, 31), // Orange
+            link: AnsiColor::Rgb(102, 217, 239),        // Cyan
+            quote: AnsiColor::Rgb(117, 113, 94),        // Comment gray
+            list_marker: AnsiColor::Rgb(253, 151, 31),  // Orange
             hr: AnsiColor::Rgb(117, 113, 94),
 
             // Messages
-            error: AnsiColor::Rgb(249, 38, 114),     // Pink/Red
-            warning: AnsiColor::Rgb(253, 151, 31),  // Orange
-            success: AnsiColor::Rgb(166, 226, 46),   // Green
-            info: AnsiColor::Rgb(102, 217, 239),     // Cyan
+            error: AnsiColor::Rgb(249, 38, 114),   // Pink/Red
+            warning: AnsiColor::Rgb(253, 151, 31), // Orange
+            success: AnsiColor::Rgb(166, 226, 46), // Green
+            info: AnsiColor::Rgb(102, 217, 239),   // Cyan
 
             // Syntax
-            keyword: AnsiColor::Rgb(249, 38, 114),   // Pink
-            string: AnsiColor::Rgb(230, 219, 116),   // Yellow
-            comment: AnsiColor::Rgb(117, 113, 94),   // Gray
-            number: AnsiColor::Rgb(174, 129, 255),   // Purple
-            function: AnsiColor::Rgb(166, 226, 46),  // Green
+            keyword: AnsiColor::Rgb(249, 38, 114),    // Pink
+            string: AnsiColor::Rgb(230, 219, 116),    // Yellow
+            comment: AnsiColor::Rgb(117, 113, 94),    // Gray
+            number: AnsiColor::Rgb(174, 129, 255),    // Purple
+            function: AnsiColor::Rgb(166, 226, 46),   // Green
             type_name: AnsiColor::Rgb(102, 217, 239), // Cyan
-            operator: AnsiColor::Rgb(249, 38, 114),  // Pink
-            bracket: AnsiColor::Rgb(253, 151, 31),   // Orange
-            variable: AnsiColor::Rgb(248, 248, 242), // White
+            operator: AnsiColor::Rgb(249, 38, 114),   // Pink
+            bracket: AnsiColor::Rgb(253, 151, 31),    // Orange
+            variable: AnsiColor::Rgb(248, 248, 242),  // White
 
             // UI
             border: AnsiColor::Rgb(117, 113, 94),
@@ -553,35 +553,35 @@ impl TerminalOutput {
 
     /// 打印成功消息
     pub fn success(&self, msg: &str) -> io::Result<()> {
-        self.println(&ColoredText::new(format!("✓ {}", msg))
-            .fg(self.theme.success)
-            .bold())
+        self.println(
+            &ColoredText::new(format!("✓ {}", msg))
+                .fg(self.theme.success)
+                .bold(),
+        )
     }
 
     /// 打印错误消息
     pub fn error(&self, msg: &str) -> io::Result<()> {
-        self.println(&ColoredText::new(format!("✗ {}", msg))
-            .fg(self.theme.error)
-            .bold())
+        self.println(
+            &ColoredText::new(format!("✗ {}", msg))
+                .fg(self.theme.error)
+                .bold(),
+        )
     }
 
     /// 打印警告消息
     pub fn warning(&self, msg: &str) -> io::Result<()> {
-        self.println(&ColoredText::new(format!("⚠ {}", msg))
-            .fg(self.theme.warning))
+        self.println(&ColoredText::new(format!("⚠ {}", msg)).fg(self.theme.warning))
     }
 
     /// 打印信息消息
     pub fn info(&self, msg: &str) -> io::Result<()> {
-        self.println(&ColoredText::new(format!("ℹ {}", msg))
-            .fg(self.theme.info))
+        self.println(&ColoredText::new(format!("ℹ {}", msg)).fg(self.theme.info))
     }
 
     /// 打印标题
     pub fn title(&self, msg: &str) -> io::Result<()> {
-        self.println(&ColoredText::new(msg)
-            .fg(self.theme.title)
-            .bold())
+        self.println(&ColoredText::new(msg).fg(self.theme.title).bold())
     }
 
     /// 打印分隔线
@@ -592,7 +592,7 @@ impl TerminalOutput {
 
     /// 打印进度指示器
     pub fn progress(&self, current: usize, total: usize, msg: &str) -> io::Result<()> {
-        let percentage = if total > 0 { (current * 100) / total } else { 0 };
+        let percentage = (current * 100).checked_div(total).unwrap_or(0);
         let bar_len = 30;
         let filled = (percentage * bar_len) / 100;
 
@@ -692,47 +692,53 @@ impl MarkdownRenderer {
         // 标题
         if line.starts_with("### ") {
             let text = line.trim_start_matches("### ");
-            self.output.println(&ColoredText::new(text)
-                .fg(self.output.theme.heading)
-                .bold().bold())?;
+            self.output.println(
+                &ColoredText::new(text)
+                    .fg(self.output.theme.heading)
+                    .bold()
+                    .bold(),
+            )?;
             return Ok(());
         }
         if line.starts_with("## ") {
             let text = line.trim_start_matches("## ");
-            self.output.println(&ColoredText::new(text)
-                .fg(self.output.theme.heading)
-                .bold())?;
+            self.output
+                .println(&ColoredText::new(text).fg(self.output.theme.heading).bold())?;
             return Ok(());
         }
         if line.starts_with("# ") {
             let text = line.trim_start_matches("# ");
-            self.output.println(&ColoredText::new(text)
-                .fg(self.output.theme.heading)
-                .bold().underline())?;
+            self.output.println(
+                &ColoredText::new(text)
+                    .fg(self.output.theme.heading)
+                    .bold()
+                    .underline(),
+            )?;
             return Ok(());
         }
 
         // 水平线
         if line == "---" || line == "***" || line == "___" {
-            self.output.println(&ColoredText::new("─".repeat(60))
-                .fg(self.output.theme.hr))?;
+            self.output
+                .println(&ColoredText::new("─".repeat(60)).fg(self.output.theme.hr))?;
             return Ok(());
         }
 
         // 引用
         if line.starts_with("> ") {
             let text = line.trim_start_matches("> ");
-            self.output.println(&ColoredText::new(format!("│ {}", text))
-                .fg(self.output.theme.quote))?;
+            self.output
+                .println(&ColoredText::new(format!("│ {}", text)).fg(self.output.theme.quote))?;
             return Ok(());
         }
 
         // 列表
         if line.starts_with("- ") || line.starts_with("* ") {
-            let text = line.trim_start_matches(|c| c == '-' || c == '*' || c == ' ');
+            let text = line.trim_start_matches(['-', '*', ' ']);
             let rendered = self.render_inline(text);
-            self.output.println(&ColoredText::new(format!("• {}", rendered))
-                .fg(self.output.theme.list_marker))?;
+            self.output.println(
+                &ColoredText::new(format!("• {}", rendered)).fg(self.output.theme.list_marker),
+            )?;
             return Ok(());
         }
 
@@ -741,7 +747,11 @@ impl MarkdownRenderer {
             if pos > 0 && line[..pos].chars().all(|c| c.is_ascii_digit()) {
                 let text = &line[pos + 2..];
                 let rendered = self.render_inline(text);
-                self.output.println(&ColoredText::new(format!("{}. {}", &line[..pos + 1], rendered)))?;
+                self.output.println(&ColoredText::new(format!(
+                    "{}. {}",
+                    &line[..pos + 1],
+                    rendered
+                )))?;
                 return Ok(());
             }
         }
@@ -770,17 +780,19 @@ impl MarkdownRenderer {
                         }
                         bold_text.push(c);
                     }
-                    result.push_str(&ColoredText::new(bold_text)
-                        .fg(self.output.theme.bold)
-                        .bold()
-                        .render());
+                    result.push_str(
+                        &ColoredText::new(bold_text)
+                            .fg(self.output.theme.bold)
+                            .bold()
+                            .render(),
+                    );
                 }
                 // 斜体 *text* 或 _text_
                 '*' | '_' => {
                     let marker = ch;
                     let mut italic_text = String::new();
                     let mut found_end = false;
-                    while let Some(c) = chars.next() {
+                    for c in chars.by_ref() {
                         if c == marker {
                             found_end = true;
                             break;
@@ -788,10 +800,12 @@ impl MarkdownRenderer {
                         italic_text.push(c);
                     }
                     if found_end && !italic_text.is_empty() {
-                        result.push_str(&ColoredText::new(italic_text)
-                            .fg(self.output.theme.italic)
-                            .italic()
-                            .render());
+                        result.push_str(
+                            &ColoredText::new(italic_text)
+                                .fg(self.output.theme.italic)
+                                .italic()
+                                .render(),
+                        );
                     } else {
                         result.push(marker);
                         result.push_str(&italic_text);
@@ -803,20 +817,22 @@ impl MarkdownRenderer {
                 // 行内代码 `code`
                 '`' => {
                     let mut code_text = String::new();
-                    while let Some(c) = chars.next() {
+                    for c in chars.by_ref() {
                         if c == '`' {
                             break;
                         }
                         code_text.push(c);
                     }
-                    result.push_str(&ColoredText::new(code_text)
-                        .fg(self.output.theme.inline_code)
-                        .render());
+                    result.push_str(
+                        &ColoredText::new(code_text)
+                            .fg(self.output.theme.inline_code)
+                            .render(),
+                    );
                 }
                 // 链接 [text](url)
                 '[' => {
                     let mut link_text = String::new();
-                    while let Some(c) = chars.next() {
+                    for c in chars.by_ref() {
                         if c == ']' {
                             break;
                         }
@@ -825,16 +841,18 @@ impl MarkdownRenderer {
                     if chars.peek() == Some(&'(') {
                         chars.next();
                         let mut url = String::new();
-                        while let Some(c) = chars.next() {
+                        for c in chars.by_ref() {
                             if c == ')' {
                                 break;
                             }
                             url.push(c);
                         }
-                        result.push_str(&ColoredText::new(&link_text)
-                            .fg(self.output.theme.link)
-                            .underline()
-                            .render());
+                        result.push_str(
+                            &ColoredText::new(&link_text)
+                                .fg(self.output.theme.link)
+                                .underline()
+                                .render(),
+                        );
                     } else {
                         result.push('[');
                         result.push_str(&link_text);
@@ -853,17 +871,20 @@ impl MarkdownRenderer {
     /// 渲染代码块
     fn render_code_block(&self, code: &str, language: &str) -> io::Result<()> {
         // 代码块边框
-        self.output.println(&ColoredText::new("┌".to_string() + &"─".repeat(58) + "┐")
-            .fg(self.output.theme.border))?;
+        self.output.println(
+            &ColoredText::new("┌".to_string() + &"─".repeat(58) + "┐").fg(self.output.theme.border),
+        )?;
 
         for line in code.lines() {
             // 带行号的代码行
             let highlighted = self.highlight_line(line, language);
-            self.output.println(&ColoredText::new(format!("│ {}", highlighted)))?;
+            self.output
+                .println(&ColoredText::new(format!("│ {}", highlighted)))?;
         }
 
-        self.output.println(&ColoredText::new("└".to_string() + &"─".repeat(58) + "┘")
-            .fg(self.output.theme.border))?;
+        self.output.println(
+            &ColoredText::new("└".to_string() + &"─".repeat(58) + "┘").fg(self.output.theme.border),
+        )?;
 
         Ok(())
     }
@@ -877,9 +898,11 @@ impl MarkdownRenderer {
 
         for ch in line.chars() {
             if in_comment {
-                result.push_str(&ColoredText::new(ch.to_string())
-                    .fg(self.output.theme.comment)
-                    .render());
+                result.push_str(
+                    &ColoredText::new(ch.to_string())
+                        .fg(self.output.theme.comment)
+                        .render(),
+                );
                 continue;
             }
 
@@ -890,14 +913,18 @@ impl MarkdownRenderer {
                         current_word.clear();
                     }
                     in_string = true;
-                    result.push_str(&ColoredText::new(ch.to_string())
-                        .fg(self.output.theme.string)
-                        .render());
+                    result.push_str(
+                        &ColoredText::new(ch.to_string())
+                            .fg(self.output.theme.string)
+                            .render(),
+                    );
                 }
                 '"' | '\'' if in_string => {
-                    result.push_str(&ColoredText::new(ch.to_string())
-                        .fg(self.output.theme.string)
-                        .render());
+                    result.push_str(
+                        &ColoredText::new(ch.to_string())
+                            .fg(self.output.theme.string)
+                            .render(),
+                    );
                     in_string = false;
                 }
                 '#' | '/' if !in_string => {
@@ -906,9 +933,11 @@ impl MarkdownRenderer {
                         current_word.clear();
                     }
                     in_comment = true;
-                    result.push_str(&ColoredText::new(ch.to_string())
-                        .fg(self.output.theme.comment)
-                        .render());
+                    result.push_str(
+                        &ColoredText::new(ch.to_string())
+                            .fg(self.output.theme.comment)
+                            .render(),
+                    );
                 }
                 ' ' | '\t' => {
                     if !current_word.is_empty() {
@@ -918,9 +947,11 @@ impl MarkdownRenderer {
                     result.push(ch);
                 }
                 _ if in_string => {
-                    result.push_str(&ColoredText::new(ch.to_string())
-                        .fg(self.output.theme.string)
-                        .render());
+                    result.push_str(
+                        &ColoredText::new(ch.to_string())
+                            .fg(self.output.theme.string)
+                            .render(),
+                    );
                 }
                 _ => {
                     current_word.push(ch);
@@ -938,13 +969,68 @@ impl MarkdownRenderer {
     /// 高亮单词
     fn highlight_word(&self, word: &str) -> String {
         let keywords = [
-            "fn", "let", "mut", "const", "pub", "mod", "use", "struct", "enum", "impl",
-            "trait", "type", "where", "for", "loop", "while", "if", "else", "match",
-            "return", "break", "continue", "async", "await", "move", "ref", "self",
-            "def", "class", "import", "from", "as", "try", "except", "finally", "with",
-            "yield", "lambda", "pass", "raise", "True", "False", "None", "and", "or",
-            "not", "in", "is", "function", "var", "const", "let", "class", "extends",
-            "export", "static", "interface", "return", "if", "else", "for", "while",
+            "fn",
+            "let",
+            "mut",
+            "const",
+            "pub",
+            "mod",
+            "use",
+            "struct",
+            "enum",
+            "impl",
+            "trait",
+            "type",
+            "where",
+            "for",
+            "loop",
+            "while",
+            "if",
+            "else",
+            "match",
+            "return",
+            "break",
+            "continue",
+            "async",
+            "await",
+            "move",
+            "ref",
+            "self",
+            "def",
+            "class",
+            "import",
+            "from",
+            "as",
+            "try",
+            "except",
+            "finally",
+            "with",
+            "yield",
+            "lambda",
+            "pass",
+            "raise",
+            "True",
+            "False",
+            "None",
+            "and",
+            "or",
+            "not",
+            "in",
+            "is",
+            "function",
+            "var",
+            "const",
+            "let",
+            "class",
+            "extends",
+            "export",
+            "static",
+            "interface",
+            "return",
+            "if",
+            "else",
+            "for",
+            "while",
         ];
 
         if keywords.contains(&word) {
@@ -953,9 +1039,7 @@ impl MarkdownRenderer {
                 .bold()
                 .render()
         } else if word.parse::<f64>().is_ok() {
-            ColoredText::new(word)
-                .fg(self.output.theme.number)
-                .render()
+            ColoredText::new(word).fg(self.output.theme.number).render()
         } else if word.starts_with(|c: char| c.is_uppercase()) {
             ColoredText::new(word)
                 .fg(self.output.theme.type_name)

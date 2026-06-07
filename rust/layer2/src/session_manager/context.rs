@@ -67,7 +67,7 @@ impl ExecutionContext {
             tools_registered: Vec::new(),
             tool_calls_pending: Vec::new(),
             tool_results_cache: Vec::new(),
-            model: "gpt-4o".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             temperature: 0.7,
             system_prompt: String::new(),
             tokens_total: 0,

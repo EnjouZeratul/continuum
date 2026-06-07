@@ -9,6 +9,7 @@ members = [
     "rust/layer3",
     "rust/layer4",
     "cli",
+    "rust/examples/example_dylib",
 ]
 
 [workspace.package]
@@ -39,7 +40,7 @@ thiserror = "2.0"
 
 # 可观测性
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Python 绑定
 pyo3 = { version = "0.24", features = ["extension-module", "abi3-py311"] }
@@ -47,6 +48,7 @@ pyo3-async-runtimes = { version = "0.24", features = ["tokio-runtime"] }
 
 # HTTP 客户端
 reqwest = { version = "0.12", features = ["json", "stream"] }
+url = "2.5"
 
 # 存储
 sled = "0.34"  # 嵌入式数据库
@@ -84,6 +86,15 @@ glob = "0.3"
 
 # libc (Unix系统调用)
 libc = "0.2"
+
+# 动态库加载
+libloading = "0.8"
+
+# WASM 运行时
+wasmtime = { version = "25", features = ["async", "cranelift"] }
+
+# ABI 稳定性
+abi_stable = "0.11"
 
 # 测试
 tempfile = "3.14"

@@ -99,7 +99,9 @@ impl SessionManager {
 
     /// 按名称加载会话
     pub fn load_session_by_name(&self, name: &str) -> Result<SessionData> {
-        let file_path = self.sessions_dir.join(format!("{}.json", Self::sanitize_name(name)));
+        let file_path = self
+            .sessions_dir
+            .join(format!("{}.json", Self::sanitize_name(name)));
         let content = fs::read_to_string(&file_path)?;
         let session: SessionData = serde_json::from_str(&content)?;
         Ok(session)
@@ -189,7 +191,10 @@ mod tests {
     #[test]
     fn test_sanitize_name() {
         assert_eq!(SessionManager::sanitize_name("test session"), "testsession");
-        assert_eq!(SessionManager::sanitize_name("test-session"), "test-session");
+        assert_eq!(
+            SessionManager::sanitize_name("test-session"),
+            "test-session"
+        );
         assert_eq!(SessionManager::sanitize_name("test/session"), "testsession");
         assert_eq!(SessionManager::sanitize_name("  test  "), "test");
     }
@@ -205,7 +210,7 @@ mod tests {
     #[test]
     fn test_default_session_manager() {
         let manager = SessionManager::default();
-        assert!(manager.sessions_dir.to_string_lossy().len() > 0);
+        assert!(!manager.sessions_dir.to_string_lossy().is_empty());
     }
 
     #[test]

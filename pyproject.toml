@@ -35,9 +35,6 @@ dev = [
     "ruff>=0.1.0",
 ]
 
-[project.scripts]
-continuum = "continuum.cli:main"
-
 [project.urls]
 Homepage = "https://github.com/EnjouZeratul/continuum"
 Repository = "https://github.com/EnjouZeratul/continuum"

@@ -10,22 +10,45 @@ use std::time::{Duration, Instant};
 
 /// Blocked commands for security
 const BLOCKED_COMMANDS: &[&str] = &[
-    "sudo", "su", "doas",
-    "eval", "exec",
-    "mkfifo", "nc", "ncat", "telnet",
-    "curl", "wget",
-    "python", "python3", "perl", "ruby", "node", "php",
-    "base64", "openssl", "xxd",
+    "sudo",
+    "su",
+    "doas",
+    "eval",
+    "exec",
+    "mkfifo",
+    "nc",
+    "ncat",
+    "telnet",
+    "curl",
+    "wget",
+    "python",
+    "python3",
+    "perl",
+    "ruby",
+    "node",
+    "php",
+    "base64",
+    "openssl",
+    "xxd",
     "ssh-keygen",
-    "docker", "kubectl",
-    "kill", "pkill", "killall",
+    "docker",
+    "kubectl",
+    "kill",
+    "pkill",
+    "killall",
 ];
 
 /// Dangerous commands requiring confirmation
 const DANGEROUS_COMMANDS: &[&str] = &[
-    "rm", "rmdir", "del", "format",
-    "chmod", "chown",
-    "git push", "git reset", "git checkout",
+    "rm",
+    "rmdir",
+    "del",
+    "format",
+    "chmod",
+    "chown",
+    "git push",
+    "git reset",
+    "git checkout",
 ];
 
 /// Validate path for traversal attacks

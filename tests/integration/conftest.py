@@ -8,6 +8,7 @@ import asyncio
 import tempfile
 import os
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 
 # ==================== 异步测试支持 ====================
@@ -66,12 +67,30 @@ def mock_agent_config():
 
 @pytest.fixture
 def mock_llm_response():
-    """Mock LLM 响应"""
-    return {
-        "content": "这是一个测试响应",
-        "role": "assistant",
-        "tokens_used": 50,
-    }
+    """Mock LLM ChatResponse object"""
+    from continuum_sdk.llm import ChatResponse, TokenUsage
+    return ChatResponse(
+        content="Test response from LLM",
+        model="claude-sonnet-4-6",
+        usage=TokenUsage(input_tokens=10, output_tokens=20),
+    )
+
+
+@pytest.fixture
+def mock_llm_client(mock_llm_response):
+    """Mock LLM client with pre-configured responses"""
+    mock_client = MagicMock()
+    mock_client.chat = AsyncMock(return_value=mock_llm_response)
+
+    async def mock_stream(*args, **kwargs):
+        """Mock streaming response"""
+        from continuum_sdk.llm import StreamChunk
+        chunks = ["Hello", " ", "world", "!"]
+        for chunk in chunks:
+            yield StreamChunk(content=chunk)
+
+    mock_client.chat_stream = mock_stream
+    return mock_client
 
 
 @pytest.fixture

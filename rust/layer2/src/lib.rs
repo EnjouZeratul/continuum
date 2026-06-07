@@ -12,13 +12,22 @@
 //! - `checkpoint_system`: 检查点持久化
 //! - `tasks`: 任务队列管理
 //! - `prompts`: 提示词管理
+//! - `permission`: 交互式权限系统
+//! - `planner`: 任务分解和执行计划
+//! - `execution_monitor`: 执行监控和自我纠错
 
 // Re-export Layer 1 (and transitively Layer 0) for upper layers
 pub use sh_layer1;
 
+// Re-export ID generation functions for Layer 3
+pub use sh_layer1::{generate_prefixed_id, generate_short_id};
+
 pub mod agent_runtime;
 pub mod checkpoint_system;
+pub mod execution_monitor;
 pub mod hook_system;
+pub mod permission;
+pub mod planner;
 pub mod prompts;
 pub mod session_manager;
 pub mod tasks;
@@ -63,6 +72,21 @@ pub use checkpoint_system::{
 pub use tasks::{Task, TaskManager, TaskManagerTrait, TaskPriority, TaskStatus};
 
 pub use prompts::{PromptManager, PromptManagerTrait, PromptTemplate};
+
+pub use permission::{
+    AuditEntry, CachedPermission, PermissionAction, PermissionContext, PermissionDecision,
+    PermissionError, PermissionManager, PermissionPolicy, PermissionRequest, PermissionResponse,
+    PermissionResult, PermissionRule, SecurityLevel,
+};
+
+pub use planner::{
+    DecompositionStrategy, ExecutionPlan, PlanResult, RiskLevel, SubTask, TaskDecomposer,
+};
+
+pub use execution_monitor::{
+    CorrectionDecision, CorrectionRecord, CorrectionStrategy, ExecutionMonitor, ExecutionStatus,
+    ExecutionSummary, SelfCorrector, StepResult,
+};
 
 // 导出 trait 以便外部实现
 pub mod traits {

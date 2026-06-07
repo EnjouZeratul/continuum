@@ -53,7 +53,8 @@ impl Tutorial {
     /// 创建教程步骤
     fn create_steps() -> Vec<TutorialStep> {
         vec![
-            tutorial_step!(1,
+            tutorial_step!(
+                1,
                 "Welcome to Continuum",
                 "Let's learn how to use the terminal interface.",
                 [
@@ -71,7 +72,8 @@ impl Tutorial {
                     "Use /help to see all available commands."
                 ]
             ),
-            tutorial_step!(2,
+            tutorial_step!(
+                2,
                 "Sending Messages",
                 "How to communicate with the AI assistant.",
                 [
@@ -91,7 +93,8 @@ impl Tutorial {
                     "Press Tab to autocomplete slash commands."
                 ]
             ),
-            tutorial_step!(3,
+            tutorial_step!(
+                3,
                 "Slash Commands",
                 "Special commands to control the application.",
                 [
@@ -111,7 +114,8 @@ impl Tutorial {
                     "Use /help <command> for detailed help on a specific command."
                 ]
             ),
-            tutorial_step!(4,
+            tutorial_step!(
+                4,
                 "Tools Panel",
                 "Viewing tool execution in real-time.",
                 [
@@ -129,7 +133,8 @@ impl Tutorial {
                     "You can grant permanent permission for trusted tools."
                 ]
             ),
-            tutorial_step!(5,
+            tutorial_step!(
+                5,
                 "Session Management",
                 "Managing your conversation sessions.",
                 [
@@ -140,7 +145,7 @@ impl Tutorial {
                 ],
                 [
                     "Ctrl+N - New session",
-                    "Ctrl+S - Save session (placeholder)",
+                    "Ctrl+S - Save session",
                     "Ctrl+L - Clear screen",
                     "Ctrl+H - Show help"
                 ],
@@ -256,7 +261,11 @@ impl Tutorial {
 
         text.push_str("\nKeybindings:\n");
         for kb in &step.keybindings {
-            text.push_str(&format!("  {} {}\n", kb.split('-').next().unwrap_or(""), kb));
+            text.push_str(&format!(
+                "  {} {}\n",
+                kb.split('-').next().unwrap_or(""),
+                kb
+            ));
         }
 
         text.push_str("\nTips:\n");

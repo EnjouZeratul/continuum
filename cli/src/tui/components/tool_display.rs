@@ -21,6 +21,8 @@ pub enum ToolStatus {
     Success,
     /// 执行失败
     Failed,
+    /// 已取消
+    Cancelled,
 }
 
 /// 工具调用记录
@@ -38,6 +40,8 @@ pub struct ToolCall {
     pub started_at: Instant,
     /// 执行耗时
     pub duration: Option<Duration>,
+    /// 进度百分比 (0.0 - 100.0)
+    pub progress: f32,
 }
 
 impl ToolCall {
@@ -50,6 +54,7 @@ impl ToolCall {
             result: None,
             started_at: Instant::now(),
             duration: None,
+            progress: 0.0,
         }
     }
 
@@ -73,7 +78,7 @@ impl ToolCall {
 /// 工具执行显示组件
 pub struct ToolDisplayComponent {
     /// 工具调用列表
-    tool_calls: Vec<ToolCall>,
+    pub tool_calls: Vec<ToolCall>,
     /// 是否显示详细参数
     verbose: bool,
     /// 最大显示数量
@@ -123,6 +128,60 @@ impl ToolDisplayComponent {
         if let Some(call) = self.tool_calls.get_mut(index) {
             call.mark_completed(result, is_error);
         }
+    }
+
+    /// Get elapsed time for a running tool
+    pub fn get_elapsed_time(&self, index: usize) -> Option<String> {
+        self.tool_calls
+            .get(index)
+            .map(|call| format_duration_short(call.started_at.elapsed()))
+    }
+
+    /// Get progress percentage for a tool
+    pub fn get_progress(&self, index: usize) -> Option<f32> {
+        self.tool_calls.get(index).map(|call| call.progress)
+    }
+
+    /// Set progress percentage for a tool
+    pub fn set_progress(&mut self, index: usize, progress: f32) {
+        if let Some(call) = self.tool_calls.get_mut(index) {
+            call.progress = progress.clamp(0.0, 100.0);
+        }
+    }
+
+    /// Render progress bar string
+    pub fn render_progress_bar(&self, index: usize, width: usize) -> String {
+        if let Some(call) = self.tool_calls.get(index) {
+            let filled = (call.progress / 100.0 * width as f32).round() as usize;
+            let empty = width.saturating_sub(filled);
+            format!(
+                "[{}{}] {:.0}%",
+                "█".repeat(filled),
+                "░".repeat(empty),
+                call.progress
+            )
+        } else {
+            format!("[{}] 0%", "░".repeat(width))
+        }
+    }
+
+    /// Cancel a running tool
+    pub fn cancel_tool(&mut self, index: usize) -> bool {
+        if let Some(call) = self.tool_calls.get_mut(index) {
+            if call.status == ToolStatus::Running {
+                call.status = ToolStatus::Cancelled;
+                call.duration = Some(call.started_at.elapsed());
+                call.result = Some("Cancelled by user".to_string());
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Get spinner animation frame
+    pub fn get_spinner_frame(&self, _index: usize, frame: usize) -> &'static str {
+        const SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        SPINNER_FRAMES[frame % SPINNER_FRAMES.len()]
     }
 
     /// 设置详细模式
@@ -182,7 +241,8 @@ impl ToolDisplayComponent {
                 )
             };
 
-            let paragraph = Paragraph::new(status_line).style(Style::default().fg(self.theme.tool_running));
+            let paragraph =
+                Paragraph::new(status_line).style(Style::default().fg(self.theme.tool_running));
             f.render_widget(paragraph, area);
             return;
         }
@@ -199,18 +259,38 @@ impl ToolDisplayComponent {
                     ToolStatus::Running => ("🔄", self.theme.tool_running),
                     ToolStatus::Success => ("✅", self.theme.tool_success),
                     ToolStatus::Failed => ("❌", self.theme.tool_failed),
+                    ToolStatus::Cancelled => ("⏹", self.theme.tool_pending),
                 };
 
-                let duration_str = call
-                    .duration
-                    .map(|d| format!("{:.0}ms", d.as_millis()))
-                    .unwrap_or_default();
+                // For running tools, show elapsed time and progress
+                let elapsed_str = if call.status == ToolStatus::Running {
+                    format_duration_short(call.started_at.elapsed())
+                } else {
+                    call.duration
+                        .map(|d| format_duration_short(d))
+                        .unwrap_or_default()
+                };
 
                 let mut spans = vec![
                     Span::styled(status_icon, Style::default().fg(status_color)),
                     Span::raw(" "),
                     Span::styled(&call.name, Style::default().fg(self.theme.function)),
                 ];
+
+                // Show progress bar for running tools
+                if call.status == ToolStatus::Running && call.progress > 0.0 {
+                    spans.push(Span::raw(" "));
+                    let progress_bar = format!(
+                        "[{}{}] {:.0}%",
+                        "█".repeat((call.progress / 10.0) as usize),
+                        "░".repeat(10 - (call.progress / 10.0) as usize),
+                        call.progress
+                    );
+                    spans.push(Span::styled(
+                        progress_bar,
+                        Style::default().fg(self.theme.highlight),
+                    ));
+                }
 
                 if self.verbose && !call.arguments.is_empty() {
                     spans.push(Span::raw(" "));
@@ -225,10 +305,10 @@ impl ToolDisplayComponent {
                     ));
                 }
 
-                if !duration_str.is_empty() {
+                if !elapsed_str.is_empty() {
                     spans.push(Span::raw(" "));
                     spans.push(Span::styled(
-                        format!("[{}]", duration_str),
+                        format!("[{}]", elapsed_str),
                         Style::default().fg(self.theme.token_count),
                     ));
                 }
@@ -262,6 +342,24 @@ impl ToolDisplayComponent {
 impl Default for ToolDisplayComponent {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Format duration in a short human-readable format
+fn format_duration_short(duration: Duration) -> String {
+    let total_secs = duration.as_secs();
+    let millis = duration.as_millis();
+
+    if total_secs >= 60 {
+        let mins = total_secs / 60;
+        let secs = total_secs % 60;
+        format!("{}m {}s", mins, secs)
+    } else if millis >= 500 {
+        // Show as seconds with decimal for >= 500ms
+        let secs = millis as f64 / 1000.0;
+        format!("{}s", secs)
+    } else {
+        format!("{}ms", millis)
     }
 }
 
@@ -345,5 +443,90 @@ mod tests {
     fn test_default() {
         let display = ToolDisplayComponent::default();
         assert_eq!(display.count(), 0);
+    }
+
+    // ========== Progress Bar Tests ==========
+
+    #[test]
+    fn test_elapsed_time_while_running() {
+        let mut display = ToolDisplayComponent::new();
+        let idx = display.add_tool_call("test".to_string(), "{}".to_string());
+        display.set_running(idx);
+
+        // Should return elapsed time string
+        let elapsed = display.get_elapsed_time(idx);
+        assert!(elapsed.is_some());
+        let elapsed_str = elapsed.unwrap();
+        assert!(elapsed_str.contains('s') || elapsed_str.contains("ms"));
+    }
+
+    #[test]
+    fn test_progress_percentage_default() {
+        let mut display = ToolDisplayComponent::new();
+        let idx = display.add_tool_call("test".to_string(), "{}".to_string());
+        display.set_running(idx);
+
+        // Default progress is 0 when not set
+        let progress = display.get_progress(idx);
+        assert_eq!(progress, Some(0.0f32));
+    }
+
+    #[test]
+    fn test_set_progress_percentage() {
+        let mut display = ToolDisplayComponent::new();
+        let idx = display.add_tool_call("test".to_string(), "{}".to_string());
+        display.set_running(idx);
+
+        display.set_progress(idx, 50.0);
+        assert_eq!(display.get_progress(idx), Some(50.0));
+
+        display.set_progress(idx, 100.0);
+        assert_eq!(display.get_progress(idx), Some(100.0));
+    }
+
+    #[test]
+    fn test_progress_bar_string() {
+        let mut display = ToolDisplayComponent::new();
+        let idx = display.add_tool_call("test".to_string(), "{}".to_string());
+        display.set_running(idx);
+
+        display.set_progress(idx, 50.0);
+        let bar = display.render_progress_bar(idx, 10);
+        assert_eq!(bar, "[█████░░░░░] 50%");
+    }
+
+    #[test]
+    fn test_cancel_tool() {
+        let mut display = ToolDisplayComponent::new();
+        let idx = display.add_tool_call("test".to_string(), "{}".to_string());
+        display.set_running(idx);
+
+        // Cancel the tool
+        let cancelled = display.cancel_tool(idx);
+        assert!(cancelled);
+
+        let call = display.last_call().unwrap();
+        assert_eq!(call.status, ToolStatus::Cancelled);
+    }
+
+    #[test]
+    fn test_spinner_animation() {
+        let mut display = ToolDisplayComponent::new();
+        let idx = display.add_tool_call("test".to_string(), "{}".to_string());
+        display.set_running(idx);
+
+        // Spinner should cycle through frames
+        let frame1 = display.get_spinner_frame(idx, 0);
+        let frame2 = display.get_spinner_frame(idx, 1);
+        assert_ne!(frame1, frame2);
+    }
+
+    #[test]
+    fn test_format_duration() {
+        // Test duration formatting
+        assert_eq!(format_duration_short(Duration::from_millis(500)), "0.5s");
+        assert_eq!(format_duration_short(Duration::from_millis(1500)), "1.5s");
+        assert_eq!(format_duration_short(Duration::from_millis(100)), "100ms");
+        assert_eq!(format_duration_short(Duration::from_secs(65)), "1m 5s");
     }
 }

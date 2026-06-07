@@ -4,6 +4,7 @@
 
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use sh_layer3::generate_short_id;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
@@ -132,7 +133,7 @@ impl WorktreeManager {
     pub async fn create(&self, config: &WorktreeConfig) -> Layer4Result<Worktree> {
         self.ensure_worktrees_dir()?;
 
-        let id = uuid::Uuid::new_v4().to_string()[..8].to_string();
+        let id = generate_short_id();
         let worktree_path = self.worktrees_path.join(&config.name);
 
         // 使用 git worktree add 命令

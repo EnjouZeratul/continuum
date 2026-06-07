@@ -1,5 +1,8 @@
 # Continuum 完整架构设计 V4.0
 
+> **Internal Design Document** — This document is for internal reference only.
+> Competitor references are for design inspiration analysis, not marketing positioning.
+
 > 版本: v4.0
 > 日期: 2026-05-10
 > 状态: 完整规划（无MVP，直接开发完整产品）

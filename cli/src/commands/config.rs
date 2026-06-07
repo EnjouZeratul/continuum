@@ -342,6 +342,11 @@ fn add_provider(
         "anthropic" => "https://api.anthropic.com/v1",
         "openai" => "https://api.openai.com/v1",
         "gemini" => "https://generativelanguage.googleapis.com/v1",
+        "deepseek" => "https://api.deepseek.com/v1",
+        "glm" => "https://open.bigmodel.cn/api/paas/v4",
+        "qwen" => "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "kimi" | "moonshot" => "https://api.moonshot.cn/v1",
+        "grok" => "https://api.x.ai/v1",
         _ => "",
     };
 
@@ -349,6 +354,11 @@ fn add_provider(
         "anthropic" => "claude-sonnet-4-6",
         "openai" => "gpt-4",
         "gemini" => "gemini-pro",
+        "deepseek" => "deepseek-chat",
+        "glm" => "glm-4-flash",
+        "qwen" => "qwen-plus",
+        "kimi" | "moonshot" => "moonshot-v1-8k",
+        "grok" => "grok-3",
         _ => "",
     };
 

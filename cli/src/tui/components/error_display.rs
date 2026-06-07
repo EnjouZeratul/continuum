@@ -88,19 +88,19 @@ impl ErrorMessage {
         use crate::agent::AgentError;
 
         match error {
-            AgentError::ConfigError(msg) => Self::new(ErrorType::Config, "Configuration Error")
+            AgentError::Config(msg) => Self::new(ErrorType::Config, "Configuration Error")
                 .description(msg.clone())
                 .suggestion("Check your API key configuration")
                 .suggestion("Run: continuum config add-provider anthropic --key YOUR_KEY")
                 .suggestion("Or set environment variable: CONTINUUM_API_KEY"),
 
-            AgentError::NetworkError(msg) => Self::new(ErrorType::Network, "Network Error")
+            AgentError::Network(msg) => Self::new(ErrorType::Network, "Network Error")
                 .description(msg.clone())
                 .suggestion("Check your internet connection")
                 .suggestion("Verify the API endpoint is accessible")
                 .suggestion("Try again in a few moments"),
 
-            AgentError::ApiError(msg) => {
+            AgentError::Api(msg) => {
                 let mut err = Self::new(ErrorType::Api, "API Error").description(msg.clone());
 
                 // 根据消息内容添加针对性建议
@@ -296,10 +296,12 @@ impl ErrorDisplay {
         };
 
         // 计算弹窗大小
-        let width = area.width.min(60).max(30);
-        let height = self.expanded
-            .then(|| (4 + error.suggestions.len() + 2).min(15) as u16)
-            .unwrap_or(5);
+        let width = area.width.clamp(30, 60);
+        let height = if self.expanded {
+            (4 + error.suggestions.len() + 2).min(15) as u16
+        } else {
+            5
+        };
 
         let popup_area = Rect::new(
             (area.width.saturating_sub(width)) / 2,
@@ -337,7 +339,10 @@ impl ErrorDisplay {
         // 建议
         if self.expanded && !error.suggestions.is_empty() {
             lines.push(Line::raw(""));
-            lines.push(Line::styled("Suggestions:", Style::default().fg(Color::Cyan)));
+            lines.push(Line::styled(
+                "Suggestions:",
+                Style::default().fg(Color::Cyan),
+            ));
 
             for suggestion in &error.suggestions {
                 lines.push(Line::from(vec![
@@ -408,8 +413,7 @@ mod tests {
 
     #[test]
     fn test_error_message_code() {
-        let error = ErrorMessage::new(ErrorType::Api, "API Error")
-            .code("E001");
+        let error = ErrorMessage::new(ErrorType::Api, "API Error").code("E001");
 
         assert_eq!(error.code, Some("E001".to_string()));
     }
@@ -492,7 +496,10 @@ mod tests {
         display.show_warning("This is a warning");
 
         assert!(display.is_visible());
-        assert_eq!(display.current_error().unwrap().error_type, ErrorType::Warning);
+        assert_eq!(
+            display.current_error().unwrap().error_type,
+            ErrorType::Warning
+        );
     }
 
     #[test]
@@ -507,8 +514,7 @@ mod tests {
 
     #[test]
     fn test_recoverable_setting() {
-        let error = ErrorMessage::new(ErrorType::Config, "Test")
-            .recoverable(false);
+        let error = ErrorMessage::new(ErrorType::Config, "Test").recoverable(false);
 
         assert!(!error.recoverable);
     }

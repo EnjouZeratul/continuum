@@ -1,3 +1,4 @@
+read D:\TA\create_together_with_ali\continuum\docs\TEAM_PROTOCOL.md Frist
 # Continuum 技术规范
 
 > 版本: v1.1

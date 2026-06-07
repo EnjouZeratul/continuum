@@ -1,0 +1,108 @@
+# Continuum Kubernetes Deployment
+# Production configuration
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: continuum
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: continuum-config
+  namespace: continuum
+data:
+  RUST_LOG: "info"
+  CONTINUUM_HOME: "/home/continuum/.continuum"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: continuum-secrets
+  namespace: continuum
+type: Opaque
+stringData:
+  # API Keys (set these before deployment)
+  ANTHROPIC_API_KEY: ""
+  OPENAI_API_KEY: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: continuum
+  namespace: continuum
+  labels:
+    app: continuum
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: continuum
+  template:
+    metadata:
+      labels:
+        app: continuum
+    spec:
+      containers:
+        - name: continuum
+          image: continuum:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: continuum-config
+            - secretRef:
+                name: continuum-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: continuum-home
+              mountPath: /home/continuum/.continuum
+      volumes:
+        - name: continuum-home
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: continuum
+  namespace: continuum
+spec:
+  selector:
+    app: continuum
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  type: ClusterIP
+---
+# HorizontalPodAutoscaler for scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: continuum-hpa
+  namespace: continuum
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: continuum
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

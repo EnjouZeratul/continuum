@@ -6,7 +6,7 @@ use anyhow::Result;
 use sh_layer4::sh_layer3::sh_layer2::sh_layer1::{
     config_manager::ConfigManager,
     llm_client::{LlmClient, LlmClientTrait, LlmProvider, LlmRequestConfig, Message, MessageRole},
-    streaming::{StreamEvent as LlmStreamEvent, ContentDelta},
+    streaming::{ContentDelta, StreamEvent as LlmStreamEvent},
 };
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
@@ -46,22 +46,21 @@ pub struct ChatMessage {
 
 /// Agent 错误类型
 #[derive(Debug, Clone)]
-#[allow(clippy::enum_variant_names)]
 pub enum AgentError {
     /// 配置错误（无API密钥等）
-    ConfigError(String),
+    Config(String),
     /// API 调用错误
-    ApiError(String),
+    Api(String),
     /// 网络错误
-    NetworkError(String),
+    Network(String),
 }
 
 impl std::fmt::Display for AgentError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AgentError::ConfigError(msg) => write!(f, "Configuration error: {}", msg),
-            AgentError::ApiError(msg) => write!(f, "API error: {}", msg),
-            AgentError::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            AgentError::Config(msg) => write!(f, "Configuration error: {}", msg),
+            AgentError::Api(msg) => write!(f, "API error: {}", msg),
+            AgentError::Network(msg) => write!(f, "Network error: {}", msg),
         }
     }
 }
@@ -104,9 +103,7 @@ impl TokenUsage {
             Input Tokens:  {:>10}\n\
             Output Tokens: {:>10}\n\
             Total Tokens:  {:>10}\n",
-            self.input_tokens,
-            self.output_tokens,
-            self.total_tokens
+            self.input_tokens, self.output_tokens, self.total_tokens
         )
     }
 }
@@ -147,7 +144,7 @@ impl AgentClient {
         // 加载完整配置
         let config = ConfigManager::load_full()
             .await
-            .map_err(|e| AgentError::ConfigError(format!("Failed to load config: {}", e)))?;
+            .map_err(|e| AgentError::Config(format!("Failed to load config: {}", e)))?;
 
         // 解析环境变量引用
         let mut config = config;
@@ -155,7 +152,7 @@ impl AgentClient {
 
         // 检查是否有配置的提供商
         if config.providers.is_empty() {
-            return Err(AgentError::ConfigError(
+            return Err(AgentError::Config(
                 "No providers configured. Use 'continuum config add-provider' or set environment variables.".to_string()
             ));
         }
@@ -165,7 +162,7 @@ impl AgentClient {
         let provider_config = config.providers.get(&provider_name).cloned();
 
         if provider_config.is_none() {
-            return Err(AgentError::ConfigError(format!(
+            return Err(AgentError::Config(format!(
                 "Active provider '{}' not found in configuration",
                 provider_name
             )));
@@ -175,7 +172,7 @@ impl AgentClient {
 
         // 检查 API 密钥
         if provider_config.api_key.is_empty() {
-            return Err(AgentError::ConfigError(
+            return Err(AgentError::Config(
                 format!("API key not set for provider '{}'. Use 'continuum config set provider.{}.api_key YOUR_KEY' or set environment variable.",
                     provider_name, provider_name)
             ));
@@ -209,6 +206,42 @@ impl AgentClient {
             "anthropic" => LlmProvider::Anthropic,
             "openai" => LlmProvider::OpenAI,
             "gemini" => LlmProvider::Gemini,
+            // OpenAI-compatible providers: reuse OpenAI chat/completions protocol
+            "deepseek" => LlmProvider::OpenAICompatible {
+                base_url: if base_url.is_empty() {
+                    "https://api.deepseek.com/v1".to_string()
+                } else {
+                    base_url.to_string()
+                },
+            },
+            "glm" => LlmProvider::OpenAICompatible {
+                base_url: if base_url.is_empty() {
+                    "https://open.bigmodel.cn/api/paas/v4".to_string()
+                } else {
+                    base_url.to_string()
+                },
+            },
+            "qwen" => LlmProvider::OpenAICompatible {
+                base_url: if base_url.is_empty() {
+                    "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string()
+                } else {
+                    base_url.to_string()
+                },
+            },
+            "kimi" | "moonshot" => LlmProvider::OpenAICompatible {
+                base_url: if base_url.is_empty() {
+                    "https://api.moonshot.cn/v1".to_string()
+                } else {
+                    base_url.to_string()
+                },
+            },
+            "grok" => LlmProvider::OpenAICompatible {
+                base_url: if base_url.is_empty() {
+                    "https://api.x.ai/v1".to_string()
+                } else {
+                    base_url.to_string()
+                },
+            },
             _ => LlmProvider::Custom(base_url.to_string()),
         }
     }
@@ -218,7 +251,7 @@ impl AgentClient {
         // 检查客户端是否初始化
         let client_guard = self.llm_client.read().await;
         if client_guard.is_none() {
-            return Err(AgentError::ConfigError(
+            return Err(AgentError::Config(
                 "Agent not initialized. Call init_from_config() first.".to_string(),
             ));
         }
@@ -242,7 +275,7 @@ impl AgentClient {
         let config = self.config.read().await;
         let provider_config = config
             .current()
-            .map_err(|e| AgentError::ConfigError(e.to_string()))?;
+            .map_err(|e| AgentError::Config(e.to_string()))?;
 
         let request_config = LlmRequestConfig {
             model: provider_config.model.clone(),
@@ -313,9 +346,9 @@ impl AgentClient {
                 // 分类错误类型
                 let error_msg = e.to_string();
                 if error_msg.contains("connection") || error_msg.contains("network") {
-                    Err(AgentError::NetworkError(error_msg))
+                    Err(AgentError::Network(error_msg))
                 } else {
-                    Err(AgentError::ApiError(error_msg))
+                    Err(AgentError::Api(error_msg))
                 }
             }
         }
@@ -373,9 +406,13 @@ impl AgentClient {
             let mut config = self.config.write().await;
             if let Some(provider_config) = config.providers.get_mut(&provider_name) {
                 provider_config.model = model_name.to_string();
-                tracing::info!("Model switched to: {} for provider: {}", model_name, provider_name);
+                tracing::info!(
+                    "Model switched to: {} for provider: {}",
+                    model_name,
+                    provider_name
+                );
             } else {
-                return Err(AgentError::ConfigError(format!(
+                return Err(AgentError::Config(format!(
                     "Provider '{}' not found in configuration",
                     provider_name
                 )));
@@ -414,23 +451,59 @@ impl AgentClient {
         // 根据提供商返回可用模型列表
         match provider_name.as_str() {
             "anthropic" => vec![
+                "claude-opus-4-8".to_string(),
                 "claude-opus-4-7".to_string(),
+                "claude-opus-4-6".to_string(),
+                "claude-opus-4-5".to_string(),
                 "claude-sonnet-4-6".to_string(),
-                "claude-sonnet-4-5-20250514".to_string(),
-                "claude-haiku-4-5-20251001".to_string(),
-                "claude-3-5-sonnet-20241022".to_string(),
-                "claude-3-5-haiku-20241022".to_string(),
+                "claude-sonnet-4-5".to_string(),
+                "claude-haiku-4-5".to_string(),
             ],
             "openai" => vec![
+                "gpt-5.5".to_string(),
+                "gpt-5.4".to_string(),
+                "gpt-5.2".to_string(),
+                "gpt-5.1".to_string(),
+                "gpt-5".to_string(),
+                "o3-mini".to_string(),
+                "o1".to_string(),
                 "gpt-4o".to_string(),
                 "gpt-4o-mini".to_string(),
-                "gpt-4-turbo".to_string(),
-                "gpt-3.5-turbo".to_string(),
             ],
-            "gemini" => vec![
-                "gemini-1.5-pro".to_string(),
-                "gemini-1.5-flash".to_string(),
+            "google" | "gemini" => vec![
+                "gemini-3.1-pro-preview".to_string(),
+                "gemini-3.5-flash".to_string(),
+                "gemini-3.0-pro".to_string(),
+                "gemini-3.0-flash".to_string(),
+                "gemini-2.5-pro".to_string(),
+                "gemini-2.5-flash".to_string(),
             ],
+            "deepseek" => vec![
+                "deepseek-v4-pro".to_string(),
+                "deepseek-v4-flash".to_string(),
+                "deepseek-v3.2".to_string(),
+                "deepseek-v3.1-terminus".to_string(),
+                "deepseek-v3".to_string(),
+                "deepseek-chat".to_string(),
+                "deepseek-reasoner".to_string(),
+            ],
+            "glm" => vec![
+                "glm-5.1".to_string(),
+                "glm-5".to_string(),
+                "glm-4.7".to_string(),
+                "glm-4.6".to_string(),
+            ],
+            "kimi" | "moonshot" => vec![
+                "kimi-k2.6".to_string(),
+                "kimi-k2-thinking".to_string(),
+                "kimi-k2.5".to_string(),
+            ],
+            "qwen" => vec![
+                "qwen3.7-max".to_string(),
+                "qwen3.6-plus".to_string(),
+                "qwen3.5-27B".to_string(),
+            ],
+            "grok" => vec!["grok-4-heavy".to_string(), "grok-4".to_string()],
             _ => vec![],
         }
     }
@@ -443,7 +516,7 @@ impl AgentClient {
         {
             let config = self.config.read().await;
             if !config.providers.contains_key(provider_name) {
-                return Err(AgentError::ConfigError(format!(
+                return Err(AgentError::Config(format!(
                     "Provider '{}' not found. Use 'continuum config add-provider {}' first.",
                     provider_name, provider_name
                 )));
@@ -469,7 +542,7 @@ impl AgentClient {
 
             if let Some(pc) = provider_config {
                 if pc.api_key.is_empty() {
-                    return Err(AgentError::ConfigError(format!(
+                    return Err(AgentError::Config(format!(
                         "API key not set for provider '{}'. Use 'continuum config set provider.{}.api_key YOUR_KEY'",
                         provider_name, provider_name
                     )));
@@ -529,7 +602,7 @@ impl AgentClient {
         // 检查客户端是否初始化
         let client_guard = self.llm_client.read().await;
         if client_guard.is_none() {
-            return Err(AgentError::ConfigError(
+            return Err(AgentError::Config(
                 "Agent not initialized. Call init_from_config() first.".to_string(),
             ));
         }
@@ -547,7 +620,7 @@ impl AgentClient {
         let config = self.config.read().await;
         let provider_config = config
             .current()
-            .map_err(|e| AgentError::ConfigError(e.to_string()))?;
+            .map_err(|e| AgentError::Config(e.to_string()))?;
 
         let request_config = LlmRequestConfig {
             model: provider_config.model.clone(),
@@ -611,7 +684,9 @@ impl AgentClient {
             };
 
             // 发送流式请求
-            let stream_result = client.send_stream(messages_clone, &request_config_clone).await;
+            let stream_result = client
+                .send_stream(messages_clone, &request_config_clone)
+                .await;
 
             match stream_result {
                 Ok(mut message_stream) => {
@@ -632,19 +707,34 @@ impl AgentClient {
                                         match delta {
                                             ContentDelta::Text(text) => {
                                                 full_content.push_str(&text);
-                                                if tx.send(StreamEvent::Chunk(text)).await.is_err() {
+                                                if tx.send(StreamEvent::Chunk(text)).await.is_err()
+                                                {
                                                     break;
                                                 }
                                             }
                                             ContentDelta::Thinking(thinking) => {
                                                 // 可选：发送思考内容作为特殊事件
-                                                if tx.send(StreamEvent::Chunk(format!("[思考] {} ", thinking))).await.is_err() {
+                                                if tx
+                                                    .send(StreamEvent::Chunk(format!(
+                                                        "[思考] {} ",
+                                                        thinking
+                                                    )))
+                                                    .await
+                                                    .is_err()
+                                                {
                                                     break;
                                                 }
                                             }
                                             ContentDelta::ToolInput(input) => {
                                                 // 工具调用输入
-                                                if tx.send(StreamEvent::Chunk(format!("[工具] {} ", input))).await.is_err() {
+                                                if tx
+                                                    .send(StreamEvent::Chunk(format!(
+                                                        "[工具] {} ",
+                                                        input
+                                                    )))
+                                                    .await
+                                                    .is_err()
+                                                {
                                                     break;
                                                 }
                                             }
@@ -681,7 +771,11 @@ impl AgentClient {
                         });
                     }
 
-                    tracing::debug!("Stream completed: message_id={}, model={}", message_id, model_name);
+                    tracing::debug!(
+                        "Stream completed: message_id={}, model={}",
+                        message_id,
+                        model_name
+                    );
                 }
                 Err(e) => {
                     let _ = tx.send(StreamEvent::Error(e.to_string())).await;
@@ -726,7 +820,7 @@ impl AgentClient {
                     break;
                 }
                 StreamEvent::Error(msg) => {
-                    return Err(AgentError::ApiError(msg));
+                    return Err(AgentError::Api(msg));
                 }
             }
         }
@@ -752,7 +846,7 @@ mod tests {
 
     #[test]
     fn test_agent_error_display() {
-        let error = AgentError::ConfigError("test error".to_string());
+        let error = AgentError::Config("test error".to_string());
         assert!(error.to_string().contains("Configuration error"));
     }
 
@@ -811,7 +905,7 @@ mod tests {
         }
         let models = client.list_available_models().await;
         assert!(!models.is_empty());
-        assert!(models.contains(&"gpt-4o".to_string()));
+        assert!(models.contains(&"gpt-5.5".to_string()));
     }
 
     #[tokio::test]

@@ -8,19 +8,31 @@
 //! - `access_controller`: 访问控制
 //! - `rate_limiter`: 速率限制
 //! - `secrets_manager`: 密钥管理
+//! - `encryption_engine`: 加密引擎
+//! - `threat_detector`: 威胁检测
 
 pub mod access_controller;
+pub mod encryption_engine;
 pub mod input_validator;
 pub mod pii_scrubber;
 pub mod rate_limiter;
 pub mod secrets_manager;
+pub mod threat_detector;
 
 pub use access_controller::{AccessController, Permission, Role};
+pub use encryption_engine::{
+    derive_key_from_password, generate_salt, EncryptedData, EncryptionAlgorithm, EncryptionConfig,
+    EncryptionEngine, EncryptionError, EncryptionKey,
+};
 pub use input_validator::{InputValidator, ValidationResult};
 pub use pii_scrubber::{PiiScrubber, ScrubResult};
 pub use rate_limiter::{RateLimitConfig, RateLimiter};
 pub use secrets_manager::{
     AuditAction, AuditLogEntry, SecretMetadataInfo, SecretsManager, SecretsManagerConfig,
+};
+pub use threat_detector::{
+    DetectionRule, ResponseAction, ResponseRule, Threat, ThreatDetector, ThreatDetectorConfig,
+    ThreatError, ThreatLevel, ThreatStats, ThreatType,
 };
 
 /// 安全网关 - 所有外部输入的入口

@@ -1380,9 +1380,9 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
-from continuum.session.manager import SessionManager
-from continuum.session.state import AgentState, ExecutionContext
-from continuum.session.checkpoint import Checkpoint, CheckpointValidator
+from continuum_sdk.agent.session import Session
+from continuum_sdk.agent import CheckpointClient
+from continuum_sdk.api import AgentState, ExecutionContext
 
 
 class TestSessionFlow:

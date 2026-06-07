@@ -84,8 +84,36 @@ class ScenarioToolCalling:
             # 检查响应非空
             assert result["response"], "响应不应为空"
 
-            # 检查工具被调用（需要日志或 mock）
-            # TODO: 实现工具调用验证
+            # 工具调用验证：检查响应包含预期的工具结果特征
+            scenario = result["scenario"]
+            response = result["response"].lower()
+            expected_tool = scenario["expected_tool"]
+
+            # 根据工具类型验证响应特征
+            if expected_tool == "read_file":
+                # 读文件工具响应应包含文件内容或读取确认
+                assert any(kw in response for kw in ["content", "内容", "read", "读取", "file", "文件"]), \
+                    f"响应应反映读文件结果: {response}"
+
+            elif expected_tool == "write_file":
+                # 写文件工具响应应确认创建成功
+                assert any(kw in response for kw in ["created", "written", "创建", "写入", "saved", "保存"]), \
+                    f"响应应反映写文件结果: {response}"
+
+            elif expected_tool == "list_directory":
+                # 列目录工具响应应包含文件列表特征
+                assert any(kw in response for kw in ["file", "files", "目录", "directory", "list", "列表"]), \
+                    f"响应应反映目录列表结果: {response}"
+
+            elif expected_tool == "glob":
+                # glob 工具响应应包含搜索结果特征
+                assert any(kw in response for kw in ["found", "搜索", "match", "匹配", "file", "py", ".py"]), \
+                    f"响应应反映搜索结果: {response}"
+
+            elif expected_tool == "bash":
+                # bash 工具响应应包含命令执行结果
+                assert any(kw in response for kw in ["executed", "output", "执行", "输出", "command", "命令"]), \
+                    f"响应应反映命令执行结果: {response}"
 
         return True
 

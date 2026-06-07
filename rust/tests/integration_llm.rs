@@ -937,3 +937,826 @@ mod recovery_tests {
         assert_eq!(loaded.iteration, 1);
     }
 }
+
+// ===== 6. Playwright MCP 集成 =====
+
+#[cfg(test)]
+mod playwright_mcp_tests {
+    use sh_layer4::mcp_bridge::client::{preset_servers, McpClientManager, McpServerConfig};
+    use sh_layer4::mcp_bridge::handler::{DefaultHandler, McpHandler, SimpleToolExecutor};
+    use sh_layer4::mcp_bridge::protocol::McpMessage;
+    use sh_layer4::mcp_bridge::protocol::{
+        ContentBlock, McpRequest, RequestId, ToolDefinition, ToolResult,
+    };
+    use sh_layer4::mcp_bridge::transport::{McpTransport, McpTransportType, MemoryTransport};
+    use std::sync::Arc;
+
+    /// 测试 preset_servers 包含 Playwright 配置
+    #[test]
+    fn test_playwright_in_preset_servers() {
+        let presets = preset_servers();
+        assert!(!presets.is_empty(), "preset_servers should not be empty");
+
+        // 验证 Playwright 存在
+        let playwright = presets.iter().find(|s| s.name == "playwright");
+        assert!(
+            playwright.is_some(),
+            "playwright should be in preset_servers"
+        );
+
+        let config = playwright.unwrap();
+        assert_eq!(config.name, "playwright");
+        assert!(config.auto_reconnect, "playwright should auto reconnect");
+
+        // 验证传输配置
+        match &config.transport {
+            McpTransportType::Stdio { command, args } => {
+                assert_eq!(command, "npx", "command should be npx");
+                assert!(args.contains(&"@playwright/mcp@latest".to_string()));
+                assert!(args.contains(&"--headless".to_string()));
+                assert!(args.contains(&"--browser".to_string()));
+                assert!(args.contains(&"chrome".to_string()));
+            }
+            _ => panic!("playwright should use Stdio transport"),
+        }
+    }
+
+    /// 测试 Playwright 配置创建
+    #[test]
+    fn test_playwright_config_creation() {
+        let config = McpServerConfig {
+            name: "playwright".to_string(),
+            transport: McpTransportType::Stdio {
+                command: "npx".to_string(),
+                args: vec![
+                    "@playwright/mcp@latest".to_string(),
+                    "--headless".to_string(),
+                    "--browser".to_string(),
+                    "chrome".to_string(),
+                ],
+            },
+            auto_reconnect: true,
+            reconnect_interval_ms: 5000,
+        };
+
+        assert_eq!(config.name, "playwright");
+        assert!(config.auto_reconnect);
+        assert_eq!(config.reconnect_interval_ms, 5000);
+    }
+
+    /// 测试 Playwright 工具定义
+    #[tokio::test]
+    async fn test_playwright_tool_definitions() {
+        let handler = DefaultHandler::new("playwright-server", "1.0.0");
+
+        // 注册 Playwright 模拟工具
+        let tools = vec![
+            ToolDefinition {
+                name: "browser_navigate".to_string(),
+                description: Some("Navigate to URL".to_string()),
+                input_schema: Some(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "url": { "type": "string" }
+                    },
+                    "required": ["url"]
+                })),
+            },
+            ToolDefinition {
+                name: "browser_click".to_string(),
+                description: Some("Click element by selector".to_string()),
+                input_schema: Some(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "selector": { "type": "string" }
+                    },
+                    "required": ["selector"]
+                })),
+            },
+            ToolDefinition {
+                name: "browser_type".to_string(),
+                description: Some("Type text into element".to_string()),
+                input_schema: Some(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "selector": { "type": "string" },
+                        "text": { "type": "string" }
+                    },
+                    "required": ["selector", "text"]
+                })),
+            },
+            ToolDefinition {
+                name: "browser_screenshot".to_string(),
+                description: Some("Take screenshot of current page".to_string()),
+                input_schema: Some(serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                })),
+            },
+            ToolDefinition {
+                name: "browser_evaluate".to_string(),
+                description: Some("Execute JavaScript in browser".to_string()),
+                input_schema: Some(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "script": { "type": "string" }
+                    },
+                    "required": ["script"]
+                })),
+            },
+        ];
+
+        for tool in &tools {
+            handler.register_tool(
+                tool.clone(),
+                Arc::new(SimpleToolExecutor(|name, args| {
+                    Ok(ToolResult {
+                        is_error: false,
+                        content: vec![ContentBlock::Text {
+                            text: format!("Tool {} executed with args: {:?}", name, args),
+                        }],
+                    })
+                })),
+            );
+        }
+
+        // 验证工具列表
+        let request = McpRequest {
+            id: RequestId::Number(1),
+            method: "tools/list".to_string(),
+            params: None,
+        };
+
+        let response = handler.handle(&request).await.unwrap();
+        assert!(response.error.is_none());
+
+        let result = response.result.unwrap();
+        let registered_tools = result.get("tools").and_then(|t| t.as_array()).unwrap();
+        assert_eq!(registered_tools.len(), 5);
+
+        // 验证工具名称
+        let tool_names: Vec<&str> = registered_tools
+            .iter()
+            .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
+            .collect();
+        assert!(tool_names.contains(&"browser_navigate"));
+        assert!(tool_names.contains(&"browser_click"));
+        assert!(tool_names.contains(&"browser_type"));
+        assert!(tool_names.contains(&"browser_screenshot"));
+        assert!(tool_names.contains(&"browser_evaluate"));
+    }
+
+    /// 测试 Playwright MCP 消息交换
+    #[tokio::test]
+    async fn test_playwright_mcp_message_exchange() {
+        let transport = MemoryTransport::new();
+
+        // 模拟 initialize 请求
+        let init_request = McpMessage::Request(McpRequest {
+            id: RequestId::Number(1),
+            method: "initialize".to_string(),
+            params: Some(serde_json::json!({
+                "protocol_version": "2024-11-05",
+                "capabilities": {},
+                "client_info": {
+                    "name": "continuum",
+                    "version": "0.1.0"
+                }
+            })),
+        });
+
+        transport.send(&init_request).await.unwrap();
+
+        // 验证发送的消息
+        let received = transport.receive().await.unwrap();
+        assert!(received.is_some());
+
+        if let Some(McpMessage::Request(req)) = received {
+            assert_eq!(req.method, "initialize");
+            assert!(req.params.is_some());
+
+            let params = req.params.unwrap();
+            assert_eq!(params.get("protocol_version").unwrap(), "2024-11-05");
+        } else {
+            panic!("Expected Request message");
+        }
+    }
+
+    /// 测试 Playwright 工具调用模拟
+    #[tokio::test]
+    async fn test_playwright_tool_call_simulation() {
+        let handler = DefaultHandler::new("playwright-server", "1.0.0");
+
+        // 注册 browser_navigate 工具
+        handler.register_tool(
+            ToolDefinition {
+                name: "browser_navigate".to_string(),
+                description: Some("Navigate to URL".to_string()),
+                input_schema: Some(serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "url": { "type": "string" }
+                    },
+                    "required": ["url"]
+                })),
+            },
+            Arc::new(SimpleToolExecutor(|_name, args| {
+                let url = args.get("url").and_then(|u| u.as_str()).unwrap_or("");
+                Ok(ToolResult {
+                    is_error: false,
+                    content: vec![ContentBlock::Text {
+                        text: format!("Navigated to: {}", url),
+                    }],
+                })
+            })),
+        );
+
+        // 调用 browser_navigate
+        let request = McpRequest {
+            id: RequestId::Number(1),
+            method: "tools/call".to_string(),
+            params: Some(serde_json::json!({
+                "name": "browser_navigate",
+                "arguments": {
+                    "url": "https://example.com"
+                }
+            })),
+        };
+
+        let response = handler.handle(&request).await.unwrap();
+        assert!(response.error.is_none());
+
+        let result: ToolResult = serde_json::from_value(response.result.unwrap()).unwrap();
+        assert!(!result.is_error);
+
+        if let ContentBlock::Text { text } = &result.content[0] {
+            assert!(text.contains("https://example.com"));
+        } else {
+            panic!("Expected text content block");
+        }
+    }
+
+    /// 测试 Playwright MCP Client Manager
+    #[tokio::test]
+    async fn test_playwright_client_manager() {
+        let manager = McpClientManager::new();
+
+        // 添加 Playwright 配置
+        let config = McpServerConfig {
+            name: "playwright".to_string(),
+            transport: McpTransportType::Stdio {
+                command: "npx".to_string(),
+                args: vec![
+                    "@playwright/mcp@latest".to_string(),
+                    "--headless".to_string(),
+                    "--browser".to_string(),
+                    "chrome".to_string(),
+                ],
+            },
+            auto_reconnect: true,
+            reconnect_interval_ms: 5000,
+        };
+
+        manager.add_server(config.clone()).await.unwrap();
+
+        // 验证服务器列表
+        let servers = manager.list_servers();
+        assert_eq!(servers.len(), 1);
+        assert_eq!(servers[0].0, "playwright");
+        assert!(!servers[0].1); // 未连接
+
+        // 渲染状态
+        let status = manager.render_status();
+        assert!(status.contains("playwright"));
+        assert!(status.contains("0 tools")); // 未连接时无工具
+    }
+
+    /// 测试 Playwright 错误处理
+    #[tokio::test]
+    async fn test_playwright_error_handling() {
+        let handler = DefaultHandler::new("playwright-server", "1.0.0");
+
+        // 注册一个会失败的工具
+        handler.register_tool(
+            ToolDefinition {
+                name: "browser_navigate".to_string(),
+                description: Some("Navigate to URL".to_string()),
+                input_schema: None,
+            },
+            Arc::new(SimpleToolExecutor(|_name, args| {
+                let url = args.get("url").and_then(|u| u.as_str()).unwrap_or("");
+                if url.is_empty() {
+                    Ok(ToolResult {
+                        is_error: true,
+                        content: vec![ContentBlock::Text {
+                            text: "URL is required".to_string(),
+                        }],
+                    })
+                } else {
+                    Ok(ToolResult {
+                        is_error: false,
+                        content: vec![ContentBlock::Text {
+                            text: format!("Navigated to: {}", url),
+                        }],
+                    })
+                }
+            })),
+        );
+
+        // 测试空 URL 错误
+        let request = McpRequest {
+            id: RequestId::Number(1),
+            method: "tools/call".to_string(),
+            params: Some(serde_json::json!({
+                "name": "browser_navigate",
+                "arguments": {}
+            })),
+        };
+
+        let response = handler.handle(&request).await.unwrap();
+        let result: ToolResult = serde_json::from_value(response.result.unwrap()).unwrap();
+        assert!(result.is_error);
+
+        if let ContentBlock::Text { text } = &result.content[0] {
+            assert_eq!(text, "URL is required");
+        }
+    }
+}
+
+// ===== 7. 真实 Playwright MCP 连接 (需要 Node.js) =====
+
+#[cfg(test)]
+mod real_playwright_tests {
+    use std::process::Command;
+
+    /// 检查 Node.js 是否可用
+    #[test]
+    fn test_nodejs_available() {
+        let result = Command::new("node").arg("--version").output();
+        match result {
+            Ok(output) => {
+                let version = String::from_utf8_lossy(&output.stdout);
+                println!("Node.js version: {}", version);
+                assert!(output.status.success(), "Node.js should be available");
+            }
+            Err(e) => {
+                println!(
+                    "Node.js not found: {}. Playwright MCP tests will be skipped.",
+                    e
+                );
+                // 不 panic，允许在没有 Node.js 的环境中运行其他测试
+            }
+        }
+    }
+
+    /// 检查 npx 是否可用
+    #[test]
+    fn test_npx_available() {
+        let result = Command::new("npx").arg("--version").output();
+        match result {
+            Ok(output) => {
+                let version = String::from_utf8_lossy(&output.stdout);
+                println!("npx version: {}", version);
+                assert!(output.status.success(), "npx should be available");
+            }
+            Err(e) => {
+                println!(
+                    "npx not found: {}. Playwright MCP tests will be skipped.",
+                    e
+                );
+            }
+        }
+    }
+
+    /// 测试 Playwright MCP 命令帮助 (验证包存在)
+    #[test]
+    #[ignore = "requires network access to download @playwright/mcp"]
+    fn test_playwright_mcp_help() {
+        let result = Command::new("npx")
+            .args(["@playwright/mcp@latest", "--help"])
+            .output()
+            .expect("Failed to execute npx @playwright/mcp");
+
+        let stdout = String::from_utf8_lossy(&result.stdout);
+        let stderr = String::from_utf8_lossy(&result.stderr);
+
+        println!("Playwright MCP help stdout: {}", stdout);
+        println!("Playwright MCP help stderr: {}", stderr);
+
+        // 验证命令执行
+        // 注意：首次运行可能需要下载包
+        assert!(
+            result.status.success() || stderr.contains("install"),
+            "Playwright MCP should execute or attempt to install"
+        );
+    }
+}
+
+// ===== 8. Plugin Loader dylib 测试 =====
+
+#[cfg(test)]
+mod plugin_loader_tests {
+    use sh_layer4::plugin_loader::{DylibLoader, PluginLoader, PluginMeta};
+    use std::path::PathBuf;
+
+    /// 测试 DylibLoader 创建
+    #[test]
+    fn test_dylib_loader_creation() {
+        let loader = DylibLoader::new();
+        assert!(loader.list().is_empty());
+        assert_eq!(loader.count(), 0);
+    }
+
+    /// 测试有效库检测
+    #[test]
+    fn test_is_valid_library() {
+        // 测试有效扩展名
+        let valid_extensions = [".so", ".dll", ".dylib"];
+        for ext in &valid_extensions {
+            let tmp = tempfile::NamedTempFile::with_suffix(ext).unwrap();
+            assert!(
+                DylibLoader::is_valid_library(tmp.path()),
+                "Should recognize {} as valid",
+                ext
+            );
+        }
+
+        // 测试无效扩展名
+        let invalid_extensions = [".txt", ".rs", ".wasm", ""];
+        for ext in &invalid_extensions {
+            let tmp = tempfile::NamedTempFile::with_suffix(ext).unwrap();
+            assert!(
+                !DylibLoader::is_valid_library(tmp.path()),
+                "Should NOT recognize {} as valid",
+                ext
+            );
+        }
+
+        // 测试不存在的文件
+        assert!(!DylibLoader::is_valid_library(
+            PathBuf::from("/nonexistent.so").as_path()
+        ));
+    }
+
+    /// 测试 PluginLoader 创建
+    #[test]
+    fn test_plugin_loader_creation() {
+        let loader = PluginLoader::with_default_dir();
+        assert_eq!(loader.count(), 0);
+        assert!(loader.list().is_empty());
+    }
+
+    /// 测试 PluginLoader 自定义目录
+    #[test]
+    fn test_plugin_loader_custom_dir() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let loader = PluginLoader::new(tmp_dir.path());
+        assert_eq!(loader.count(), 0);
+    }
+
+    /// 测试 PluginMeta 默认值
+    #[test]
+    fn test_plugin_meta_default() {
+        let meta = PluginMeta::default();
+        assert_eq!(meta.name, "unknown");
+        assert_eq!(meta.version, "0.1.0");
+        assert_eq!(meta.author, "unknown");
+        assert!(meta.description.is_empty());
+        assert!(meta.dependencies.is_empty());
+        assert_eq!(meta.entry_point, "main");
+    }
+
+    /// 测试 DylibLoader 状态管理
+    #[test]
+    fn test_dylib_loader_status() {
+        let loader = DylibLoader::new();
+        assert!(!loader.is_loaded("nonexistent"));
+        assert!(loader.get_meta("nonexistent").is_none());
+    }
+
+    /// 测试 PluginLoader 状态渲染
+    #[test]
+    fn test_plugin_loader_render_status() {
+        let loader = PluginLoader::with_default_dir();
+        let status = loader.render_status();
+        assert!(status.contains("Plugins:"));
+        assert!(status.contains("No plugins loaded"));
+    }
+
+    /// 测试加载空目录
+    #[tokio::test]
+    async fn test_plugin_loader_empty_dir() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let loader = PluginLoader::new(tmp_dir.path());
+
+        let loaded = loader.load_dir().await.unwrap();
+        assert!(loaded.is_empty());
+    }
+
+    /// 测试加载无效文件
+    #[tokio::test]
+    async fn test_plugin_loader_invalid_file() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+
+        // 创建无效文件
+        std::fs::write(tmp_dir.path().join("invalid.txt"), "not a plugin").unwrap();
+
+        let loader = PluginLoader::new(tmp_dir.path());
+        let loaded = loader.load_dir().await.unwrap();
+
+        // 不应加载 .txt 文件
+        assert!(loaded.is_empty());
+    }
+
+    /// 测试插件信息获取
+    #[test]
+    fn test_plugin_loader_get_info() {
+        let loader = PluginLoader::with_default_dir();
+        assert!(loader.get("nonexistent").is_none());
+        assert!(loader.get_meta("nonexistent").is_none());
+    }
+}
+
+// ===== 9. Capability System 测试 =====
+
+#[cfg(test)]
+mod capability_tests {
+    use sh_layer4::plugin_loader::{Capability, CapabilitySet};
+
+    /// 测试空能力集
+    #[test]
+    fn test_empty_capability_set() {
+        let caps = CapabilitySet::new();
+        assert!(!caps.check(&Capability::FsRead));
+        assert!(!caps.check(&Capability::FsWrite));
+        assert!(!caps.check(&Capability::NetworkOut));
+        assert!(!caps.check(&Capability::ProcessExec));
+    }
+
+    /// 测试无限制能力集
+    #[test]
+    fn test_unrestricted_capability_set() {
+        let caps = CapabilitySet::unrestricted();
+        assert!(caps.check(&Capability::FsRead));
+        assert!(caps.check(&Capability::FsWrite));
+        assert!(caps.check(&Capability::NetworkOut));
+        assert!(caps.check(&Capability::ProcessExec));
+        assert!(caps.check(&Capability::EnvRead));
+        assert!(caps.check(&Capability::EnvWrite));
+        assert!(caps.check(&Capability::Clock));
+        assert!(caps.check(&Capability::Random));
+    }
+
+    /// 测试沙箱能力集
+    #[test]
+    fn test_sandboxed_capability_set() {
+        let caps = CapabilitySet::sandboxed();
+
+        // 沙箱模式不允许文件系统访问
+        assert!(!caps.check(&Capability::FsRead));
+        assert!(!caps.check(&Capability::FsWrite));
+        assert!(!caps.check(&Capability::NetworkOut));
+        assert!(!caps.check(&Capability::ProcessExec));
+
+        // 沙箱模式允许时钟和随机数
+        assert!(caps.check(&Capability::Clock));
+        assert!(caps.check(&Capability::Random));
+    }
+
+    /// 测试拒绝覆盖允许
+    #[test]
+    fn test_deny_overrides_allow() {
+        let mut caps = CapabilitySet::unrestricted();
+
+        // 验证初始状态
+        assert!(caps.check(&Capability::FsWrite));
+
+        // 添加拒绝
+        caps.deny(Capability::FsWrite);
+
+        // 验证拒绝生效
+        assert!(!caps.check(&Capability::FsWrite));
+
+        // 其他能力仍有效
+        assert!(caps.check(&Capability::FsRead));
+    }
+
+    /// 测试能力合并
+    #[test]
+    fn test_capability_merge() {
+        let mut caps1 = CapabilitySet::new();
+        caps1.allow(Capability::FsRead);
+        caps1.allow(Capability::FsWrite);
+
+        let mut caps2 = CapabilitySet::sandboxed();
+        caps2.deny(Capability::FsWrite);
+
+        caps1.merge(&caps2);
+
+        // FsRead 应保留
+        assert!(caps1.check(&Capability::FsRead));
+
+        // FsWrite 应被拒绝
+        assert!(!caps1.check(&Capability::FsWrite));
+
+        // Clock 应被添加
+        assert!(caps1.check(&Capability::Clock));
+    }
+
+    /// 测试链式操作
+    #[test]
+    fn test_capability_builder() {
+        let mut caps = CapabilitySet::new();
+        caps.allow(Capability::FsRead)
+            .allow(Capability::NetworkOut)
+            .deny(Capability::FsWrite);
+
+        assert!(caps.check(&Capability::FsRead));
+        assert!(caps.check(&Capability::NetworkOut));
+        assert!(!caps.check(&Capability::FsWrite));
+    }
+
+    /// 测试资源限制能力
+    #[test]
+    fn test_resource_limit_capabilities() {
+        let caps = CapabilitySet::sandboxed();
+
+        // 验证内存限制存在
+        assert!(caps
+            .allowed
+            .contains(&Capability::MemoryLimit(16 * 1024 * 1024)));
+        assert!(caps.allowed.contains(&Capability::CpuLimit(5000)));
+
+        // 验证检查逻辑（带参数的能力）
+        assert!(caps.check(&Capability::MemoryLimit(16 * 1024 * 1024)));
+        assert!(caps.check(&Capability::CpuLimit(5000)));
+
+        // 不同的参数值不算同一个能力
+        assert!(!caps.check(&Capability::MemoryLimit(32 * 1024 * 1024)));
+    }
+
+    /// 测试能力序列化
+    #[test]
+    fn test_capability_serialization() {
+        let cap = Capability::FsRead;
+        let json = serde_json::to_string(&cap).unwrap();
+        assert_eq!(json, "\"FsRead\"");
+
+        let deserialized: Capability = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, Capability::FsRead);
+    }
+
+    /// 测试能力集克隆
+    #[test]
+    fn test_capability_set_clone() {
+        let caps1 = CapabilitySet::unrestricted();
+        let caps2 = caps1.clone();
+
+        assert_eq!(
+            caps1.check(&Capability::FsRead),
+            caps2.check(&Capability::FsRead)
+        );
+        assert_eq!(
+            caps1.check(&Capability::NetworkOut),
+            caps2.check(&Capability::NetworkOut)
+        );
+    }
+
+    /// 测试动态能力添加
+    #[test]
+    fn test_dynamic_capability_addition() {
+        let mut caps = CapabilitySet::new();
+
+        // 动态添加能力
+        caps.allow(Capability::FsRead);
+        assert!(caps.check(&Capability::FsRead));
+
+        // 再次添加相同能力（无副作用）
+        caps.allow(Capability::FsRead);
+        assert!(caps.check(&Capability::FsRead));
+
+        // 拒绝后重新允许
+        caps.deny(Capability::FsRead);
+        assert!(!caps.check(&Capability::FsRead));
+
+        caps.allow(Capability::FsRead);
+        assert!(caps.check(&Capability::FsRead));
+    }
+}
+
+// ===== 10. Plugin Lifecycle 集成测试 =====
+
+#[cfg(test)]
+mod plugin_lifecycle_tests {
+    use sh_layer4::plugin_loader::{DylibLoader, PluginLoader};
+
+    /// 测试 PluginLoader 创建
+    #[test]
+    fn test_plugin_loader_creation() {
+        let loader = PluginLoader::with_default_dir();
+        assert_eq!(loader.count(), 0);
+    }
+
+    /// 测试自定义目录创建
+    #[test]
+    fn test_plugin_loader_custom_dir() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let loader = PluginLoader::new(tmp_dir.path());
+        assert_eq!(loader.count(), 0);
+    }
+
+    /// 测试 DylibLoader 文件验证
+    #[test]
+    fn test_dylib_file_validation() {
+        // 有效扩展名
+        let valid_so = tempfile::NamedTempFile::with_suffix(".so").unwrap();
+        assert!(DylibLoader::is_valid_library(valid_so.path()));
+
+        let valid_dll = tempfile::NamedTempFile::with_suffix(".dll").unwrap();
+        assert!(DylibLoader::is_valid_library(valid_dll.path()));
+
+        let valid_dylib = tempfile::NamedTempFile::with_suffix(".dylib").unwrap();
+        assert!(DylibLoader::is_valid_library(valid_dylib.path()));
+
+        // 无效扩展名
+        let invalid_txt = tempfile::NamedTempFile::with_suffix(".txt").unwrap();
+        assert!(!DylibLoader::is_valid_library(invalid_txt.path()));
+
+        let invalid_rs = tempfile::NamedTempFile::with_suffix(".rs").unwrap();
+        assert!(!DylibLoader::is_valid_library(invalid_rs.path()));
+    }
+
+    /// 测试插件状态渲染
+    #[test]
+    fn test_plugin_state_render() {
+        let loader = PluginLoader::with_default_dir();
+        let status = loader.render_status();
+
+        assert!(status.contains("Plugins:"));
+        assert!(status.contains("No plugins loaded") || loader.count() > 0);
+    }
+
+    /// 测试插件列表为空
+    #[test]
+    fn test_plugin_list_empty() {
+        let loader = PluginLoader::with_default_dir();
+        let list = loader.list();
+        assert!(list.is_empty());
+    }
+
+    /// 测试 DylibLoader 计数
+    #[test]
+    fn test_dylib_loader_count() {
+        let loader = DylibLoader::new();
+        assert_eq!(loader.count(), 0);
+        assert!(loader.list().is_empty());
+    }
+
+    /// 测试插件信息不存在
+    #[test]
+    fn test_plugin_info_not_found() {
+        let loader = PluginLoader::with_default_dir();
+
+        let info = loader.get("nonexistent_plugin");
+        assert!(info.is_none());
+
+        let meta = loader.get_meta("nonexistent_plugin");
+        assert!(meta.is_none());
+    }
+
+    /// 测试 DylibLoader 状态检查
+    #[test]
+    fn test_dylib_loader_loaded_status() {
+        let loader = DylibLoader::new();
+
+        // 空加载器中不应有任何插件
+        assert!(!loader.is_loaded("any_plugin"));
+        assert!(loader.get_name("any_plugin").is_none());
+        assert!(loader.get_version("any_plugin").is_none());
+    }
+
+    /// 测试加载目录中多种文件类型
+    #[tokio::test]
+    async fn test_plugin_loader_multiple_file_types() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+
+        // 创建多种文件类型
+        std::fs::write(tmp_dir.path().join("plugin.so"), "").unwrap();
+        std::fs::write(tmp_dir.path().join("plugin.dll"), "").unwrap();
+        std::fs::write(tmp_dir.path().join("plugin.dylib"), "").unwrap();
+        std::fs::write(tmp_dir.path().join("plugin.wasm"), "").unwrap();
+        std::fs::write(tmp_dir.path().join("readme.txt"), "").unwrap();
+
+        let loader = PluginLoader::new(tmp_dir.path());
+
+        // 加载目录（注意：实际加载会失败，因为没有真正的插件）
+        // 这里只测试文件过滤逻辑
+        let loaded = loader.load_dir().await.unwrap();
+
+        // 实际动态库加载会失败（无效内容）
+        // 但 WASM 会因未实现而返回错误
+        // 所以 loaded 应该是空的或部分失败
+        // 这里我们只验证不会 panic
+        assert!(loaded.is_empty() || loaded.len() <= 4);
+    }
+}

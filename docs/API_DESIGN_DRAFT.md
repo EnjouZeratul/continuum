@@ -450,8 +450,8 @@ class Memory:
         memory = Memory(session_id="session-123")
 
         # 存储记忆
-        memory.remember("Important fact", tier=MemoryTier.WORKING)
-        memory.remember("Project config", tier=MemoryTier.PROJECT)
+        memory.store("working", "Important fact")
+        memory.store("project", "Project config")
 
         # 查询记忆
         results = memory.query("fact")
@@ -890,12 +890,14 @@ async def main():
     # 创建 Agent
     agent = Agent()
 
-    # 发送消息
-    response = await agent.chat("Hello, Continuum!")
+    # 发送消息（异步）
+    response = await agent.arun("Hello, Continuum!")
     print(response)
 
-    # 使用工具
-    content = await agent.use_tool("read_file", path="README.md")
+    # 使用内置工具
+    from continuum_sdk import BuiltinTools
+    tools = BuiltinTools()
+    content = tools.read_file("README.md")
     print(content)
 
 if __name__ == "__main__":
@@ -911,28 +913,29 @@ if __name__ == "__main__":
 展示会话创建、保存、恢复。
 """
 
-from continuum_sdk import Agent, SessionManager
+from continuum_sdk import Agent, Session
+from continuum_sdk.agent import CheckpointClient
 
 async def main():
-    # 创建会话管理器
-    manager = SessionManager()
+    # 创建 Agent
+    agent = Agent()
 
     # 创建新会话
-    session = manager.create()
+    session = agent.create_session()
     print(f"Session ID: {session.id}")
 
     # 在会话中工作
-    agent = Agent(session=session)
-    await agent.chat("Remember my name is Alice")
+    await agent.arun("Remember my name is Alice")
 
-    # 保存会话
-    checkpoint = session.checkpoint()
-    print(f"Checkpoint: {checkpoint.id}")
+    # 保存检查点
+    checkpoint_client = CheckpointClient()
+    checkpoint_id = checkpoint_client.save(session.id, {"state": session.export()})
+    print(f"Checkpoint: {checkpoint_id}")
 
     # 稍后恢复
-    restored = manager.restore(checkpoint.id)
-    agent = Agent(session=restored)
-    await agent.chat("What's my name?")  # 应该记得 "Alice"
+    restored_state = checkpoint_client.load(session.id, checkpoint_id)
+    agent2 = Agent()
+    await agent2.arun("What's my name?")  # 应该记得 "Alice"
 
 if __name__ == "__main__":
     import asyncio
@@ -973,9 +976,10 @@ class CalculatorTool(CustomTool):
 
     async def execute(self, expression: str) -> str:
         try:
-            result = eval(expression)  # 注意: 实际使用需要安全处理
+            import ast
+            result = ast.literal_eval(expression)
             return str(result)
-        except Exception as e:
+        except (ValueError, SyntaxError) as e:
             return f"Error: {e}"
 
 

@@ -18,17 +18,58 @@ use tokio::sync::RwLock;
 
 pub mod app;
 pub mod components;
+pub mod error_messages;
 mod event;
 pub mod first_run;
 pub mod session_persistence;
+pub mod setup;
 pub mod slash_commands;
 pub mod tutorial;
 pub mod ui;
 
 use crate::agent::{AgentClient, AgentError};
 use app::App;
-use components::{ChatComponent, ConfirmationDialog, InputComponent, KeyHintsComponent, PermissionManager, PermissionPopup, StatusComponent, ToolDisplayComponent};
+use components::{
+    ChatComponent, ConfirmationDialog, InputComponent, KeyHintsComponent, PermissionManager,
+    PermissionPopup, SetupWizard, StatusComponent, ToolDisplayComponent,
+};
+use error_messages::ErrorFriendlyizer;
+use setup::ConfigDetector;
 use slash_commands::{CommandParser, CommandResult, ParsedCommand};
+
+/// TUI 组件容器（可变引用）
+struct TuiComponentsMut<'a> {
+    app: &'a mut App,
+    chat: &'a mut ChatComponent,
+    input: &'a mut InputComponent,
+    status: &'a mut StatusComponent,
+    tools: &'a mut ToolDisplayComponent,
+    key_hints: &'a mut KeyHintsComponent,
+    confirmation: &'a mut ConfirmationDialog,
+    permissions: &'a mut PermissionManager,
+    permission_popup: &'a mut PermissionPopup,
+    setup_wizard: &'a mut SetupWizard,
+}
+
+/// 命令执行上下文
+struct CommandExecContext<'a> {
+    chat: &'a mut ChatComponent,
+    status: &'a mut StatusComponent,
+    app: &'a mut App,
+    permissions: &'a mut PermissionManager,
+}
+
+/// 键盘事件处理上下文
+struct KeyEventHandlerContext<'a> {
+    app: &'a mut App,
+    chat: &'a mut ChatComponent,
+    input: &'a mut InputComponent,
+    status: &'a mut StatusComponent,
+    key_hints: &'a mut KeyHintsComponent,
+    confirmation: &'a mut ConfirmationDialog,
+    permissions: &'a mut PermissionManager,
+    show_completions: &'a mut bool,
+}
 
 /// 运行 TUI 界面
 pub fn run() -> Result<()> {
@@ -62,25 +103,50 @@ pub fn run_with_session(session: Option<String>) -> Result<()> {
     let mut permissions = PermissionManager::new();
     let mut permission_popup = PermissionPopup::new();
     let mut key_hints = KeyHintsComponent::new();
+    let mut setup_wizard = SetupWizard::new();
     let command_parser = CommandParser::new();
 
     // 检测首次启动状态
     let mut first_run_state = first_run::FirstRunState::new().unwrap_or_default();
 
+    // 检测配置状态
+    let config_detector = ConfigDetector::new();
+    let detection_result = config_detector
+        .detect()
+        .unwrap_or_else(|_| setup::DetectionResult {
+            providers: vec![],
+            has_valid_config: false,
+            config_file_path: None,
+        });
+
+    // 决定是否显示配置向导
+    let show_setup_wizard = !detection_result.has_valid_config && first_run_state.needs_setup();
+
     // 添加欢迎消息（根据首次启动状态定制）
-    let welcome_msg = if first_run_state.is_first_run {
+    let welcome_msg = if show_setup_wizard {
+        // 将由配置向导处理
+        String::new()
+    } else if first_run_state.is_first_run {
         first_run::FirstRunState::get_welcome_message()
     } else {
         "Welcome back! Agent initializing...".to_string()
     };
-    chat.add_message(app::Message {
-        role: app::Role::System,
-        content: welcome_msg,
-    });
-    status.set_message_count(chat.message_count());
 
-    // 首次启动时自动显示教程提示
-    if first_run_state.is_first_run && !first_run_state.tutorial_completed {
+    if !welcome_msg.is_empty() {
+        chat.add_message(app::Message {
+            role: app::Role::System,
+            content: welcome_msg,
+        });
+        status.set_message_count(chat.message_count());
+    }
+
+    // 如果需要配置向导，显示它
+    if show_setup_wizard {
+        setup_wizard.show();
+    }
+
+    // 首次启动时自动显示教程提示（仅在配置完成后）
+    if !show_setup_wizard && first_run_state.is_first_run && !first_run_state.tutorial_completed {
         chat.add_message(app::Message {
             role: app::Role::System,
             content: first_run::FirstRunState::get_first_run_hint(),
@@ -91,15 +157,18 @@ pub fn run_with_session(session: Option<String>) -> Result<()> {
     // 主循环
     let res = run_app(
         &mut terminal,
-        &mut app,
-        &mut chat,
-        &mut input,
-        &mut status,
-        &mut tools,
-        &mut key_hints,
-        &mut confirmation,
-        &mut permissions,
-        &mut permission_popup,
+        TuiComponentsMut {
+            app: &mut app,
+            chat: &mut chat,
+            input: &mut input,
+            status: &mut status,
+            tools: &mut tools,
+            key_hints: &mut key_hints,
+            confirmation: &mut confirmation,
+            permissions: &mut permissions,
+            permission_popup: &mut permission_popup,
+            setup_wizard: &mut setup_wizard,
+        },
         &command_parser,
         agent,
         &mut first_run_state,
@@ -118,22 +187,26 @@ pub fn run_with_session(session: Option<String>) -> Result<()> {
 }
 
 /// 运行应用主循环
-#[allow(clippy::too_many_arguments)]
 fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
-    app: &mut App,
-    chat: &mut ChatComponent,
-    input: &mut InputComponent,
-    status: &mut StatusComponent,
-    tools: &mut ToolDisplayComponent,
-    key_hints: &mut KeyHintsComponent,
-    confirmation: &mut ConfirmationDialog,
-    permissions: &mut PermissionManager,
-    permission_popup: &mut PermissionPopup,
+    mut components: TuiComponentsMut<'_>,
     command_parser: &CommandParser,
     agent: Arc<RwLock<AgentClient>>,
     first_run_state: &mut first_run::FirstRunState,
 ) -> Result<()> {
+    let TuiComponentsMut {
+        app,
+        chat,
+        input,
+        status,
+        tools,
+        key_hints,
+        confirmation,
+        permissions,
+        permission_popup,
+        setup_wizard,
+    } = &mut components;
+
     // 创建 tokio runtime 用于异步操作
     let rt = tokio::runtime::Runtime::new()?;
 
@@ -172,17 +245,19 @@ fn run_app(
                 }
             }
         }
-        Err(AgentError::ConfigError(msg)) => {
+        Err(AgentError::Config(msg)) => {
+            let friendly = ErrorFriendlyizer::config_error("no_providers", &msg);
             chat.add_message(app::Message {
                 role: app::Role::System,
-                content: format!("Configuration error: {}\n\nPlease configure your API key:\n  continuum config add-provider anthropic --key YOUR_KEY\nOr set environment variable:\n  export CONTINUUM_API_KEY=YOUR_KEY", msg),
+                content: friendly.format(),
             });
             status.set_connected(false);
         }
         Err(e) => {
+            let friendly = ErrorFriendlyizer::from_raw_error(&e.to_string());
             chat.add_message(app::Message {
                 role: app::Role::System,
-                content: format!("Agent initialization failed: {}", e),
+                content: friendly.format(),
             });
             status.set_connected(false);
         }
@@ -196,7 +271,8 @@ fn run_app(
     // 是否显示命令补全
     let mut show_completions = false;
     // 是否等待首次启动教程响应
-    let mut waiting_tutorial_response = first_run_state.is_first_run && !first_run_state.tutorial_completed;
+    let mut waiting_tutorial_response =
+        first_run_state.is_first_run && !first_run_state.tutorial_completed;
 
     // 设置初始快捷键提示上下文
     key_hints.set_context(components::HintContext::Normal);
@@ -215,7 +291,18 @@ fn run_app(
 
         // 绘制界面
         terminal.draw(|f| {
-            ui::render(f, app, chat, input, status, tools, key_hints, show_tools);
+            ui::render(
+                f,
+                app,
+                ui::RenderContext {
+                    chat,
+                    input,
+                    status,
+                    tools,
+                    key_hints,
+                },
+                show_tools,
+            );
 
             // 渲染权限确认弹窗（如果可见）
             if permission_popup.is_visible() {
@@ -224,6 +311,10 @@ fn run_app(
             // 渲染确认对话框（如果可见）
             else if confirmation.is_visible() {
                 confirmation.render(f, f.area());
+            }
+            // 渲染配置向导（如果可见）
+            else if setup_wizard.is_visible() {
+                setup_wizard.render(f, f.area());
             }
         })?;
 
@@ -237,7 +328,10 @@ fn run_app(
                         components::PermissionAction::Allow => {
                             // 处理允许操作
                             if let Some(req) = permission_popup.get_request() {
-                                let perm_key = PermissionManager::get_permission_key(&req.tool_name, &req.action);
+                                let perm_key = PermissionManager::get_permission_key(
+                                    &req.tool_name,
+                                    &req.action,
+                                );
                                 permissions.grant_permission(&perm_key, false);
                                 chat.add_message(app::Message {
                                     role: app::Role::System,
@@ -250,7 +344,10 @@ fn run_app(
                         components::PermissionAction::Deny => {
                             // 处理拒绝操作
                             if let Some(req) = permission_popup.get_request() {
-                                let perm_key = PermissionManager::get_permission_key(&req.tool_name, &req.action);
+                                let perm_key = PermissionManager::get_permission_key(
+                                    &req.tool_name,
+                                    &req.action,
+                                );
                                 permissions.deny_permission(&perm_key);
                                 chat.add_message(app::Message {
                                     role: app::Role::System,
@@ -263,11 +360,17 @@ fn run_app(
                         components::PermissionAction::AlwaysAllow => {
                             // 处理始终允许操作
                             if let Some(req) = permission_popup.get_request() {
-                                let perm_key = PermissionManager::get_permission_key(&req.tool_name, &req.action);
+                                let perm_key = PermissionManager::get_permission_key(
+                                    &req.tool_name,
+                                    &req.action,
+                                );
                                 permissions.grant_permission(&perm_key, true);
                                 chat.add_message(app::Message {
                                     role: app::Role::System,
-                                    content: format!("已永久允许: {} - {}", req.tool_name, req.action),
+                                    content: format!(
+                                        "已永久允许: {} - {}",
+                                        req.tool_name, req.action
+                                    ),
                                 });
                                 status.set_message_count(chat.message_count());
                             }
@@ -287,10 +390,12 @@ fn run_app(
                             if let Some(cmd) = confirmation.get_pending_command() {
                                 let result = execute_slash_command_with_agent(
                                     cmd.clone(),
-                                    chat,
-                                    status,
-                                    app,
-                                    permissions,
+                                    &mut CommandExecContext {
+                                        chat,
+                                        status,
+                                        app,
+                                        permissions,
+                                    },
                                     agent.clone(),
                                     &rt,
                                 );
@@ -307,6 +412,132 @@ fn run_app(
                             confirmation.hide();
                         }
                         components::ConfirmAction::None => {}
+                    }
+                    continue;
+                }
+
+                // 如果配置向导可见，处理配置向导的按键
+                if setup_wizard.is_visible() {
+                    match setup_wizard.current_step {
+                        components::WizardStep::Welcome => {
+                            match key.code {
+                                KeyCode::Enter => {
+                                    setup_wizard.next_step();
+                                }
+                                KeyCode::Esc => {
+                                    // Skip setup
+                                    setup_wizard.hide();
+                                    first_run_state.mark_setup_skipped().ok();
+                                    chat.add_message(app::Message {
+                                        role: app::Role::System,
+                                        content: "Setup skipped. You can configure later with /config or set environment variables.".to_string(),
+                                    });
+                                    status.set_message_count(chat.message_count());
+                                }
+                                _ => {}
+                            }
+                        }
+                        components::WizardStep::ProviderSelection => match key.code {
+                            KeyCode::Up => {
+                                let providers = components::Provider::all();
+                                let current_idx = setup_wizard
+                                    .selected_provider
+                                    .map(|p| providers.iter().position(|&x| x == p).unwrap_or(0))
+                                    .unwrap_or(0);
+                                let new_idx = if current_idx == 0 {
+                                    providers.len() - 1
+                                } else {
+                                    current_idx - 1
+                                };
+                                setup_wizard.select_provider(providers[new_idx]);
+                            }
+                            KeyCode::Down => {
+                                let providers = components::Provider::all();
+                                let current_idx = setup_wizard
+                                    .selected_provider
+                                    .map(|p| providers.iter().position(|&x| x == p).unwrap_or(0))
+                                    .unwrap_or(0);
+                                let new_idx = (current_idx + 1) % providers.len();
+                                setup_wizard.select_provider(providers[new_idx]);
+                            }
+                            KeyCode::Enter => {
+                                if setup_wizard.selected_provider.is_some() {
+                                    setup_wizard.next_step();
+                                }
+                            }
+                            KeyCode::Esc => {
+                                setup_wizard.prev_step();
+                            }
+                            _ => {}
+                        },
+                        components::WizardStep::ApiKeyInput => match key.code {
+                            KeyCode::Char(c) => {
+                                setup_wizard.push_char(c);
+                            }
+                            KeyCode::Backspace => {
+                                setup_wizard.pop_char();
+                            }
+                            KeyCode::Tab => {
+                                setup_wizard.toggle_visibility();
+                            }
+                            KeyCode::Enter => {
+                                if !setup_wizard.api_key_input.is_empty() {
+                                    setup_wizard.next_step();
+                                }
+                            }
+                            KeyCode::Esc => {
+                                setup_wizard.prev_step();
+                            }
+                            _ => {}
+                        },
+                        components::WizardStep::ConnectionTest => {
+                            match key.code {
+                                KeyCode::Enter => {
+                                    // Skip test and save
+                                    if let Some(provider) = setup_wizard.selected_provider {
+                                        if let Err(e) = save_provider_config(
+                                            provider.name(),
+                                            &setup_wizard.api_key_input,
+                                        ) {
+                                            setup_wizard.error_message = Some(e.to_string());
+                                        } else {
+                                            first_run_state
+                                                .mark_setup_completed(provider.name())
+                                                .ok();
+                                            setup_wizard.next_step();
+                                        }
+                                    }
+                                }
+                                KeyCode::Esc => {
+                                    setup_wizard.prev_step();
+                                }
+                                _ => {}
+                            }
+                        }
+                        components::WizardStep::Complete => {
+                            match key.code {
+                                KeyCode::Enter => {
+                                    setup_wizard.hide();
+                                    // Re-initialize agent with new config
+                                    let init_result = rt.block_on(async {
+                                        let agent_guard = agent.read().await;
+                                        agent_guard.init_from_config().await
+                                    });
+                                    if init_result.is_ok() {
+                                        chat.add_message(app::Message {
+                                            role: app::Role::System,
+                                            content: "Configuration saved! You can now start using Continuum.".to_string(),
+                                        });
+                                        status.set_connected(true);
+                                        if let Some(provider) = setup_wizard.selected_provider {
+                                            status.set_provider(Some(provider.name().to_string()));
+                                        }
+                                    }
+                                    status.set_message_count(chat.message_count());
+                                }
+                                _ => {}
+                            }
+                        }
                     }
                     continue;
                 }
@@ -333,7 +564,8 @@ fn run_app(
                             first_run_state.mark_first_run_done().ok();
                             chat.add_message(app::Message {
                                 role: app::Role::System,
-                                content: "Tutorial skipped. Type /tutorial anytime to start.".to_string(),
+                                content: "Tutorial skipped. Type /tutorial anytime to start."
+                                    .to_string(),
                             });
                             status.set_message_count(chat.message_count());
                             continue;
@@ -353,17 +585,17 @@ fn run_app(
 
                 match handle_key_event(
                     key,
-                    app,
-                    chat,
-                    input,
-                    status,
-                    tools,
-                    key_hints,
-                    &mut show_tools,
-                    &mut show_completions,
+                    &mut KeyEventHandlerContext {
+                        app,
+                        chat,
+                        input,
+                        status,
+                        key_hints,
+                        confirmation,
+                        permissions,
+                        show_completions: &mut show_completions,
+                    },
                     command_parser,
-                    confirmation,
-                    permissions,
                     Some(agent.clone()),
                     &rt,
                 ) {
@@ -371,6 +603,17 @@ fn run_app(
                         match action {
                             KeyAction::Exit => break,
                             KeyAction::SendMessage(content) => {
+                                // Check if setup was skipped and needs configuration
+                                if first_run_state.needs_setup() {
+                                    chat.add_message(app::Message {
+                                        role: app::Role::System,
+                                        content: "You need to configure an API key to use Continuum.\nPress Enter to open setup wizard, or set environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY).".to_string(),
+                                    });
+                                    status.set_message_count(chat.message_count());
+                                    setup_wizard.show();
+                                    continue;
+                                }
+
                                 status.set_processing(true);
 
                                 // 添加工具调用显示（模拟工具执行）
@@ -390,9 +633,7 @@ fn run_app(
                                     if agent_guard.is_initialized().await {
                                         agent_guard.send_message(&content).await
                                     } else {
-                                        Err(AgentError::ConfigError(
-                                            "Agent not initialized".to_string(),
-                                        ))
+                                        Err(AgentError::Config("Agent not initialized".to_string()))
                                     }
                                 });
 
@@ -409,10 +650,16 @@ fn run_app(
                                         });
                                     }
                                     Err(e) => {
-                                        tools.complete_tool_call(tool_idx, e.to_string(), true);
+                                        let friendly =
+                                            ErrorFriendlyizer::from_raw_error(&e.to_string());
+                                        tools.complete_tool_call(
+                                            tool_idx,
+                                            friendly.title.clone(),
+                                            true,
+                                        );
                                         chat.add_message(app::Message {
                                             role: app::Role::Assistant,
-                                            content: format!("Error: {}", e),
+                                            content: friendly.format(),
                                         });
                                     }
                                 }
@@ -431,8 +678,8 @@ fn run_app(
                             }
                             KeyAction::SaveSession => {
                                 // 使用 SessionManager 保存会话
-                                let session_manager = session_persistence::SessionManager::new()
-                                    .unwrap_or_default();
+                                let session_manager =
+                                    session_persistence::SessionManager::new().unwrap_or_default();
                                 let session_id = match app.session_id() {
                                     Some(id) => id.to_string(),
                                     None => {
@@ -443,7 +690,8 @@ fn run_app(
                                 };
 
                                 // 从 chat 组件收集消息
-                                let messages: Vec<(String, String)> = chat.get_messages()
+                                let messages: Vec<(String, String)> = chat
+                                    .get_messages()
                                     .iter()
                                     .map(|m| {
                                         let role = match m.role {
@@ -455,17 +703,17 @@ fn run_app(
                                     })
                                     .collect();
 
-                                let save_result = session_manager.save_session(
-                                    &session_id,
-                                    &messages,
-                                    None,
-                                );
+                                let save_result =
+                                    session_manager.save_session(&session_id, &messages, None);
 
                                 match save_result {
                                     Ok(path) => {
                                         chat.add_message(app::Message {
                                             role: app::Role::System,
-                                            content: format!("Session saved to: {}", path.display()),
+                                            content: format!(
+                                                "Session saved to: {}",
+                                                path.display()
+                                            ),
                                         });
                                     }
                                     Err(e) => {
@@ -508,8 +756,37 @@ fn run_app(
                                 });
                                 status.set_message_count(chat.message_count());
                             }
+                            KeyAction::CancelTool => {
+                                // Cancel the currently running tool (last running tool in list)
+                                if tools.has_running() {
+                                    // Find the last running tool index
+                                    for (idx, call) in tools.tool_calls.iter().enumerate().rev() {
+                                        if call.status == components::ToolStatus::Running {
+                                            if tools.cancel_tool(idx) {
+                                                chat.add_message(app::Message {
+                                                    role: app::Role::System,
+                                                    content: "Tool execution cancelled."
+                                                        .to_string(),
+                                                });
+                                                status.set_message_count(chat.message_count());
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
                             KeyAction::SlashCommand(cmd) => {
-                                let result = execute_slash_command_with_agent(cmd, chat, status, app, permissions, agent.clone(), &rt);
+                                let result = execute_slash_command_with_agent(
+                                    cmd,
+                                    &mut CommandExecContext {
+                                        chat,
+                                        status,
+                                        app,
+                                        permissions,
+                                    },
+                                    agent.clone(),
+                                    &rt,
+                                );
                                 handle_command_result(result, chat, status, app);
                             }
                             KeyAction::None => {}
@@ -550,35 +827,33 @@ enum KeyAction {
     ToggleTools,
     /// 显示帮助
     ShowHelp,
+    /// 取消当前运行的工具
+    CancelTool,
 }
 
 /// 执行 Slash 命令（带 Agent 访问）
-#[allow(clippy::too_many_arguments)]
 fn execute_slash_command_with_agent(
     cmd: ParsedCommand,
-    chat: &mut ChatComponent,
-    status: &mut StatusComponent,
-    app: &mut App,
-    permissions: &mut PermissionManager,
+    ctx: &mut CommandExecContext<'_>,
     agent: Arc<RwLock<AgentClient>>,
     rt: &tokio::runtime::Runtime,
 ) -> CommandResult {
-    execute_slash_command(cmd, chat, status, app, permissions, Some(agent), rt)
+    execute_slash_command(cmd, ctx, Some(agent), rt)
 }
 
 /// 执行 Slash 命令
-#[allow(clippy::too_many_arguments)]
 fn execute_slash_command(
     cmd: ParsedCommand,
-    chat: &mut ChatComponent,
-    status: &mut StatusComponent,
-    app: &mut App,
-    _permissions: &mut PermissionManager,
+    ctx: &mut CommandExecContext<'_>,
     agent: Option<Arc<RwLock<AgentClient>>>,
     rt: &tokio::runtime::Runtime,
 ) -> CommandResult {
-    
-
+    let CommandExecContext {
+        chat,
+        status,
+        app,
+        permissions: _permissions,
+    } = &mut *ctx;
     match cmd.command.name.as_str() {
         "help" => {
             let parser = CommandParser::new();
@@ -681,23 +956,47 @@ fn execute_slash_command(
                         if parts.len() >= 2 {
                             let field = parts[1];
                             let result: Result<String, anyhow::Error> = match field {
-                                "session_auto_save" => value.parse::<bool>()
-                                    .map(|v| { config.settings.session_auto_save = v; v.to_string() })
+                                "session_auto_save" => value
+                                    .parse::<bool>()
+                                    .map(|v| {
+                                        config.settings.session_auto_save = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
-                                "session_max_history" => value.parse::<usize>()
-                                    .map(|v| { config.settings.session_max_history = v; v.to_string() })
+                                "session_max_history" => value
+                                    .parse::<usize>()
+                                    .map(|v| {
+                                        config.settings.session_max_history = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
-                                "checkpoint_enabled" => value.parse::<bool>()
-                                    .map(|v| { config.settings.checkpoint_enabled = v; v.to_string() })
+                                "checkpoint_enabled" => value
+                                    .parse::<bool>()
+                                    .map(|v| {
+                                        config.settings.checkpoint_enabled = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
-                                "checkpoint_interval" => value.parse::<u32>()
-                                    .map(|v| { config.settings.checkpoint_interval_sec = v; v.to_string() })
+                                "checkpoint_interval" => value
+                                    .parse::<u32>()
+                                    .map(|v| {
+                                        config.settings.checkpoint_interval_sec = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
-                                "audit_enabled" => value.parse::<bool>()
-                                    .map(|v| { config.settings.audit_enabled = v; v.to_string() })
+                                "audit_enabled" => value
+                                    .parse::<bool>()
+                                    .map(|v| {
+                                        config.settings.audit_enabled = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
-                                "mcp_enabled" => value.parse::<bool>()
-                                    .map(|v| { config.settings.mcp_enabled = v; v.to_string() })
+                                "mcp_enabled" => value
+                                    .parse::<bool>()
+                                    .map(|v| {
+                                        config.settings.mcp_enabled = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
                                 _ => Err(anyhow::anyhow!("Unknown setting: {}", field)),
                             };
@@ -729,17 +1028,37 @@ fn execute_slash_command(
                         if parts.len() >= 3 {
                             let provider_name = parts[1];
                             let field = parts[2];
-                            let provider = config.providers.entry(provider_name.to_string()).or_default();
+                            let provider = config
+                                .providers
+                                .entry(provider_name.to_string())
+                                .or_default();
                             let result: Result<String, anyhow::Error> = match field {
-                                "base_url" => { provider.base_url = value.clone(); Ok(value) },
-                                "model" => { provider.model = value.clone(); Ok(value) },
-                                "max_tokens" => value.parse::<u32>()
-                                    .map(|v| { provider.default_max_tokens = v; v.to_string() })
+                                "base_url" => {
+                                    provider.base_url = value.clone();
+                                    Ok(value)
+                                }
+                                "model" => {
+                                    provider.model = value.clone();
+                                    Ok(value)
+                                }
+                                "max_tokens" => value
+                                    .parse::<u32>()
+                                    .map(|v| {
+                                        provider.default_max_tokens = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
-                                "temperature" => value.parse::<f32>()
-                                    .map(|v| { provider.default_temperature = v; v.to_string() })
+                                "temperature" => value
+                                    .parse::<f32>()
+                                    .map(|v| {
+                                        provider.default_temperature = v;
+                                        v.to_string()
+                                    })
                                     .map_err(|e| anyhow::anyhow!("{}", e)),
-                                "api_key" => { provider.api_key = value.clone(); Ok("(set)".to_string()) },
+                                "api_key" => {
+                                    provider.api_key = value.clone();
+                                    Ok("(set)".to_string())
+                                }
                                 _ => Err(anyhow::anyhow!("Unknown field: {}", field)),
                             };
 
@@ -796,8 +1115,12 @@ fn execute_slash_command(
                                         "api_key" => "api_key: (set)".to_string(),
                                         "base_url" => format!("base_url: {}", provider.base_url),
                                         "model" => format!("model: {}", provider.model),
-                                        "max_tokens" => format!("max_tokens: {}", provider.default_max_tokens),
-                                        "temperature" => format!("temperature: {}", provider.default_temperature),
+                                        "max_tokens" => {
+                                            format!("max_tokens: {}", provider.default_max_tokens)
+                                        }
+                                        "temperature" => {
+                                            format!("temperature: {}", provider.default_temperature)
+                                        }
                                         _ => format!("Unknown field: {}", field),
                                     }
                                 } else {
@@ -814,12 +1137,28 @@ fn execute_slash_command(
                         if parts.len() >= 2 {
                             let field = parts[1];
                             match field {
-                                "session_auto_save" => format!("session_auto_save: {}", config.settings.session_auto_save),
-                                "session_max_history" => format!("session_max_history: {}", config.settings.session_max_history),
-                                "checkpoint_enabled" => format!("checkpoint_enabled: {}", config.settings.checkpoint_enabled),
-                                "checkpoint_interval" => format!("checkpoint_interval: {}s", config.settings.checkpoint_interval_sec),
-                                "audit_enabled" => format!("audit_enabled: {}", config.settings.audit_enabled),
-                                "mcp_enabled" => format!("mcp_enabled: {}", config.settings.mcp_enabled),
+                                "session_auto_save" => format!(
+                                    "session_auto_save: {}",
+                                    config.settings.session_auto_save
+                                ),
+                                "session_max_history" => format!(
+                                    "session_max_history: {}",
+                                    config.settings.session_max_history
+                                ),
+                                "checkpoint_enabled" => format!(
+                                    "checkpoint_enabled: {}",
+                                    config.settings.checkpoint_enabled
+                                ),
+                                "checkpoint_interval" => format!(
+                                    "checkpoint_interval: {}s",
+                                    config.settings.checkpoint_interval_sec
+                                ),
+                                "audit_enabled" => {
+                                    format!("audit_enabled: {}", config.settings.audit_enabled)
+                                }
+                                "mcp_enabled" => {
+                                    format!("mcp_enabled: {}", config.settings.mcp_enabled)
+                                }
                                 _ => format!("Unknown setting: {}", field),
                             }
                         } else {
@@ -841,19 +1180,44 @@ fn execute_slash_command(
                 let mut content = format!("Active provider: {}\n\n", config.active_provider);
                 content.push_str("Providers:\n");
                 for (name, provider) in &config.providers {
-                    let marker = if name == &config.active_provider { " (active)" } else { "" };
+                    let marker = if name == &config.active_provider {
+                        " (active)"
+                    } else {
+                        ""
+                    };
                     content.push_str(&format!("  [{}]{}\n", name, marker));
                     content.push_str(&format!("    base_url: {}\n", provider.base_url));
                     content.push_str(&format!("    model: {}\n", provider.model));
-                    content.push_str(&format!("    max_tokens: {}\n", provider.default_max_tokens));
-                    content.push_str(&format!("    temperature: {}\n", provider.default_temperature));
+                    content.push_str(&format!(
+                        "    max_tokens: {}\n",
+                        provider.default_max_tokens
+                    ));
+                    content.push_str(&format!(
+                        "    temperature: {}\n",
+                        provider.default_temperature
+                    ));
                 }
                 content.push_str("\nSettings:\n");
-                content.push_str(&format!("  session_auto_save: {}\n", config.settings.session_auto_save));
-                content.push_str(&format!("  session_max_history: {}\n", config.settings.session_max_history));
-                content.push_str(&format!("  checkpoint_enabled: {}\n", config.settings.checkpoint_enabled));
-                content.push_str(&format!("  checkpoint_interval: {}s\n", config.settings.checkpoint_interval_sec));
-                content.push_str(&format!("  audit_enabled: {}\n", config.settings.audit_enabled));
+                content.push_str(&format!(
+                    "  session_auto_save: {}\n",
+                    config.settings.session_auto_save
+                ));
+                content.push_str(&format!(
+                    "  session_max_history: {}\n",
+                    config.settings.session_max_history
+                ));
+                content.push_str(&format!(
+                    "  checkpoint_enabled: {}\n",
+                    config.settings.checkpoint_enabled
+                ));
+                content.push_str(&format!(
+                    "  checkpoint_interval: {}s\n",
+                    config.settings.checkpoint_interval_sec
+                ));
+                content.push_str(&format!(
+                    "  audit_enabled: {}\n",
+                    config.settings.audit_enabled
+                ));
                 content.push_str(&format!("  mcp_enabled: {}\n", config.settings.mcp_enabled));
 
                 if !config.extra.is_empty() {
@@ -910,7 +1274,10 @@ fn execute_slash_command(
 
                     let content = if let Some(model) = current_model {
                         let models_list = available_models.join(", ");
-                        format!("Current model: {}\nAvailable models: {}", model, models_list)
+                        format!(
+                            "Current model: {}\nAvailable models: {}",
+                            model, models_list
+                        )
                     } else {
                         "Agent not initialized. Please configure first.".to_string()
                     };
@@ -975,7 +1342,10 @@ fn execute_slash_command(
                     let providers_list = providers.join(", ");
                     chat.add_message(app::Message {
                         role: app::Role::System,
-                        content: format!("Current provider: {}\nConfigured providers: {}", current_provider, providers_list),
+                        content: format!(
+                            "Current provider: {}\nConfigured providers: {}",
+                            current_provider, providers_list
+                        ),
                     });
                 }
             } else {
@@ -1006,10 +1376,7 @@ fn execute_slash_command(
                         std::collections::HashMap::new();
 
                     for (name, desc, category) in tools {
-                        categories
-                            .entry(category)
-                            .or_default()
-                            .push((name, desc));
+                        categories.entry(category).or_default().push((name, desc));
                     }
 
                     let mut content = String::from("Available tools:\n");
@@ -1027,7 +1394,10 @@ fn execute_slash_command(
                         }
                     }
 
-                    content.push_str(&format!("\nTotal: {} tools", categories.values().map(|v| v.len()).sum::<usize>()));
+                    content.push_str(&format!(
+                        "\nTotal: {} tools",
+                        categories.values().map(|v| v.len()).sum::<usize>()
+                    ));
 
                     chat.add_message(app::Message {
                         role: app::Role::System,
@@ -1050,10 +1420,11 @@ fn execute_slash_command(
                     if let Some(step) = tutorial.jump_to(step_num) {
                         tutorial::Tutorial::format_step(step)
                     } else {
-                        format!("Invalid step number. Use /tutorial 1-5 or /tutorial for overview.")
+                        "Invalid step number. Use /tutorial 1-5 or /tutorial for overview."
+                            .to_string()
                     }
                 } else {
-                    format!("Invalid step number. Use /tutorial 1-5 or /tutorial for overview.")
+                    "Invalid step number. Use /tutorial 1-5 or /tutorial for overview.".to_string()
                 }
             } else {
                 tutorial::Tutorial::overview()
@@ -1072,9 +1443,7 @@ fn execute_slash_command(
                 message: "This operation may modify files or execute commands.".to_string(),
             }
         }
-        _ => {
-            CommandResult::Error(format!("Unknown command: /{}", cmd.command.name))
-        }
+        _ => CommandResult::Error(format!("Unknown command: /{}", cmd.command.name)),
     }
 }
 
@@ -1089,7 +1458,10 @@ fn handle_command_result(
         CommandResult::Success(msg) => {
             tracing::debug!("Command success: {}", msg);
         }
-        CommandResult::NeedsConfirmation { command: _, message } => {
+        CommandResult::NeedsConfirmation {
+            command: _,
+            message,
+        } => {
             chat.add_message(app::Message {
                 role: app::Role::System,
                 content: format!("Waiting for confirmation: {}", message),
@@ -1097,9 +1469,10 @@ fn handle_command_result(
             status.set_message_count(chat.message_count());
         }
         CommandResult::Error(msg) => {
+            let friendly = ErrorFriendlyizer::from_raw_error(&msg);
             chat.add_message(app::Message {
                 role: app::Role::System,
-                content: format!("Error: {}", msg),
+                content: friendly.format(),
             });
             status.set_message_count(chat.message_count());
         }
@@ -1111,23 +1484,24 @@ fn handle_command_result(
 }
 
 /// 处理键盘事件
-#[allow(clippy::too_many_arguments)]
 fn handle_key_event(
     key: KeyEvent,
-    app: &mut App,
-    chat: &mut ChatComponent,
-    input: &mut InputComponent,
-    status: &mut StatusComponent,
-    _tools: &mut ToolDisplayComponent,
-    key_hints: &mut KeyHintsComponent,
-    _show_tools: &mut bool,
-    show_completions: &mut bool,
+    ctx: &mut KeyEventHandlerContext<'_>,
     command_parser: &CommandParser,
-    confirmation: &mut ConfirmationDialog,
-    permissions: &mut PermissionManager,
     agent: Option<Arc<RwLock<AgentClient>>>,
     rt: &tokio::runtime::Runtime,
 ) -> Result<KeyAction> {
+    let KeyEventHandlerContext {
+        app,
+        chat,
+        input,
+        status,
+        key_hints,
+        confirmation,
+        permissions,
+        show_completions,
+    } = &mut *ctx;
+
     match (key.modifiers, key.code) {
         // Ctrl+C: 退出
         (KeyModifiers::CONTROL, KeyCode::Char('c')) => {
@@ -1161,6 +1535,9 @@ fn handle_key_event(
 
         // Ctrl+H: 显示帮助
         (KeyModifiers::CONTROL, KeyCode::Char('h')) => Ok(KeyAction::ShowHelp),
+
+        // Ctrl+X: 取消当前运行的工具
+        (KeyModifiers::CONTROL, KeyCode::Char('x')) => Ok(KeyAction::CancelTool),
 
         // Ctrl+W: 删除前一个单词
         (KeyModifiers::CONTROL, KeyCode::Char('w')) => {
@@ -1245,7 +1622,17 @@ fn handle_key_event(
                 }
 
                 // 执行命令
-                let result = execute_slash_command(parsed, chat, status, app, permissions, agent, rt);
+                let result = execute_slash_command(
+                    parsed,
+                    &mut CommandExecContext {
+                        chat,
+                        status,
+                        app,
+                        permissions,
+                    },
+                    agent,
+                    rt,
+                );
                 handle_command_result(result, chat, status, app);
                 Ok(KeyAction::None)
             } else {
@@ -1264,7 +1651,7 @@ fn handle_key_event(
         // Esc: 取消/清空输入
         (KeyModifiers::NONE, KeyCode::Esc) => {
             input.clear();
-            *show_completions = false;
+            **show_completions = false;
             Ok(KeyAction::None)
         }
 
@@ -1342,7 +1729,7 @@ fn handle_key_event(
 
             // 检测是否输入了 / 开头，显示补全
             let current_input = input.get_input();
-            *show_completions = current_input.starts_with('/') && current_input.len() > 1;
+            **show_completions = current_input.starts_with('/') && current_input.len() > 1;
 
             Ok(KeyAction::None)
         }
@@ -1350,4 +1737,64 @@ fn handle_key_event(
         // 忽略其他组合键
         _ => Ok(KeyAction::None),
     }
+}
+
+/// Save provider configuration to config file
+fn save_provider_config(provider: &str, api_key: &str) -> anyhow::Result<()> {
+    use sh_core::layer1::ProviderConfig;
+
+    let config_path = sh_core::layer1::ConfigManager::default_config_path();
+    let mut config = sh_core::layer1::ConfigManager::new();
+
+    // Load existing config if exists
+    if config_path.exists() {
+        config.load_from_file_sync(&config_path)?;
+    }
+
+    // Create provider config with default values
+    let provider_config = match provider {
+        "anthropic" => ProviderConfig {
+            api_key: api_key.to_string(),
+            base_url: "https://api.anthropic.com".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
+            default_max_tokens: 4096,
+            default_temperature: 1.0,
+        },
+        "openai" => ProviderConfig {
+            api_key: api_key.to_string(),
+            base_url: "https://api.openai.com/v1".to_string(),
+            model: "gpt-5.5".to_string(),
+            default_max_tokens: 4096,
+            default_temperature: 1.0,
+        },
+        "google" => ProviderConfig {
+            api_key: api_key.to_string(),
+            base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
+            model: "gemini-3.0-pro".to_string(),
+            default_max_tokens: 8192,
+            default_temperature: 1.0,
+        },
+        _ => {
+            return Err(anyhow::anyhow!("Unknown provider: {}", provider));
+        }
+    };
+
+    // Add/update the provider
+    config.add_provider(provider, provider_config);
+
+    // Set as active provider
+    config.use_provider(provider)?;
+
+    // Save the config
+    config.save_sync(&config_path)?;
+
+    // Also set environment variable for current session
+    match provider {
+        "anthropic" => std::env::set_var("ANTHROPIC_API_KEY", api_key),
+        "openai" => std::env::set_var("OPENAI_API_KEY", api_key),
+        "google" => std::env::set_var("GOOGLE_API_KEY", api_key),
+        _ => {}
+    }
+
+    Ok(())
 }

@@ -2,6 +2,7 @@
 //!
 //! 分层记忆系统：Working -> Session -> Project -> LongTerm
 
+pub mod file_backend;
 pub mod long_term;
 pub mod project;
 pub mod session;
@@ -9,6 +10,7 @@ pub mod system;
 pub mod working;
 
 // Re-export unified system and implementations
+pub use file_backend::{FileBackend, JsonFileBackend, StorageContainer};
 pub use long_term::LongTermMemory;
 pub use project::ProjectMemory;
 pub use session::SessionMemory;

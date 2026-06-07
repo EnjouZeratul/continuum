@@ -4,11 +4,17 @@
 
 pub mod adapter;
 pub mod code;
+pub mod data_processing;
 pub mod file_ops;
+pub mod git_tools;
 pub mod memory_tools;
 pub mod network;
+pub mod network_tools;
 pub mod search;
 pub mod shell;
+pub mod system_tools;
+pub mod text_tools;
+pub mod web_search;
 pub mod workflow_tools;
 
 // Re-export adapter for Layer 2 integration
@@ -80,18 +86,96 @@ impl BuiltinToolRegistry {
     pub fn with_defaults() -> Self {
         let mut registry = Self::new();
 
-        // Shell 工具
+        // Shell 工具 (1)
         registry.register(Box::new(shell::BashTool));
 
-        // 搜索工具
+        // 搜索工具 (2)
         registry.register(Box::new(search::GrepTool));
         registry.register(Box::new(search::GlobTool));
 
-        // 文件操作工具
+        // Web 搜索工具 (1)
+        registry.register(Box::new(web_search::WebSearchTool::new()));
+
+        // 文件操作工具 (8)
         registry.register(Box::new(file_ops::ReadFileTool));
         registry.register(Box::new(file_ops::WriteFileTool));
         registry.register(Box::new(file_ops::EditFileTool));
         registry.register(Box::new(file_ops::ListDirectoryTool));
+        registry.register(Box::new(file_ops::CreateDirectoryTool));
+        registry.register(Box::new(file_ops::MoveFileTool));
+        registry.register(Box::new(file_ops::CopyFileTool));
+        registry.register(Box::new(file_ops::DeleteFileTool));
+
+        // Workflow 工具 (3)
+        registry.register(Box::new(workflow_tools::CreateCheckpointTool::new()));
+        registry.register(Box::new(workflow_tools::RestoreCheckpointTool::new()));
+        registry.register(Box::new(workflow_tools::ListCheckpointsTool::new()));
+
+        // Code Analysis 工具 (4)
+        registry.register(Box::new(code::GoToDefinitionTool));
+        registry.register(Box::new(code::FindReferencesTool));
+        registry.register(Box::new(code::GetHoverTool));
+        registry.register(Box::new(code::RenameSymbolTool));
+
+        // Network 工具 (2)
+        registry.register(Box::new(network::HttpRequestTool));
+        registry.register(Box::new(network::WebFetchTool));
+
+        // Memory 工具 (3)
+        registry.register(Box::new(memory_tools::SaveMemoryTool::new()));
+        registry.register(Box::new(memory_tools::QueryMemoryTool::new()));
+        registry.register(Box::new(memory_tools::ClearMemoryTool::new()));
+
+        // Data Processing 工具 (14)
+        registry.register(Box::new(data_processing::JsonParseTool));
+        registry.register(Box::new(data_processing::JsonStringifyTool));
+        registry.register(Box::new(data_processing::YamlParseTool));
+        registry.register(Box::new(data_processing::YamlStringifyTool));
+        registry.register(Box::new(data_processing::TomlParseTool));
+        registry.register(Box::new(data_processing::CsvParseTool));
+        registry.register(Box::new(data_processing::Base64EncodeTool));
+        registry.register(Box::new(data_processing::Base64DecodeTool));
+        registry.register(Box::new(data_processing::UrlEncodeTool));
+        registry.register(Box::new(data_processing::UrlDecodeTool));
+        registry.register(Box::new(data_processing::HashTool));
+        registry.register(Box::new(data_processing::UuidGenerateTool));
+
+        // Network Tools (6)
+        registry.register(Box::new(network_tools::HttpGetTool));
+        registry.register(Box::new(network_tools::HttpPostTool));
+        registry.register(Box::new(network_tools::DownloadFileTool));
+        registry.register(Box::new(network_tools::PingTool));
+        registry.register(Box::new(network_tools::DnsLookupTool));
+
+        // Git Tools (8)
+        registry.register(Box::new(git_tools::GitStatusTool));
+        registry.register(Box::new(git_tools::GitLogTool));
+        registry.register(Box::new(git_tools::GitDiffTool));
+        registry.register(Box::new(git_tools::GitBranchTool));
+        registry.register(Box::new(git_tools::GitAddTool));
+        registry.register(Box::new(git_tools::GitCommitTool));
+        registry.register(Box::new(git_tools::GitShowTool));
+        registry.register(Box::new(git_tools::GitStashTool));
+
+        // System Tools (8)
+        registry.register(Box::new(system_tools::GetEnvTool));
+        registry.register(Box::new(system_tools::ListEnvTool));
+        registry.register(Box::new(system_tools::SetEnvTool));
+        registry.register(Box::new(system_tools::GetCwdTool));
+        registry.register(Box::new(system_tools::ChangeDirTool));
+        registry.register(Box::new(system_tools::SystemInfoTool));
+        registry.register(Box::new(system_tools::ProcessListTool));
+        registry.register(Box::new(system_tools::DiskUsageTool));
+        registry.register(Box::new(system_tools::MemoryUsageTool));
+
+        // Text Processing Tools (7)
+        registry.register(Box::new(text_tools::CountLinesTool));
+        registry.register(Box::new(text_tools::WordFrequencyTool));
+        registry.register(Box::new(text_tools::TextTransformTool));
+        registry.register(Box::new(text_tools::TextSplitTool));
+        registry.register(Box::new(text_tools::RegexMatchTool));
+        registry.register(Box::new(text_tools::TextDiffTool));
+        registry.register(Box::new(text_tools::SortLinesTool));
 
         registry
     }
@@ -158,7 +242,11 @@ pub const CODE_TOOLS: &[&str] = &[
 
 pub const MEMORY_TOOLS: &[&str] = &["save_memory", "load_memory", "query_memory", "clear_memory"];
 
-pub const WORKFLOW_TOOLS: &[&str] = &["create_checkpoint", "restore_checkpoint", "create_subtask"];
+pub const WORKFLOW_TOOLS: &[&str] = &[
+    "create_checkpoint",
+    "restore_checkpoint",
+    "list_checkpoints",
+];
 
 #[cfg(test)]
 mod tests {

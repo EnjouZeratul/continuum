@@ -287,8 +287,7 @@ mod tests {
 
     #[test]
     fn test_partial_forbidden_pattern() {
-        let validator = InputValidator::new()
-            .add_forbidden_pattern("dangerous".to_string());
+        let validator = InputValidator::new().add_forbidden_pattern("dangerous".to_string());
 
         // 部分匹配应该被检测到
         let result = validator.validate("This is dangerous!").unwrap();

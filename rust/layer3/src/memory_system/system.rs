@@ -5,6 +5,7 @@
 use crate::memory_system::{session::SessionMemory, working::WorkingMemory, MemoryStore};
 use crate::types::{Layer3Result, MemoryEntry, MemoryQuery, MemoryTier};
 use async_trait::async_trait;
+use sh_layer2::generate_short_id;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -68,7 +69,7 @@ impl UnifiedMemorySystem {
         content: impl Into<String>,
     ) -> Layer3Result<String> {
         let entry = MemoryEntry {
-            id: uuid::Uuid::new_v4().to_string()[..8].to_string(),
+            id: generate_short_id(),
             tier,
             content: content.into(),
             metadata: Default::default(),

@@ -18,6 +18,19 @@ pub struct RateLimitConfig {
     pub requests_per_hour: u32,
     /// Burst 大小（突发流量）
     pub burst_size: u32,
+    /// 分钟窗口容量上限（防止内存无限增长）
+    #[serde(default = "default_minute_capacity")]
+    pub minute_window_capacity: usize,
+    /// 小时窗口容量上限
+    #[serde(default = "default_hour_capacity")]
+    pub hour_window_capacity: usize,
+}
+
+fn default_minute_capacity() -> usize {
+    1000
+}
+fn default_hour_capacity() -> usize {
+    10000
 }
 
 impl Default for RateLimitConfig {
@@ -27,6 +40,8 @@ impl Default for RateLimitConfig {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 20,
+            minute_window_capacity: 1000,
+            hour_window_capacity: 10000,
         }
     }
 }
@@ -87,6 +102,10 @@ struct SlidingWindowCounter {
     minute_requests: Vec<Instant>,
     /// 最近一小时的请求时间戳
     hour_requests: Vec<Instant>,
+    /// 分钟窗口容量上限
+    minute_capacity: usize,
+    /// 小时窗口容量上限
+    hour_capacity: usize,
 }
 
 impl SlidingWindowCounter {
@@ -94,6 +113,17 @@ impl SlidingWindowCounter {
         Self {
             minute_requests: Vec::new(),
             hour_requests: Vec::new(),
+            minute_capacity: 1000, // 默认上限
+            hour_capacity: 10000,  // 默认上限
+        }
+    }
+
+    fn with_capacity(minute_capacity: usize, hour_capacity: usize) -> Self {
+        Self {
+            minute_requests: Vec::new(),
+            hour_requests: Vec::new(),
+            minute_capacity,
+            hour_capacity,
         }
     }
 
@@ -107,6 +137,16 @@ impl SlidingWindowCounter {
             .retain(|t| t.elapsed() < Duration::from_secs(60));
         self.hour_requests
             .retain(|t| t.elapsed() < Duration::from_secs(3600));
+
+        // 如果超过容量上限，强制截断（保留最新的）
+        if self.minute_requests.len() > self.minute_capacity {
+            let excess = self.minute_requests.len() - self.minute_capacity;
+            self.minute_requests.drain(0..excess);
+        }
+        if self.hour_requests.len() > self.hour_capacity {
+            let excess = self.hour_requests.len() - self.hour_capacity;
+            self.hour_requests.drain(0..excess);
+        }
     }
 
     fn minute_count(&self) -> usize {
@@ -125,7 +165,7 @@ impl RateLimiter {
 
     pub fn with_config(config: RateLimitConfig) -> Self {
         Self {
-            config,
+            config: config.clone(),
             buckets: DashMap::new(),
             counters: DashMap::new(),
         }
@@ -150,10 +190,12 @@ impl RateLimiter {
 
         // 检查滑动窗口（分钟和小时限制）
         let window_result = {
+            let minute_cap = self.config.minute_window_capacity;
+            let hour_cap = self.config.hour_window_capacity;
             let mut counter = self
                 .counters
                 .entry(key.to_string())
-                .or_insert_with(SlidingWindowCounter::new);
+                .or_insert_with(|| SlidingWindowCounter::with_capacity(minute_cap, hour_cap));
 
             let minute_exceeded =
                 counter.minute_count() >= self.config.requests_per_minute as usize;
@@ -261,6 +303,7 @@ mod tests {
             requests_per_minute: 2,
             requests_per_hour: 3,
             burst_size: 2,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -279,6 +322,7 @@ mod tests {
             requests_per_minute: 1000,
             requests_per_hour: 10000,
             burst_size: 50,
+            ..Default::default()
         };
         let limiter = Arc::new(RateLimiter::with_config(config));
 
@@ -313,6 +357,7 @@ mod tests {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 10,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -344,6 +389,7 @@ mod tests {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 5,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -372,6 +418,7 @@ mod tests {
             requests_per_minute: 1,
             requests_per_hour: 1,
             burst_size: 1,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -391,6 +438,7 @@ mod tests {
             requests_per_minute: 1,
             requests_per_hour: 1,
             burst_size: 1,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -417,6 +465,7 @@ mod tests {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 20,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -481,6 +530,7 @@ mod tests {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 2,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -506,6 +556,7 @@ mod tests {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 1,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -523,6 +574,7 @@ mod tests {
             requests_per_minute: 100000,
             requests_per_hour: 1000000,
             burst_size: 1000,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -534,7 +586,10 @@ mod tests {
                     success_count += 1;
                 }
             }
-            assert!(success_count >= 400, "Should allow most requests with large burst");
+            assert!(
+                success_count >= 400,
+                "Should allow most requests with large burst"
+            );
         });
     }
 
@@ -556,9 +611,19 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             // 特殊字符键
-            let special_keys = vec!["key:with:colons", "key-with-dashes", "key_with_underscores", "key.with.dots", "key/with/slashes"];
+            let special_keys = vec![
+                "key:with:colons",
+                "key-with-dashes",
+                "key_with_underscores",
+                "key.with.dots",
+                "key/with/slashes",
+            ];
             for key in special_keys {
-                assert!(limiter.check(key).await.unwrap(), "Key '{}' should work", key);
+                assert!(
+                    limiter.check(key).await.unwrap(),
+                    "Key '{}' should work",
+                    key
+                );
             }
         });
     }
@@ -614,6 +679,7 @@ mod tests {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 5,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -626,7 +692,11 @@ mod tests {
         }
 
         // 应该受到 burst_size 限制
-        assert!(success_count <= 7, "Expected ~5 successful requests, got {}", success_count);
+        assert!(
+            success_count <= 7,
+            "Expected ~5 successful requests, got {}",
+            success_count
+        );
     }
 
     #[test]
@@ -653,6 +723,7 @@ mod tests {
             requests_per_minute: 100,
             requests_per_hour: 1000,
             burst_size: 10,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 
@@ -692,6 +763,7 @@ mod tests {
             requests_per_minute: 10000,
             requests_per_hour: 100000,
             burst_size: 10,
+            ..Default::default()
         };
         let limiter = RateLimiter::with_config(config);
 

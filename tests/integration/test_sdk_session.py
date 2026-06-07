@@ -77,7 +77,8 @@ class TestSessionCreation:
         """测试不传 ID 时自动生成唯一 ID"""
         from continuum_sdk.agent import Agent
 
-        agent = Agent(api_key="test-key")
+        # Disable Rust bindings to test Python session ID generation
+        agent = Agent(api_key="test-key", _use_rust=False)
         # 不传 ID，让系统自动生成唯一 ID
         session1 = agent.create_session()
         session2 = agent.create_session()

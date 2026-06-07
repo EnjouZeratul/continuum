@@ -39,6 +39,7 @@ htmlcov/
 # Rust build artifacts
 target/
 *.pdb
+*.pyd
 
 # Project specific
 .egg/

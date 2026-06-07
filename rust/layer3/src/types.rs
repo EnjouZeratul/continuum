@@ -127,6 +127,12 @@ pub enum ToolCategory {
     Workflow,
     /// 系统/进程管理
     System,
+    /// 数据处理（JSON/YAML/CSV等）
+    DataProcessing,
+    /// 文本处理（统计、转换等）
+    TextProcessing,
+    /// 版本控制（Git等）
+    VersionControl,
     /// 其他
     Other,
 }
@@ -344,6 +350,9 @@ pub enum Layer3Error {
 
     #[error("Index error: {0}")]
     IndexError(String),
+
+    #[error("Configuration error: {0}")]
+    ConfigError(String),
 }
 
 /// Layer 3 Result 类型

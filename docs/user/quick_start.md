@@ -270,10 +270,12 @@ agent.run("记住：我的项目使用 Python 3.11")
 agent.run("我之前说使用的什么版本？")  # 会记住上下文
 
 # 保存会话
-session.save()
+session.save("my_session.json")
 
-# 恢复会话
-agent.resume_session(session.id)
+# 加载会话
+from continuum_sdk import Session
+saved_session = Session.load("my_session.json")
+agent = Agent(session=saved_session)
 ```
 
 ---
@@ -343,6 +345,58 @@ agent.get_plan_summary()
 | 工作流 | 使用 DAG 构建复杂流程 |
 | 记忆系统 | 让 Agent 记住重要信息 |
 | 多模型切换 | 在不同 AI 模型间切换 |
+| MCP集成 | 连接外部工具服务器 |
+
+### 自定义工具示例
+
+```python
+from continuum_sdk.tools import tool
+
+# 使用装饰器创建自定义工具
+@tool(name="weather", description="获取天气信息")
+async def get_weather(city: str, unit: str = "celsius") -> str:
+    """获取指定城市的天气"""
+    return f"{city} 天气: 25°{unit[0].upper()}"
+
+# 工具会自动注册，可直接使用
+```
+
+### 记忆系统示例
+
+```python
+# Illustrative - requires session context
+from continuum_sdk.api import MemorySystem
+
+memory = MemorySystem(session_id="quickstart")
+
+# 分层记忆存储
+memory.store("working", "用户偏好暗色模式")     # 当前对话
+memory.store("session", "项目使用 Python 3.11")  # 会话事实
+memory.store("project", "测试命令: pytest tests/")  # 项目知识
+
+# 查询记忆
+results = memory.query("如何运行测试?")
+print(results)  # 返回相关记忆列表
+```
+
+### MCP集成示例
+
+```python
+from continuum_sdk.tools import create_mcp_registry
+
+# 快速配置 MCP 服务器
+registry = create_mcp_registry(
+    ["filesystem", "github"],
+    root_path="/your/project"
+)
+
+# 获取工具列表
+for tool in registry.get_tools():
+    print(f"{tool.name}: {tool.description}")
+
+# 执行 MCP 工具
+result = await registry.execute("filesystem/read_file", path="README.md")
+```
 
 ### 示例项目
 

@@ -268,7 +268,8 @@ class TestCLIRunErrors:
         from continuum_sdk.agent import Agent
         from continuum_sdk.llm import LlmError
 
-        agent = Agent(api_key="test-key")
+        # Disable Rust bindings for testing
+        agent = Agent(api_key="test-key", _use_rust=False)
         agent.start()
 
         with patch.object(agent, '_get_llm_client') as mock_get_client:

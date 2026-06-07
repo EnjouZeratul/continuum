@@ -4,11 +4,13 @@
 //!
 //! **功能状态：**
 //! - `[STABLE]` FileSystem 存储 - 已完整实现
-//! - `[PLANNED]` Memory 存储 - 计划中，尚未实现
-//! - `[PLANNED]` S3 存储 - 计划中，尚未实现
+//! - `[STABLE]` Memory 存储 - 内存 HashMap 存储
+//! - `[EXPERIMENTAL]` S3 存储 - 尚未实现
 
 use anyhow::Result;
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// 存储配置
@@ -35,8 +37,8 @@ impl Default for StorageConfig {
 /// 存储类型
 ///
 /// - `FileSystem` - [STABLE] 本地文件系统存储
-/// - `Memory` - [PLANNED] 内存存储，尚未实现
-/// - `S3` - [PLANNED] S3 对象存储，尚未实现
+/// - `Memory` - [STABLE] 内存 HashMap 存储
+/// - `S3` - [EXPERIMENTAL] S3 对象存储，尚未实现
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StorageType {
     FileSystem,
@@ -47,11 +49,15 @@ pub enum StorageType {
 /// 存储引擎
 pub struct StorageEngine {
     config: StorageConfig,
+    memory: RwLock<HashMap<String, Vec<u8>>>,
 }
 
 impl StorageEngine {
     pub fn new(config: StorageConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            memory: RwLock::new(HashMap::new()),
+        }
     }
 
     /// 读取数据
@@ -62,16 +68,13 @@ impl StorageEngine {
                 let data = tokio::fs::read(&path).await?;
                 Ok(data)
             }
-            StorageType::Memory => {
-                Err(anyhow::anyhow!(
-                    "Memory storage is planned but not yet implemented. Use StorageType::FileSystem instead."
-                ))
-            }
-            StorageType::S3 => {
-                Err(anyhow::anyhow!(
-                    "S3 storage is planned but not yet implemented. Use StorageType::FileSystem instead."
-                ))
-            }
+            StorageType::Memory => self
+                .memory
+                .read()
+                .get(key)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("Memory storage key not found: {}", key)),
+            StorageType::S3 => Err(Self::s3_unimplemented("read", key)),
         }
     }
 
@@ -89,12 +92,11 @@ impl StorageEngine {
                 tokio::fs::write(&path, data).await?;
                 Ok(())
             }
-            StorageType::Memory => Err(anyhow::anyhow!(
-                "Memory storage is planned but not yet implemented. Use StorageType::FileSystem instead."
-            )),
-            StorageType::S3 => Err(anyhow::anyhow!(
-                "S3 storage is planned but not yet implemented. Use StorageType::FileSystem instead."
-            )),
+            StorageType::Memory => {
+                self.memory.write().insert(key.to_string(), data.to_vec());
+                Ok(())
+            }
+            StorageType::S3 => Err(Self::s3_unimplemented("write", key)),
         }
     }
 
@@ -106,12 +108,11 @@ impl StorageEngine {
                 tokio::fs::remove_file(&path).await?;
                 Ok(())
             }
-            StorageType::Memory => Err(anyhow::anyhow!(
-                "Memory storage is planned but not yet implemented."
-            )),
-            StorageType::S3 => Err(anyhow::anyhow!(
-                "S3 storage is planned but not yet implemented."
-            )),
+            StorageType::Memory => {
+                self.memory.write().remove(key);
+                Ok(())
+            }
+            StorageType::S3 => Err(Self::s3_unimplemented("delete", key)),
         }
     }
 
@@ -122,12 +123,8 @@ impl StorageEngine {
                 let path = PathBuf::from(&self.config.base_path).join(key);
                 Ok(path.exists())
             }
-            StorageType::Memory => Err(anyhow::anyhow!(
-                "Memory storage is planned but not yet implemented."
-            )),
-            StorageType::S3 => Err(anyhow::anyhow!(
-                "S3 storage is planned but not yet implemented."
-            )),
+            StorageType::Memory => Ok(self.memory.read().contains_key(key)),
+            StorageType::S3 => Err(Self::s3_unimplemented("exists", key)),
         }
     }
 
@@ -149,13 +146,23 @@ impl StorageEngine {
 
                 Ok(entries)
             }
-            StorageType::Memory => Err(anyhow::anyhow!(
-                "Memory storage is planned but not yet implemented."
-            )),
-            StorageType::S3 => Err(anyhow::anyhow!(
-                "S3 storage is planned but not yet implemented."
-            )),
+            StorageType::Memory => Ok(self
+                .memory
+                .read()
+                .keys()
+                .filter(|key| key.starts_with(prefix))
+                .cloned()
+                .collect()),
+            StorageType::S3 => Err(Self::s3_unimplemented("list", prefix)),
         }
+    }
+
+    fn s3_unimplemented(operation: &str, key: &str) -> anyhow::Error {
+        anyhow::anyhow!(
+            "[experimental] S3 storage operation '{}' is not yet implemented (key: {})",
+            operation,
+            key
+        )
     }
 }
 
@@ -232,16 +239,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_memory_storage_not_implemented() {
+    async fn test_memory_storage_write_read_list_delete() {
         let config = StorageConfig {
             storage_type: StorageType::Memory,
             ..Default::default()
         };
         let engine = StorageEngine::new(config);
 
-        let result = engine.read("test").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("planned"));
+        engine.write("test/a.txt", b"hello").await.unwrap();
+        engine.write("other.txt", b"world").await.unwrap();
+
+        assert_eq!(engine.read("test/a.txt").await.unwrap(), b"hello");
+        assert!(engine.exists("test/a.txt").await.unwrap());
+        assert_eq!(
+            engine.list("test/").await.unwrap(),
+            vec!["test/a.txt".to_string()]
+        );
+
+        engine.delete("test/a.txt").await.unwrap();
+        assert!(!engine.exists("test/a.txt").await.unwrap());
     }
 
     #[tokio::test]
@@ -254,6 +270,8 @@ mod tests {
 
         let result = engine.write("test", b"data").await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("planned"));
+        let error = result.unwrap_err().to_string();
+        assert!(error.contains("[experimental]"));
+        assert!(error.contains("S3 storage operation 'write'"));
     }
 }

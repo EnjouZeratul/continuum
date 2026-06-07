@@ -113,7 +113,11 @@ impl PermissionPopup {
 
     /// 选择上一个按钮
     pub fn select_prev(&mut self) {
-        self.selected = if self.selected == 0 { 2 } else { self.selected - 1 };
+        self.selected = if self.selected == 0 {
+            2
+        } else {
+            self.selected - 1
+        };
     }
 
     /// 选择 Allow
@@ -176,14 +180,12 @@ impl PermissionPopup {
                 PermissionAction::None
             }
             // Enter 确认当前选择
-            KeyCode::Enter => {
-                match self.selected {
-                    0 => PermissionAction::Allow,
-                    1 => PermissionAction::Deny,
-                    2 => PermissionAction::AlwaysAllow,
-                    _ => PermissionAction::None,
-                }
-            }
+            KeyCode::Enter => match self.selected {
+                0 => PermissionAction::Allow,
+                1 => PermissionAction::Deny,
+                2 => PermissionAction::AlwaysAllow,
+                _ => PermissionAction::None,
+            },
             // 快捷键 Y - Allow
             KeyCode::Char('y') | KeyCode::Char('Y') => {
                 self.select_allow();
@@ -256,11 +258,11 @@ impl PermissionPopup {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(2),  // 工具名称和动作
-                Constraint::Min(4),     // 参数详情
-                Constraint::Length(1),  // 来源
-                Constraint::Length(3),  // 按钮
-                Constraint::Length(1),  // 快捷键提示
+                Constraint::Length(2), // 工具名称和动作
+                Constraint::Min(4),    // 参数详情
+                Constraint::Length(1), // 来源
+                Constraint::Length(3), // 按钮
+                Constraint::Length(1), // 快捷键提示
             ])
             .split(inner_area);
 
@@ -268,11 +270,18 @@ impl PermissionPopup {
         let header_style = match request.risk_level {
             PermissionRisk::Low => Style::default().fg(self.theme.foreground),
             PermissionRisk::Medium => Style::default().fg(self.theme.warning_message),
-            PermissionRisk::High => Style::default().fg(self.theme.error_message).add_modifier(Modifier::BOLD),
+            PermissionRisk::High => Style::default()
+                .fg(self.theme.error_message)
+                .add_modifier(Modifier::BOLD),
         };
 
         let header = Paragraph::new(Line::from(vec![
-            Span::styled(&request.tool_name, Style::default().fg(self.theme.function).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                &request.tool_name,
+                Style::default()
+                    .fg(self.theme.function)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(": "),
             Span::styled(&request.action, header_style),
         ]))
@@ -283,7 +292,12 @@ impl PermissionPopup {
         let params_lines = self.format_parameters(&request.parameters, chunks[1].width as usize);
         let params: Vec<Line> = params_lines
             .iter()
-            .map(|line| Line::from(Span::styled(line, Style::default().fg(self.theme.punctuation))))
+            .map(|line| {
+                Line::from(Span::styled(
+                    line,
+                    Style::default().fg(self.theme.punctuation),
+                ))
+            })
             .collect();
 
         let params_widget = Paragraph::new(params)
@@ -304,11 +318,26 @@ impl PermissionPopup {
 
         // 渲染快捷键提示
         let hints = Paragraph::new(Line::from(vec![
-            Span::styled("[Y]", Style::default().fg(self.theme.success_message).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "[Y]",
+                Style::default()
+                    .fg(self.theme.success_message)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" 允许  "),
-            Span::styled("[N/Esc]", Style::default().fg(self.theme.error_message).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "[N/Esc]",
+                Style::default()
+                    .fg(self.theme.error_message)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" 拒绝  "),
-            Span::styled("[A]", Style::default().fg(self.theme.warning_message).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "[A]",
+                Style::default()
+                    .fg(self.theme.warning_message)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" 始终允许  "),
             Span::styled("[←→]", Style::default().fg(self.theme.comment)),
             Span::raw(" 切换"),
@@ -325,7 +354,11 @@ impl PermissionPopup {
                 1,
             );
             let error = Paragraph::new(error.as_str())
-                .style(Style::default().fg(self.theme.error_message).add_modifier(Modifier::BOLD))
+                .style(
+                    Style::default()
+                        .fg(self.theme.error_message)
+                        .add_modifier(Modifier::BOLD),
+                )
                 .alignment(Alignment::Center);
             f.render_widget(error, error_area);
         }
@@ -393,7 +426,8 @@ impl PermissionPopup {
 
         // 尝试解析 JSON 并格式化
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(params) {
-            let formatted = serde_json::to_string_pretty(&json).unwrap_or_else(|_| params.to_string());
+            let formatted =
+                serde_json::to_string_pretty(&json).unwrap_or_else(|_| params.to_string());
             formatted
                 .lines()
                 .flat_map(|line| self.wrap_line(line, max_width))
@@ -419,7 +453,7 @@ impl PermissionPopup {
         while remaining.len() > max_width {
             // 尝试在合适的位置断开（逗号、空格等）
             let break_pos = remaining[..max_width]
-                .rfind(|c| c == ',' || c == ' ')
+                .rfind([',', ' '])
                 .unwrap_or(max_width - 1);
 
             result.push(remaining[..=break_pos].to_string());

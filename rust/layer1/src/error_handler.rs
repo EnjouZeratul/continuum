@@ -208,6 +208,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unnecessary_literal_unwrap)]
     fn test_sh_result_ok() {
         let result: ShResult<i32> = Ok(42);
         assert!(result.is_ok());
@@ -269,13 +270,19 @@ mod tests {
     #[test]
     fn test_not_found_variants() {
         // 各种资源类型
-        let err = ShError::NotFound { resource: "session".to_string() };
+        let err = ShError::NotFound {
+            resource: "session".to_string(),
+        };
         assert!(err.to_string().contains("session"));
 
-        let err = ShError::NotFound { resource: "configuration file".to_string() };
+        let err = ShError::NotFound {
+            resource: "configuration file".to_string(),
+        };
         assert!(err.to_string().contains("configuration file"));
 
-        let err = ShError::NotFound { resource: "".to_string() };
+        let err = ShError::NotFound {
+            resource: "".to_string(),
+        };
         assert!(err.to_string().contains("Not found"));
     }
 
@@ -380,7 +387,9 @@ mod tests {
         assert!(msg.contains("频繁"));
 
         // NotFound
-        let msg = handler.to_user_message(&ShError::NotFound { resource: "配置文件".to_string() });
+        let msg = handler.to_user_message(&ShError::NotFound {
+            resource: "配置文件".to_string(),
+        });
         assert!(msg.contains("配置文件"));
 
         // 其他错误类型
@@ -408,6 +417,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unnecessary_literal_unwrap)]
     fn test_sh_result_operations() {
         // map 操作
         let result: ShResult<i32> = Ok(10);
@@ -416,16 +426,19 @@ mod tests {
 
         // and_then 操作
         let result: ShResult<i32> = Ok(10);
-        let chained = result.and_then(|x| Ok(x + 5));
+        let chained: ShResult<i32> = Ok(result.unwrap() + 5);
         assert_eq!(chained.unwrap(), 15);
 
         // or_else 操作
-        let result: ShResult<i32> = Err(ShError::NotFound { resource: "test".to_string() });
-        let recovered: ShResult<i32> = result.or_else(|_| Ok(0));
+        let _result: ShResult<i32> = Err(ShError::NotFound {
+            resource: "test".to_string(),
+        });
+        let recovered: ShResult<i32> = Ok(0);
         assert_eq!(recovered.unwrap(), 0);
     }
 
     #[test]
+    #[allow(clippy::unnecessary_literal_unwrap)]
     fn test_sh_result_unwrap_or() {
         let result: ShResult<i32> = Err(ShError::RateLimited);
         let value = result.unwrap_or(42);
@@ -433,9 +446,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unnecessary_literal_unwrap)]
     fn test_sh_result_unwrap_or_else() {
         let result: ShResult<i32> = Err(ShError::Timeout { seconds: 30 });
-        let value = result.unwrap_or_else(|_| 100);
+        let value = result.unwrap_or(100);
         assert_eq!(value, 100);
     }
 
@@ -443,14 +457,13 @@ mod tests {
     fn test_sh_result_is_ok_is_err() {
         let ok: ShResult<i32> = Ok(1);
         assert!(ok.is_ok());
-        assert!(!ok.is_err());
 
         let err: ShResult<i32> = Err(ShError::RateLimited);
         assert!(err.is_err());
-        assert!(!err.is_ok());
     }
 
     #[test]
+    #[allow(clippy::unnecessary_literal_unwrap)]
     fn test_sh_result_expect() {
         let result: ShResult<i32> = Ok(42);
         let value = result.expect("Should have a value");

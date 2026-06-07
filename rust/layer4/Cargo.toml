@@ -25,10 +25,23 @@ tracing.workspace = true
 chrono.workspace = true
 uuid.workspace = true
 parking_lot.workspace = true
+libloading.workspace = true
+wasmtime.workspace = true
+wasmtime-wasi = { version = "25", features = ["preview1"] }
+abi_stable.workspace = true
+
+# HTTP 客户端
+reqwest.workspace = true
+
+# WebSocket 客户端
+tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+futures.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
 continuum = { path = "../../cli" }
+sh-layer1 = { path = "../layer1" }
+sh-layer2 = { path = "../layer2" }
 
 [[test]]
 name = "integration_llm"

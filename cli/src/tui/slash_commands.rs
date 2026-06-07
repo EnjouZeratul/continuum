@@ -469,8 +469,7 @@ impl CommandParser {
             let part = parts[i];
 
             // 检查是否是命名参数 (--key value 或 -k value)
-            if part.starts_with("--") {
-                let key = &part[2..];
+            if let Some(key) = part.strip_prefix("--") {
                 if i + 1 < parts.len() && !parts[i + 1].starts_with('-') {
                     args.insert(key.to_string(), parts[i + 1].to_string());
                     i += 2;

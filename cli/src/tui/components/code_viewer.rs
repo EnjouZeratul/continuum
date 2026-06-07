@@ -104,17 +104,10 @@ impl CodeLanguage {
 }
 
 /// 语法高亮器
+#[derive(Default)]
 pub struct SyntaxHighlighter {
     /// 颜色主题
     theme: ColorTheme,
-}
-
-impl Default for SyntaxHighlighter {
-    fn default() -> Self {
-        Self {
-            theme: ColorTheme::dark(),
-        }
-    }
 }
 
 impl SyntaxHighlighter {
@@ -196,9 +189,9 @@ impl SyntaxHighlighter {
                         .add_modifier(Modifier::BOLD)
                 } else if self.is_type(&word, language) {
                     Style::default().fg(self.theme.type_name)
-                } else if self.is_builtin(&word, language) {
-                    Style::default().fg(self.theme.function)
-                } else if end < chars.len() && chars[end] == '(' {
+                } else if self.is_builtin(&word, language)
+                    || (end < chars.len() && chars[end] == '(')
+                {
                     Style::default().fg(self.theme.function)
                 } else if SyntaxHighlighter::is_constant(&word) {
                     Style::default()
@@ -271,31 +264,133 @@ impl SyntaxHighlighter {
     fn is_constant(word: &str) -> bool {
         // 全大写或已知常量
         word.chars().all(|c| c.is_uppercase() || c == '_')
-            || matches!(word, "None" | "null" | "nil" | "undefined" | "NaN" | "Infinity")
+            || matches!(
+                word,
+                "None" | "null" | "nil" | "undefined" | "NaN" | "Infinity"
+            )
     }
 
     fn is_builtin(&self, word: &str, language: CodeLanguage) -> bool {
         let builtins = match language {
             CodeLanguage::Python => &[
-                "print", "len", "range", "enumerate", "zip", "map", "filter", "sorted", "reversed",
-                "min", "max", "sum", "abs", "round", "int", "float", "str", "bool", "list", "dict",
-                "set", "tuple", "open", "input", "type", "isinstance", "hasattr", "getattr",
-                "setattr", "delattr", "property", "staticmethod", "classmethod", "super",
-                "isinstance", "issubclass", "callable", "iter", "next", "repr", "hash", "id",
-                "dir", "vars", "locals", "globals", "exec", "eval", "compile", "__import__",
+                "print",
+                "len",
+                "range",
+                "enumerate",
+                "zip",
+                "map",
+                "filter",
+                "sorted",
+                "reversed",
+                "min",
+                "max",
+                "sum",
+                "abs",
+                "round",
+                "int",
+                "float",
+                "str",
+                "bool",
+                "list",
+                "dict",
+                "set",
+                "tuple",
+                "open",
+                "input",
+                "type",
+                "isinstance",
+                "hasattr",
+                "getattr",
+                "setattr",
+                "delattr",
+                "property",
+                "staticmethod",
+                "classmethod",
+                "super",
+                "isinstance",
+                "issubclass",
+                "callable",
+                "iter",
+                "next",
+                "repr",
+                "hash",
+                "id",
+                "dir",
+                "vars",
+                "locals",
+                "globals",
+                "exec",
+                "eval",
+                "compile",
+                "__import__",
             ] as &[&str],
             CodeLanguage::Rust => &[
-                "println", "print", "format", "vec", "String", "Box", "Rc", "Arc", "Some", "None",
-                "Ok", "Err", "panic", "assert", "assert_eq", "assert_ne", "debug_assert",
-                "debug_assert_eq", "debug_assert_ne", "todo", "unimplemented", "unreachable",
-                "cfg", "include", "include_str", "concat", "env", "option_env", "panic",
+                "println",
+                "print",
+                "format",
+                "vec",
+                "String",
+                "Box",
+                "Rc",
+                "Arc",
+                "Some",
+                "None",
+                "Ok",
+                "Err",
+                "panic",
+                "assert",
+                "assert_eq",
+                "assert_ne",
+                "debug_assert",
+                "debug_assert_eq",
+                "debug_assert_ne",
+                "todo",
+                "unimplemented",
+                "unreachable",
+                "cfg",
+                "include",
+                "include_str",
+                "concat",
+                "env",
+                "option_env",
+                "panic",
             ],
             CodeLanguage::JavaScript | CodeLanguage::TypeScript => &[
-                "console", "log", "alert", "confirm", "prompt", "parseInt", "parseFloat",
-                "Number", "String", "Boolean", "Array", "Object", "Map", "Set", "WeakMap",
-                "WeakSet", "Date", "RegExp", "Error", "TypeError", "ReferenceError", "JSON",
-                "Math", "Promise", "Symbol", "Proxy", "Reflect", "setTimeout", "setInterval",
-                "clearTimeout", "clearInterval", "fetch", "require", "exports", "module",
+                "console",
+                "log",
+                "alert",
+                "confirm",
+                "prompt",
+                "parseInt",
+                "parseFloat",
+                "Number",
+                "String",
+                "Boolean",
+                "Array",
+                "Object",
+                "Map",
+                "Set",
+                "WeakMap",
+                "WeakSet",
+                "Date",
+                "RegExp",
+                "Error",
+                "TypeError",
+                "ReferenceError",
+                "JSON",
+                "Math",
+                "Promise",
+                "Symbol",
+                "Proxy",
+                "Reflect",
+                "setTimeout",
+                "setInterval",
+                "clearTimeout",
+                "clearInterval",
+                "fetch",
+                "require",
+                "exports",
+                "module",
             ],
             _ => &[],
         };

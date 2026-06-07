@@ -157,12 +157,12 @@ impl StatusComponent {
 
         // Debug mode indicator
         let debug_indicator = if self.debug_mode {
-            vec![
-                Span::styled(
-                    " [DEBUG] ",
-                    Style::default().fg(self.theme.background).bg(self.theme.warning_message),
-                ),
-            ]
+            vec![Span::styled(
+                " [DEBUG] ",
+                Style::default()
+                    .fg(self.theme.background)
+                    .bg(self.theme.warning_message),
+            )]
         } else {
             vec![]
         };

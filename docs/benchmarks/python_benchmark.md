@@ -1,5 +1,9 @@
 # Python SDK 性能基准报告
 
+> **Note**: These benchmarks were run on a specific development machine (Windows 10, Python 3.14).
+> Results are provided as reference points, not reproducible scientific measurements.
+> "Rust expected" values in the comparison table are theoretical estimates, not measured.
+
 **测试时间:** 2026-05-12
 **测试环境:** Windows 10, Python 3.14
 **测试框架:** 自定义计时器 (time.perf_counter)

@@ -6,19 +6,21 @@ use ratatui::{
 };
 
 use super::app::App;
-use super::components::{ChatComponent, InputComponent, KeyHintsComponent, StatusComponent, ToolDisplayComponent};
+use super::components::{
+    ChatComponent, InputComponent, KeyHintsComponent, StatusComponent, ToolDisplayComponent,
+};
+
+/// UI 渲染上下文，封装所有需要渲染的组件
+pub struct RenderContext<'a> {
+    pub chat: &'a mut ChatComponent,
+    pub input: &'a mut InputComponent,
+    pub status: &'a StatusComponent,
+    pub tools: &'a ToolDisplayComponent,
+    pub key_hints: &'a KeyHintsComponent,
+}
 
 /// 渲染 TUI 界面
-pub fn render(
-    f: &mut Frame,
-    _app: &App,
-    chat: &mut ChatComponent,
-    input: &mut InputComponent,
-    status: &StatusComponent,
-    tools: &ToolDisplayComponent,
-    key_hints: &KeyHintsComponent,
-    show_tools: bool,
-) {
+pub fn render(f: &mut Frame, _app: &App, ctx: RenderContext<'_>, show_tools: bool) {
     // 工具显示的高度（折叠模式为1行统计）
     let tools_height = if show_tools { 4 } else { 0 };
 
@@ -34,21 +36,21 @@ pub fn render(
         .split(f.area());
 
     // 渲染状态栏
-    render_status(f, chunks[0], status);
+    render_status(f, chunks[0], ctx.status);
 
     // 渲染聊天区域
-    render_chat(f, chunks[1], chat);
+    render_chat(f, chunks[1], ctx.chat);
 
     // 工具显示区域
     if show_tools {
-        render_tools_collapsed(f, chunks[2], tools);
+        render_tools_collapsed(f, chunks[2], ctx.tools);
     }
 
     // 渲染输入区域
-    render_input(f, chunks[3], input);
+    render_input(f, chunks[3], ctx.input);
 
     // 渲染快捷键提示栏
-    render_key_hints(f, chunks[4], key_hints);
+    render_key_hints(f, chunks[4], ctx.key_hints);
 }
 
 /// 渲染状态栏

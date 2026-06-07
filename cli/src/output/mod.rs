@@ -5,7 +5,6 @@ pub mod loader;
 pub mod streaming;
 pub mod terminal_colors;
 
-
 /// 输出处理器 trait
 pub trait OutputHandler: Send + Sync {
     fn handle(&self, output: &str) -> anyhow::Result<()>;

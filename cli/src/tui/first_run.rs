@@ -13,6 +13,12 @@ pub struct FirstRunState {
     pub tutorial_completed: bool,
     /// 是否已显示欢迎信息
     pub welcome_shown: bool,
+    /// 是否已完成配置向导
+    pub setup_completed: bool,
+    /// 是否跳过了配置向导
+    pub setup_skipped: bool,
+    /// 检测到的提供商
+    pub detected_provider: Option<String>,
     /// 用户配置目录
     config_dir: PathBuf,
 }
@@ -31,6 +37,9 @@ impl FirstRunState {
                 is_first_run: true,
                 tutorial_completed: false,
                 welcome_shown: false,
+                setup_completed: false,
+                setup_skipped: false,
+                detected_provider: None,
                 config_dir,
             }
         };
@@ -57,8 +66,16 @@ impl FirstRunState {
 
         Ok(Self {
             is_first_run: false,
-            tutorial_completed: lines.iter().any(|l| l.starts_with("tutorial_completed=true")),
+            tutorial_completed: lines
+                .iter()
+                .any(|l| l.starts_with("tutorial_completed=true")),
             welcome_shown: lines.iter().any(|l| l.starts_with("welcome_shown=true")),
+            setup_completed: lines.iter().any(|l| l.starts_with("setup_completed=true")),
+            setup_skipped: lines.iter().any(|l| l.starts_with("setup_skipped=true")),
+            detected_provider: lines
+                .iter()
+                .find(|l| l.starts_with("detected_provider="))
+                .and_then(|l| l.strip_prefix("detected_provider=").map(|s| s.to_string())),
             config_dir,
         })
     }
@@ -69,8 +86,12 @@ impl FirstRunState {
 
         let state_file = self.config_dir.join(".first_run");
         let content = format!(
-            "tutorial_completed={}\nwelcome_shown={}\n",
-            self.tutorial_completed, self.welcome_shown
+            "tutorial_completed={}\nwelcome_shown={}\nsetup_completed={}\nsetup_skipped={}\ndetected_provider={}\n",
+            self.tutorial_completed,
+            self.welcome_shown,
+            self.setup_completed,
+            self.setup_skipped,
+            self.detected_provider.as_deref().unwrap_or("")
         );
 
         fs::write(state_file, content)?;
@@ -95,6 +116,26 @@ impl FirstRunState {
         self.is_first_run = false;
         self.welcome_shown = true;
         self.save()
+    }
+
+    /// 标记配置向导已完成
+    pub fn mark_setup_completed(&mut self, provider: &str) -> Result<()> {
+        self.setup_completed = true;
+        self.setup_skipped = false;
+        self.detected_provider = Some(provider.to_string());
+        self.is_first_run = false;
+        self.save()
+    }
+
+    /// 标记配置向导已跳过
+    pub fn mark_setup_skipped(&mut self) -> Result<()> {
+        self.setup_skipped = true;
+        self.save()
+    }
+
+    /// 检查是否需要配置
+    pub fn needs_setup(&self) -> bool {
+        !self.setup_completed && !self.setup_skipped
     }
 
     /// 获取欢迎消息
@@ -128,6 +169,9 @@ impl Default for FirstRunState {
             is_first_run: true,
             tutorial_completed: false,
             welcome_shown: false,
+            setup_completed: false,
+            setup_skipped: false,
+            detected_provider: None,
             config_dir: PathBuf::from("."),
         })
     }
@@ -156,6 +200,45 @@ mod tests {
     fn test_default_state() {
         let state = FirstRunState::default();
         // May or may not be first run depending on existing config
-        assert!(state.config_dir.to_string_lossy().len() > 0);
+        assert!(!state.config_dir.to_string_lossy().is_empty());
+    }
+
+    #[test]
+    fn test_needs_setup() {
+        let mut state = FirstRunState {
+            is_first_run: true,
+            tutorial_completed: false,
+            welcome_shown: false,
+            setup_completed: false,
+            setup_skipped: false,
+            detected_provider: None,
+            config_dir: PathBuf::from("."),
+        };
+        assert!(state.needs_setup());
+
+        state.setup_completed = true;
+        assert!(!state.needs_setup());
+
+        state.setup_completed = false;
+        state.setup_skipped = true;
+        assert!(!state.needs_setup());
+    }
+
+    #[test]
+    fn test_mark_setup_completed() {
+        let mut state = FirstRunState {
+            is_first_run: true,
+            tutorial_completed: false,
+            welcome_shown: false,
+            setup_completed: false,
+            setup_skipped: false,
+            detected_provider: None,
+            config_dir: PathBuf::from("."),
+        };
+        // Note: This will fail to save but should still update state
+        let _ = state.mark_setup_completed("anthropic");
+        assert!(state.setup_completed);
+        assert!(!state.setup_skipped);
+        assert_eq!(state.detected_provider, Some("anthropic".to_string()));
     }
 }

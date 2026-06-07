@@ -9,11 +9,13 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tracing::{info, warn};
 
-use crate::streaming::{MessageStream, StreamProvider, StreamEvent, ContentDelta, CallbackStream, OnChunkCallback};
+use crate::streaming::{
+    CallbackStream, ContentDelta, MessageStream, OnChunkCallback, StreamEvent, StreamProvider,
+};
 
 /// LLM 提供商类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +23,13 @@ pub enum LlmProvider {
     Anthropic,
     OpenAI,
     Gemini,
+    AzureOpenAI,
+    Bedrock,
+    Ollama,
+    /// OpenAI-compatible provider with custom base_url (e.g. deepseek, glm, qwen, kimi, grok)
+    OpenAICompatible {
+        base_url: String,
+    },
     Custom(String),
 }
 
@@ -120,6 +129,10 @@ impl LlmClient {
             LlmProvider::Anthropic => "https://api.anthropic.com/v1".to_string(),
             LlmProvider::OpenAI => "https://api.openai.com/v1".to_string(),
             LlmProvider::Gemini => "https://generativelanguage.googleapis.com/v1".to_string(),
+            LlmProvider::AzureOpenAI => "https://YOUR_RESOURCE.openai.azure.com".to_string(),
+            LlmProvider::Bedrock => "https://bedrock-runtime.us-east-1.amazonaws.com".to_string(),
+            LlmProvider::Ollama => "http://localhost:11434".to_string(),
+            LlmProvider::OpenAICompatible { base_url } => base_url.clone(),
             LlmProvider::Custom(url) => url.clone(),
         };
 
@@ -159,11 +172,13 @@ impl LlmClient {
                     message_id = id;
                     model = m;
                 }
-                StreamEvent::ContentBlockDelta { delta, .. } => {
-                    if let ContentDelta::Text(t) = delta {
-                        content.push_str(&t);
-                    }
+                StreamEvent::ContentBlockDelta {
+                    delta: ContentDelta::Text(t),
+                    ..
+                } => {
+                    content.push_str(&t);
                 }
+                StreamEvent::ContentBlockDelta { .. } => {}
                 StreamEvent::MessageDelta { usage, .. } => {
                     input_tokens = usage.input_tokens;
                     output_tokens = usage.output_tokens;
@@ -201,27 +216,27 @@ impl LlmClient {
 
         while !abort_flag.load(Ordering::Relaxed) {
             match callback_stream.next_event().await {
-                Ok(Some(event)) => {
-                    match event {
-                        StreamEvent::MessageStart { id, model: m } => {
-                            message_id = id;
-                            model = m;
-                        }
-                        StreamEvent::ContentBlockDelta { delta, .. } => {
-                            if let ContentDelta::Text(t) = delta {
-                                content.push_str(&t);
-                            }
-                        }
-                        StreamEvent::MessageDelta { usage, .. } => {
-                            input_tokens = usage.input_tokens;
-                            output_tokens = usage.output_tokens;
-                        }
-                        StreamEvent::MessageStop => {
-                            break;
-                        }
-                        _ => {}
+                Ok(Some(event)) => match event {
+                    StreamEvent::MessageStart { id, model: m } => {
+                        message_id = id;
+                        model = m;
                     }
-                }
+                    StreamEvent::ContentBlockDelta {
+                        delta: ContentDelta::Text(t),
+                        ..
+                    } => {
+                        content.push_str(&t);
+                    }
+                    StreamEvent::ContentBlockDelta { .. } => {}
+                    StreamEvent::MessageDelta { usage, .. } => {
+                        input_tokens = usage.input_tokens;
+                        output_tokens = usage.output_tokens;
+                    }
+                    StreamEvent::MessageStop => {
+                        break;
+                    }
+                    _ => {}
+                },
                 Ok(None) => break,
                 Err(e) => {
                     if abort_flag.load(Ordering::Relaxed) {
@@ -305,11 +320,10 @@ impl LlmClient {
         while attempts < max_retries {
             attempts += 1;
 
-            match self.send_stream_with_callback(
-                messages.clone(),
-                config,
-                Box::new(|_| {}),
-            ).await {
+            match self
+                .send_stream_with_callback(messages.clone(), config, Box::new(|_| {}))
+                .await
+            {
                 Ok(response) => {
                     info!("Stream request succeeded after {} attempts", attempts);
                     return Ok(response);
@@ -347,10 +361,15 @@ impl LlmClientTrait for LlmClient {
     async fn send(&self, messages: Vec<Message>, config: &LlmRequestConfig) -> Result<LlmResponse> {
         match self.provider {
             LlmProvider::Anthropic => self.send_anthropic(messages, config).await,
-            LlmProvider::OpenAI => self.send_openai(messages, config).await,
+            LlmProvider::OpenAI | LlmProvider::OpenAICompatible { .. } => {
+                self.send_openai(messages, config).await
+            }
             LlmProvider::Gemini => self.send_gemini(messages, config).await,
+            LlmProvider::AzureOpenAI => self.send_azure_openai(messages, config).await,
+            LlmProvider::Bedrock => self.send_bedrock(messages, config).await,
+            LlmProvider::Ollama => self.send_ollama(messages, config).await,
             LlmProvider::Custom(_) => {
-                Err(anyhow!("Custom provider requires custom implementation"))
+                Err(anyhow!("Custom provider requires custom implementation. Use an OpenAI-compatible provider instead."))
             }
         }
     }
@@ -361,18 +380,15 @@ impl LlmClientTrait for LlmClient {
         config: &LlmRequestConfig,
     ) -> Result<MessageStream> {
         match self.provider {
-            LlmProvider::Anthropic => {
-                self.stream_anthropic(messages, config).await
-            }
-            LlmProvider::OpenAI => {
+            LlmProvider::Anthropic => self.stream_anthropic(messages, config).await,
+            LlmProvider::OpenAI | LlmProvider::OpenAICompatible { .. } => {
                 self.stream_openai(messages, config).await
             }
-            LlmProvider::Gemini => {
-                self.stream_gemini(messages, config).await
-            }
-            LlmProvider::Custom(_) => {
-                Err(anyhow!("Custom provider does not support streaming"))
-            }
+            LlmProvider::Gemini => self.stream_gemini(messages, config).await,
+            LlmProvider::AzureOpenAI => self.stream_azure_openai(messages, config).await,
+            LlmProvider::Bedrock => self.stream_bedrock(messages, config).await,
+            LlmProvider::Ollama => self.stream_ollama(messages, config).await,
+            LlmProvider::Custom(_) => Err(anyhow!("Custom provider does not support streaming. Use an OpenAI-compatible provider instead.")),
         }
     }
 }
@@ -482,7 +498,11 @@ impl LlmClient {
             return Err(anyhow!("Anthropic API error {}: {}", status, error_text));
         }
 
-        Ok(MessageStream::new(response, StreamProvider::Anthropic, config.model.clone()))
+        Ok(MessageStream::new(
+            response,
+            StreamProvider::Anthropic,
+            config.model.clone(),
+        ))
     }
 
     async fn send_openai(
@@ -598,7 +618,11 @@ impl LlmClient {
             return Err(anyhow!("OpenAI API error {}: {}", status, error_text));
         }
 
-        Ok(MessageStream::new(response, StreamProvider::OpenAI, config.model.clone()))
+        Ok(MessageStream::new(
+            response,
+            StreamProvider::OpenAI,
+            config.model.clone(),
+        ))
     }
 
     async fn send_gemini(
@@ -719,7 +743,423 @@ impl LlmClient {
             return Err(anyhow!("Gemini API error {}: {}", status, error_text));
         }
 
-        Ok(MessageStream::new(response, StreamProvider::Gemini, config.model.clone()))
+        Ok(MessageStream::new(
+            response,
+            StreamProvider::Gemini,
+            config.model.clone(),
+        ))
+    }
+
+    // ========================================================================
+    // Azure OpenAI 实现
+    // ========================================================================
+
+    async fn send_azure_openai(
+        &self,
+        messages: Vec<Message>,
+        config: &LlmRequestConfig,
+    ) -> Result<LlmResponse> {
+        // Azure OpenAI 使用 deployment name 而非 model name
+        // URL format: {base_url}/openai/deployments/{deployment}/chat/completions?api-version=2024-02-15-preview
+        let deployment = &config.model;
+        let url = format!(
+            "{}/openai/deployments/{}/chat/completions?api-version=2024-02-15-preview",
+            self.base_url, deployment
+        );
+
+        let mut azure_messages: Vec<OpenAiMessage> = Vec::new();
+        if let Some(ref system) = config.system_prompt {
+            azure_messages.push(OpenAiMessage {
+                role: "system",
+                content: system.clone(),
+            });
+        }
+        for m in messages {
+            azure_messages.push(OpenAiMessage {
+                role: match m.role {
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                    MessageRole::System => "system",
+                },
+                content: m.content,
+            });
+        }
+
+        let request_body = OpenAiRequest {
+            model: deployment.clone(), // Azure 使用 deployment name
+            messages: azure_messages,
+            max_tokens: Some(config.max_tokens),
+            temperature: Some(config.temperature),
+            stop: if config.stop_sequences.is_empty() {
+                None
+            } else {
+                Some(config.stop_sequences.clone())
+            },
+        };
+
+        let response = self
+            .client
+            .post(&url)
+            .header("api-key", &self.api_key) // Azure 使用 api-key header 而非 Authorization
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("Azure OpenAI API error {}: {}", status, error_text));
+        }
+
+        let response_body: OpenAiResponse = response.json().await?;
+
+        let choice = response_body
+            .choices
+            .first()
+            .ok_or_else(|| anyhow!("No response choices"))?;
+
+        Ok(LlmResponse {
+            content: choice.message.content.clone(),
+            usage: TokenUsage {
+                input_tokens: response_body.usage.prompt_tokens,
+                output_tokens: response_body.usage.completion_tokens,
+            },
+            model: response_body.model,
+            response_id: response_body.id,
+        })
+    }
+
+    async fn stream_azure_openai(
+        &self,
+        messages: Vec<Message>,
+        config: &LlmRequestConfig,
+    ) -> Result<MessageStream> {
+        let deployment = &config.model;
+        let url = format!(
+            "{}/openai/deployments/{}/chat/completions?api-version=2024-02-15-preview",
+            self.base_url, deployment
+        );
+
+        let mut azure_messages: Vec<OpenAiMessage> = Vec::new();
+        if let Some(ref system) = config.system_prompt {
+            azure_messages.push(OpenAiMessage {
+                role: "system",
+                content: system.clone(),
+            });
+        }
+        for m in messages {
+            azure_messages.push(OpenAiMessage {
+                role: match m.role {
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                    MessageRole::System => "system",
+                },
+                content: m.content,
+            });
+        }
+
+        let request_body = OpenAiStreamRequest {
+            model: deployment.clone(),
+            messages: azure_messages,
+            max_tokens: Some(config.max_tokens),
+            temperature: Some(config.temperature),
+            stream: true,
+        };
+
+        let response = self
+            .client
+            .post(&url)
+            .header("api-key", &self.api_key)
+            .header("Accept", "text/event-stream")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("Azure OpenAI API error {}: {}", status, error_text));
+        }
+
+        Ok(MessageStream::new(
+            response,
+            StreamProvider::AzureOpenAI,
+            config.model.clone(),
+        ))
+    }
+
+    // ========================================================================
+    // AWS Bedrock 实现
+    // ========================================================================
+
+    async fn send_bedrock(
+        &self,
+        messages: Vec<Message>,
+        config: &LlmRequestConfig,
+    ) -> Result<LlmResponse> {
+        // Bedrock URL: {base_url}/model/{model_id}/invoke
+        // 需要 AWS SigV4 签名认证（简化版使用 API key 作为临时方案）
+        let model_id = &config.model;
+        let url = format!("{}/model/{}/invoke", self.base_url, model_id);
+
+        // Bedrock 请求格式因模型不同而异，这里使用通用的 Converse API 格式
+        let mut bedrock_messages: Vec<BedrockMessage> = Vec::new();
+        for m in messages {
+            bedrock_messages.push(BedrockMessage {
+                role: match m.role {
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                    MessageRole::System => "system",
+                },
+                content: vec![BedrockContent { text: m.content }],
+            });
+        }
+
+        let request_body = BedrockRequest {
+            messages: bedrock_messages,
+            system: config.system_prompt.clone(),
+            inference_config: Some(BedrockInferenceConfig {
+                max_tokens: config.max_tokens,
+                temperature: config.temperature,
+                top_p: None,
+                stop_sequences: if config.stop_sequences.is_empty() {
+                    None
+                } else {
+                    Some(config.stop_sequences.clone())
+                },
+            }),
+        };
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("Bedrock API error {}: {}", status, error_text));
+        }
+
+        let response_body: BedrockResponse = response.json().await?;
+
+        let content = response_body
+            .output
+            .message
+            .content
+            .first()
+            .map(|c| c.text.clone())
+            .unwrap_or_default();
+
+        Ok(LlmResponse {
+            content,
+            usage: TokenUsage {
+                input_tokens: response_body.usage.input_tokens,
+                output_tokens: response_body.usage.output_tokens,
+            },
+            model: config.model.clone(),
+            response_id: response_body.request_id.unwrap_or_default(),
+        })
+    }
+
+    async fn stream_bedrock(
+        &self,
+        messages: Vec<Message>,
+        config: &LlmRequestConfig,
+    ) -> Result<MessageStream> {
+        let model_id = &config.model;
+        let url = format!(
+            "{}/model/{}/invoke-with-response-stream",
+            self.base_url, model_id
+        );
+
+        let mut bedrock_messages: Vec<BedrockMessage> = Vec::new();
+        for m in messages {
+            bedrock_messages.push(BedrockMessage {
+                role: match m.role {
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                    MessageRole::System => "system",
+                },
+                content: vec![BedrockContent { text: m.content }],
+            });
+        }
+
+        let request_body = BedrockRequest {
+            messages: bedrock_messages,
+            system: config.system_prompt.clone(),
+            inference_config: Some(BedrockInferenceConfig {
+                max_tokens: config.max_tokens,
+                temperature: config.temperature,
+                top_p: None,
+                stop_sequences: if config.stop_sequences.is_empty() {
+                    None
+                } else {
+                    Some(config.stop_sequences.clone())
+                },
+            }),
+        };
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Accept", "text/event-stream")
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("Bedrock API error {}: {}", status, error_text));
+        }
+
+        Ok(MessageStream::new(
+            response,
+            StreamProvider::Bedrock,
+            config.model.clone(),
+        ))
+    }
+
+    // ========================================================================
+    // Ollama (本地) 实现
+    // ========================================================================
+
+    async fn send_ollama(
+        &self,
+        messages: Vec<Message>,
+        config: &LlmRequestConfig,
+    ) -> Result<LlmResponse> {
+        // Ollama API: POST /api/chat 或 /api/generate
+        let url = format!("{}/api/chat", self.base_url);
+
+        let mut ollama_messages: Vec<OllamaMessage> = Vec::new();
+        if let Some(ref system) = config.system_prompt {
+            ollama_messages.push(OllamaMessage {
+                role: "system",
+                content: system.clone(),
+            });
+        }
+        for m in messages {
+            ollama_messages.push(OllamaMessage {
+                role: match m.role {
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                    MessageRole::System => "system",
+                },
+                content: m.content,
+            });
+        }
+
+        let request_body = OllamaChatRequest {
+            model: config.model.clone(),
+            messages: ollama_messages,
+            stream: false,
+            options: Some(OllamaOptions {
+                num_predict: config.max_tokens as i32,
+                temperature: config.temperature,
+                stop: if config.stop_sequences.is_empty() {
+                    None
+                } else {
+                    Some(config.stop_sequences.clone())
+                },
+            }),
+        };
+
+        // Ollama 本地运行，通常无需 API key
+        let response = self
+            .client
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("Ollama API error {}: {}", status, error_text));
+        }
+
+        let response_body: OllamaChatResponse = response.json().await?;
+
+        Ok(LlmResponse {
+            content: response_body.message.content,
+            usage: TokenUsage {
+                input_tokens: response_body.prompt_eval_count.unwrap_or(0),
+                output_tokens: response_body.eval_count.unwrap_or(0),
+            },
+            model: response_body.model,
+            response_id: "".to_string(),
+        })
+    }
+
+    async fn stream_ollama(
+        &self,
+        messages: Vec<Message>,
+        config: &LlmRequestConfig,
+    ) -> Result<MessageStream> {
+        let url = format!("{}/api/chat", self.base_url);
+
+        let mut ollama_messages: Vec<OllamaMessage> = Vec::new();
+        if let Some(ref system) = config.system_prompt {
+            ollama_messages.push(OllamaMessage {
+                role: "system",
+                content: system.clone(),
+            });
+        }
+        for m in messages {
+            ollama_messages.push(OllamaMessage {
+                role: match m.role {
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                    MessageRole::System => "system",
+                },
+                content: m.content,
+            });
+        }
+
+        let request_body = OllamaChatRequest {
+            model: config.model.clone(),
+            messages: ollama_messages,
+            stream: true,
+            options: Some(OllamaOptions {
+                num_predict: config.max_tokens as i32,
+                temperature: config.temperature,
+                stop: if config.stop_sequences.is_empty() {
+                    None
+                } else {
+                    Some(config.stop_sequences.clone())
+                },
+            }),
+        };
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await?;
+            return Err(anyhow!("Ollama API error {}: {}", status, error_text));
+        }
+
+        Ok(MessageStream::new(
+            response,
+            StreamProvider::Ollama,
+            config.model.clone(),
+        ))
     }
 }
 
@@ -930,6 +1370,115 @@ struct GeminiUsageMetadata {
     total_token_count: Option<u32>,
 }
 
+// ========================================================================
+// AWS Bedrock API 结构
+// ========================================================================
+
+#[derive(Serialize)]
+struct BedrockRequest {
+    messages: Vec<BedrockMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    system: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inference_config: Option<BedrockInferenceConfig>,
+}
+
+#[derive(Serialize)]
+struct BedrockMessage {
+    role: &'static str,
+    content: Vec<BedrockContent>,
+}
+
+#[derive(Serialize)]
+struct BedrockContent {
+    text: String,
+}
+
+#[derive(Serialize)]
+struct BedrockInferenceConfig {
+    #[serde(rename = "maxTokens")]
+    max_tokens: u32,
+    temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_p: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stop_sequences: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct BedrockResponse {
+    output: BedrockOutput,
+    usage: BedrockUsage,
+    #[serde(default)]
+    request_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct BedrockOutput {
+    message: BedrockResponseMessage,
+}
+
+#[derive(Deserialize)]
+struct BedrockResponseMessage {
+    content: Vec<BedrockResponseContent>,
+}
+
+#[derive(Deserialize)]
+struct BedrockResponseContent {
+    text: String,
+}
+
+#[derive(Deserialize)]
+struct BedrockUsage {
+    #[serde(default)]
+    input_tokens: u32,
+    #[serde(default)]
+    output_tokens: u32,
+}
+
+// ========================================================================
+// Ollama API 结构
+// ========================================================================
+
+#[derive(Serialize)]
+struct OllamaChatRequest {
+    model: String,
+    messages: Vec<OllamaMessage>,
+    stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    options: Option<OllamaOptions>,
+}
+
+#[derive(Serialize)]
+struct OllamaMessage {
+    role: &'static str,
+    content: String,
+}
+
+#[derive(Serialize)]
+struct OllamaOptions {
+    num_predict: i32,
+    temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stop: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+struct OllamaChatResponse {
+    model: String,
+    message: OllamaResponseMessage,
+    #[serde(default)]
+    prompt_eval_count: Option<u32>,
+    #[serde(default)]
+    eval_count: Option<u32>,
+}
+
+#[derive(Deserialize)]
+struct OllamaResponseMessage {
+    content: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -969,6 +1518,49 @@ mod tests {
             "test_key".to_string(),
         );
         assert_eq!(client.base_url, "https://custom.api.com/v1");
+    }
+
+    #[test]
+    fn test_openai_compatible_provider() {
+        let client = LlmClient::new(
+            LlmProvider::OpenAICompatible {
+                base_url: "https://api.deepseek.com/v1".to_string(),
+            },
+            "test_key".to_string(),
+        );
+        assert_eq!(client.base_url, "https://api.deepseek.com/v1");
+    }
+
+    #[test]
+    fn test_azure_openai_client_creation() {
+        let client = LlmClient::new(LlmProvider::AzureOpenAI, "test_key".to_string());
+        assert!(client.base_url.contains("openai.azure.com"));
+    }
+
+    #[test]
+    fn test_bedrock_client_creation() {
+        let client = LlmClient::new(LlmProvider::Bedrock, "test_key".to_string());
+        assert!(client.base_url.contains("bedrock-runtime"));
+    }
+
+    #[test]
+    fn test_ollama_client_creation() {
+        let client = LlmClient::new(LlmProvider::Ollama, "".to_string());
+        assert_eq!(client.base_url, "http://localhost:11434");
+    }
+
+    #[test]
+    fn test_azure_openai_with_custom_url() {
+        let client = LlmClient::new(LlmProvider::AzureOpenAI, "test_key".to_string())
+            .with_base_url("https://myresource.openai.azure.com".to_string());
+        assert_eq!(client.base_url, "https://myresource.openai.azure.com");
+    }
+
+    #[test]
+    fn test_ollama_with_custom_url() {
+        let client = LlmClient::new(LlmProvider::Ollama, "".to_string())
+            .with_base_url("http://192.168.1.100:11434".to_string());
+        assert_eq!(client.base_url, "http://192.168.1.100:11434");
     }
 
     #[test]

@@ -1,15 +1,20 @@
 //! MCP 客户端管理器
 //!
 //! 管理多个 MCP 服务器连接。
+//!
+//! 支持真实的 stdio 和 TCP 连接，完整 MCP 协议握手。
 
 use super::protocol::{McpMessage, McpRequest, RequestId, ToolDefinition, ToolResult};
-use super::transport::{McpTransport, McpTransportType, MemoryTransport};
+#[cfg(unix)]
+use super::transport::UnixSocketTransport;
+use super::transport::{McpTransport, McpTransportType, StdioTransport, TcpTransport};
 use anyhow::{anyhow, Result};
 use parking_lot::RwLock as ParkingRwLock;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use tracing::{debug, info, warn};
 
 /// MCP 服务器配置
 #[derive(Debug, Clone)]
@@ -84,28 +89,44 @@ impl McpClientManager {
                 .clone()
         };
 
-        // 根据传输类型创建连接
+        info!(server = %name, transport = ?config.transport, "Connecting to MCP server");
+
+        // 根据传输类型创建真实连接
         let transport: Arc<dyn McpTransport> = match &config.transport {
-            McpTransportType::Stdio {
-                command: _,
-                args: _,
-            } => {
-                // 使用内存传输作为测试传输
-                // 生产环境需要真实的 StdioTransport
-                Arc::new(MemoryTransport::new())
+            McpTransportType::Stdio { command, args } => {
+                // 创建真实的 Stdio 传输
+                let stdio_transport = StdioTransport::new(command, args)?;
+                stdio_transport.start(command, args).await?;
+                info!(server = %name, command = %command, "Stdio transport started");
+                Arc::new(stdio_transport)
             }
-            McpTransportType::Tcp { addr: _ } => Arc::new(MemoryTransport::new()),
+            McpTransportType::Tcp { addr } => {
+                // 创建真实的 TCP 连接
+                let tcp_transport = TcpTransport::connect(addr).await?;
+                info!(server = %name, addr = %addr, "TCP transport connected");
+                Arc::new(tcp_transport)
+            }
             #[cfg(unix)]
-            McpTransportType::Unix { path: _ } => Arc::new(MemoryTransport::new()),
+            McpTransportType::Unix { path } => {
+                // 创建真实的 Unix socket 连接
+                let unix_transport = UnixSocketTransport::connect(path).await?;
+                info!(server = %name, path = %path, "Unix socket transport connected");
+                Arc::new(unix_transport)
+            }
         };
 
-        // 发送初始化请求
+        // 发送初始化请求（MCP 协议握手第一步）
         let init_params = serde_json::json!({
-            "protocol_version": "2024-11-05",
-            "capabilities": {},
-            "client_info": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+                "roots": {
+                    "listChanged": true
+                },
+                "sampling": {}
+            },
+            "clientInfo": {
                 "name": "continuum",
-                "version": "0.1.0"
+                "version": env!("CARGO_PKG_VERSION")
             }
         });
 
@@ -115,21 +136,94 @@ impl McpClientManager {
             params: Some(init_params),
         };
 
+        debug!(server = %name, "Sending initialize request");
         transport.send(&McpMessage::Request(request)).await?;
 
-        // 等待响应
-        if let Some(McpMessage::Response(response)) = transport.receive().await? {
-            if response.error.is_some() {
-                return Err(anyhow!("Initialize failed: {:?}", response.error));
+        // 等待响应（带超时处理）
+        let response =
+            tokio::time::timeout(std::time::Duration::from_secs(30), transport.receive())
+                .await
+                .map_err(|_| anyhow!("Initialize timeout for server: {}", name))??;
+
+        match response {
+            Some(McpMessage::Response(response)) => {
+                if let Some(error) = &response.error {
+                    warn!(server = %name, code = ?error.code, message = %error.message, "Initialize failed");
+                    return Err(anyhow!(
+                        "Initialize failed (code {}): {}",
+                        error.code,
+                        error.message
+                    ));
+                }
+
+                // 记录服务器能力
+                if let Some(result) = &response.result {
+                    debug!(server = %name, result = ?result, "Server capabilities received");
+                    if let Some(server_info) = result.get("serverInfo") {
+                        info!(server = %name, server_info = ?server_info, "Connected to MCP server");
+                    }
+                }
+            }
+            Some(McpMessage::Error(error)) => {
+                warn!(server = %name, error = ?error, "Received error response");
+                return Err(anyhow!("Server error: {:?}", error));
+            }
+            Some(other) => {
+                warn!(server = %name, message = ?other, "Unexpected message type");
+                return Err(anyhow!("Unexpected response type during initialization"));
+            }
+            None => {
+                warn!(server = %name, "No response received");
+                return Err(anyhow!("No response from server during initialization"));
             }
         }
 
-        // 发送 initialized 通知
+        // 发送 initialized 通知（MCP 协议握手第二步）
         let notification = McpMessage::Notification(super::protocol::McpNotification {
             method: "notifications/initialized".to_string(),
             params: None,
         });
         transport.send(&notification).await?;
+        debug!(server = %name, "Sent initialized notification");
+
+        // 列出可用工具
+        let list_tools_request = McpRequest {
+            id: self.next_request_id(),
+            method: "tools/list".to_string(),
+            params: None,
+        };
+        transport
+            .send(&McpMessage::Request(list_tools_request))
+            .await?;
+
+        let tools_response =
+            tokio::time::timeout(std::time::Duration::from_secs(10), transport.receive())
+                .await
+                .map_err(|_| anyhow!("Tools list timeout for server: {}", name))??;
+
+        let tools = match tools_response {
+            Some(McpMessage::Response(response)) => {
+                if let Some(result) = &response.result {
+                    if let Some(tools_array) = result.get("tools") {
+                        match serde_json::from_value::<Vec<ToolDefinition>>(tools_array.clone()) {
+                            Ok(t) => {
+                                info!(server = %name, tool_count = t.len(), "Tools discovered");
+                                t
+                            }
+                            Err(e) => {
+                                warn!(server = %name, error = %e, "Failed to parse tools");
+                                Vec::new()
+                            }
+                        }
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    Vec::new()
+                }
+            }
+            _ => Vec::new(),
+        };
 
         // 更新服务器状态
         let mut servers = self.servers.write();
@@ -138,10 +232,11 @@ impl McpClientManager {
             ConnectedServer {
                 config,
                 transport,
-                tools: Vec::new(),
+                tools,
             },
         );
 
+        info!(server = %name, "MCP connection established successfully");
         Ok(())
     }
 
@@ -327,6 +422,21 @@ pub fn preset_servers() -> Vec<McpServerConfig> {
             transport: McpTransportType::Stdio {
                 command: "mcp-server-github".to_string(),
                 args: vec![],
+            },
+            auto_reconnect: true,
+            reconnect_interval_ms: 5000,
+        },
+        // Playwright MCP - 浏览器自动化
+        McpServerConfig {
+            name: "playwright".to_string(),
+            transport: McpTransportType::Stdio {
+                command: "npx".to_string(),
+                args: vec![
+                    "@playwright/mcp@latest".to_string(),
+                    "--headless".to_string(),
+                    "--browser".to_string(),
+                    "chrome".to_string(),
+                ],
             },
             auto_reconnect: true,
             reconnect_interval_ms: 5000,

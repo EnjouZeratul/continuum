@@ -89,8 +89,12 @@ pub fn register_builtin_tools(registry: &sh_layer2::ToolRegistry) -> anyhow::Res
     registry.register(Box::new(ToolAdapter::new(Box::new(QueryMemoryTool::new()))))?;
 
     // 工作流工具
-    registry.register(Box::new(ToolAdapter::new(Box::new(CreateCheckpointTool))))?;
-    registry.register(Box::new(ToolAdapter::new(Box::new(RestoreCheckpointTool))))?;
+    registry.register(Box::new(ToolAdapter::new(Box::new(
+        CreateCheckpointTool::new(),
+    ))))?;
+    registry.register(Box::new(ToolAdapter::new(Box::new(
+        RestoreCheckpointTool::new(),
+    ))))?;
 
     Ok(())
 }

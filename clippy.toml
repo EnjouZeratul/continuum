@@ -1,0 +1,5 @@
+# clippy.toml
+# Clippy 配置文件
+
+# 忽略 pedantic 级别警告
+avoid-breaking-exported-api = false

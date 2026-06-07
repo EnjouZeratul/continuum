@@ -3,16 +3,22 @@
 //! Agent 执行运行时实现。
 //!
 //! 支持真实 LLM API 调用（Anthropic/OpenAI/Gemini）。
+//! 集成任务规划器和执行监控器，支持复杂任务分解和自我纠错。
 
 use async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
+use crate::execution_monitor::{CorrectionStrategy, ExecutionMonitor};
+use crate::permission::types::{PermissionAction, PermissionRequest};
+use crate::permission::PermissionManager;
+use crate::planner::{DecompositionStrategy, ExecutionPlan, TaskDecomposer};
 use crate::session_manager::{ConcurrentSessionManager, SessionConfig, SessionManagerTrait};
 use crate::tool_registry::{ToolRegistry, ToolRegistryTrait};
 use crate::types::{
-    AgentId, AgentState, Layer2Error, Layer2Result, Message, SessionId, ToolCall, ToolResult,
+    AgentId, AgentState, Layer2Error, Layer2Result, Message, MessageRole, SessionId, ToolCall,
+    ToolResult,
 };
 
 /// Agent 执行结果
@@ -41,7 +47,7 @@ impl Default for AgentConfig {
     fn default() -> Self {
         Self {
             agent_id: AgentId::new(),
-            model: "gpt-4o".to_string(),
+            model: "claude-sonnet-4-6".to_string(),
             temperature: 0.7,
             max_iterations: 100,
             system_prompt: None,
@@ -56,6 +62,7 @@ impl From<&AgentConfig> for SessionConfig {
             temperature: config.temperature,
             max_iterations: config.max_iterations,
             system_prompt: config.system_prompt.clone(),
+            ..Default::default()
         }
     }
 }
@@ -192,9 +199,16 @@ pub struct IterationResult {
 ///
 /// 使用 ConcurrentSessionManager 管理会话，ToolRegistry 执行工具。
 /// 支持完整的执行生命周期：start -> run/pause/resume/stop。
+/// 集成 TaskDecomposer 进行任务分解，ExecutionMonitor 进行执行监控和纠错。
+/// 支持真实 LLM API 调用（通过 Layer1 LlmClient）。
 pub struct AgentRuntime {
     session_manager: Arc<ConcurrentSessionManager>,
     tool_registry: Arc<ToolRegistry>,
+    permission_manager: Option<Arc<PermissionManager>>,
+    /// 任务分解器（可选）
+    task_decomposer: Option<TaskDecomposer>,
+    /// LLM 客户端（可选，用于真实 API 调用）
+    llm_client: Option<Arc<sh_layer1::LlmClient>>,
 }
 
 impl AgentRuntime {
@@ -206,15 +220,274 @@ impl AgentRuntime {
         Self {
             session_manager,
             tool_registry,
+            permission_manager: None,
+            task_decomposer: None,
+            llm_client: None,
         }
     }
 
-    /// 使用默认组件创建
+    /// 创建带权限管理的 AgentRuntime
+    pub fn with_permissions(
+        session_manager: Arc<ConcurrentSessionManager>,
+        tool_registry: Arc<ToolRegistry>,
+        permission_manager: Arc<PermissionManager>,
+    ) -> Self {
+        Self {
+            session_manager,
+            tool_registry,
+            permission_manager: Some(permission_manager),
+            task_decomposer: None,
+            llm_client: None,
+        }
+    }
+
+    /// 创建带任务分解器的 AgentRuntime
+    pub fn with_decomposer(
+        session_manager: Arc<ConcurrentSessionManager>,
+        tool_registry: Arc<ToolRegistry>,
+        strategy: DecompositionStrategy,
+    ) -> Self {
+        Self {
+            session_manager,
+            tool_registry,
+            permission_manager: None,
+            task_decomposer: Some(TaskDecomposer::new().with_strategy(strategy)),
+            llm_client: None,
+        }
+    }
+
+    /// 使用默认组件创建（带任务分解器）
     pub fn with_defaults() -> Self {
         Self {
             session_manager: Arc::new(ConcurrentSessionManager::default_config()),
             tool_registry: Arc::new(ToolRegistry::new()),
+            permission_manager: None,
+            task_decomposer: Some(TaskDecomposer::new()),
+            llm_client: None,
         }
+    }
+
+    /// 创建带 LLM 客户端的 AgentRuntime
+    pub fn with_llm_client(
+        session_manager: Arc<ConcurrentSessionManager>,
+        tool_registry: Arc<ToolRegistry>,
+        llm_client: Arc<sh_layer1::LlmClient>,
+    ) -> Self {
+        Self {
+            session_manager,
+            tool_registry,
+            permission_manager: None,
+            task_decomposer: Some(TaskDecomposer::new()),
+            llm_client: Some(llm_client),
+        }
+    }
+
+    /// 设置权限管理器
+    pub fn set_permission_manager(&mut self, manager: Arc<PermissionManager>) {
+        self.permission_manager = Some(manager);
+    }
+
+    /// 设置任务分解策略
+    pub fn set_decomposition_strategy(&mut self, strategy: DecompositionStrategy) {
+        self.task_decomposer = Some(TaskDecomposer::new().with_strategy(strategy));
+    }
+
+    /// 设置 LLM 客户端
+    pub fn set_llm_client(&mut self, client: Arc<sh_layer1::LlmClient>) {
+        self.llm_client = Some(client);
+    }
+
+    /// 获取权限管理器引用
+    pub fn permission_manager(&self) -> Option<&Arc<PermissionManager>> {
+        self.permission_manager.as_ref()
+    }
+
+    /// 获取任务分解器引用
+    pub fn task_decomposer(&self) -> Option<&TaskDecomposer> {
+        self.task_decomposer.as_ref()
+    }
+
+    /// 获取 LLM 客户端引用
+    pub fn llm_client(&self) -> Option<&Arc<sh_layer1::LlmClient>> {
+        self.llm_client.as_ref()
+    }
+
+    /// 分解任务为执行计划
+    ///
+    /// 如果配置了任务分解器，将复杂任务分解为子任务序列。
+    /// 返回执行计划，包含子任务列表和执行顺序。
+    pub fn decompose_task(&self, task: &str) -> Layer2Result<Option<ExecutionPlan>> {
+        if let Some(decomposer) = &self.task_decomposer {
+            let plan = decomposer.decompose(task)?;
+            info!(
+                task = %task,
+                subtasks = plan.subtasks.len(),
+                strategy = ?plan.strategy,
+                risk = ?plan.risk_level,
+                "Task decomposed into execution plan"
+            );
+            Ok(Some(plan))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// 创建执行监控器
+    ///
+    /// 为给定的执行计划创建监控器，用于跟踪执行进度和处理错误。
+    pub fn create_monitor(&self, plan: ExecutionPlan) -> ExecutionMonitor {
+        ExecutionMonitor::new(plan)
+    }
+
+    /// 使用执行计划运行 Agent
+    ///
+    /// 先分解任务，然后按照执行计划的顺序依次执行子任务。
+    /// 使用执行监控器跟踪进度和错误。
+    pub async fn run_with_plan(
+        &self,
+        task: &str,
+        config: AgentConfig,
+    ) -> Layer2Result<AgentResult> {
+        // 尝试分解任务
+        let plan_option = self.decompose_task(task)?;
+
+        // 如果有执行计划，按计划执行
+        if let Some(plan) = plan_option {
+            self.run_with_execution_plan(plan, config).await
+        } else {
+            // 没有分解器，直接运行
+            self.run(task, config).await
+        }
+    }
+
+    /// 按照执行计划运行 Agent
+    async fn run_with_execution_plan(
+        &self,
+        plan: ExecutionPlan,
+        config: AgentConfig,
+    ) -> Layer2Result<AgentResult> {
+        let monitor = self.create_monitor(plan.clone());
+        monitor.start().await?;
+
+        info!(
+            plan_id = %plan.id,
+            steps = plan.subtasks.len(),
+            "Starting planned execution"
+        );
+
+        // 执行各个子任务
+        let mut all_messages = Vec::new();
+        let mut all_tool_calls = Vec::new();
+        let mut all_tool_results = Vec::new();
+        let mut total_iterations = 0;
+        let mut total_tokens = 0i64;
+
+        for subtask_id in &plan.execution_order {
+            if let Some(subtask) = plan.subtasks.iter().find(|s| &s.id == subtask_id) {
+                // 检查依赖是否已完成（简化：假设拓扑排序保证依赖已执行）
+                // 拓扑排序确保依赖在当前任务之前执行
+
+                // 运行子任务
+                let subtask_result = self.run(&subtask.description, config.clone()).await;
+
+                match subtask_result {
+                    Ok(result) => {
+                        monitor
+                            .report_step_completed(subtask_id, result.final_state.to_string())
+                            .await?;
+                        all_messages.extend(result.messages);
+                        all_tool_calls.extend(result.tool_calls);
+                        all_tool_results.extend(result.tool_results);
+                        total_iterations += result.iterations;
+                        total_tokens += result.tokens_used;
+                    }
+                    Err(e) => {
+                        let error_msg = e.to_string();
+                        let decision = monitor
+                            .report_step_failed(subtask_id, error_msg.clone())
+                            .await?;
+
+                        // 根据纠错决策处理
+                        if decision.should_continue {
+                            match &decision.strategy {
+                                CorrectionStrategy::Retry { max_attempts } => {
+                                    // 简单重试逻辑
+                                    for attempt in 1..=*max_attempts {
+                                        warn!(
+                                            subtask_id = %subtask_id,
+                                            attempt = attempt,
+                                            max = max_attempts,
+                                            "Retrying subtask"
+                                        );
+                                        let retry_result =
+                                            self.run(&subtask.description, config.clone()).await;
+                                        if retry_result.is_ok() {
+                                            let result = retry_result.unwrap();
+                                            monitor
+                                                .report_step_completed(
+                                                    subtask_id,
+                                                    format!("Retry {} succeeded", attempt),
+                                                )
+                                                .await?;
+                                            all_messages.extend(result.messages);
+                                            all_tool_calls.extend(result.tool_calls);
+                                            all_tool_results.extend(result.tool_results);
+                                            total_iterations += result.iterations;
+                                            total_tokens += result.tokens_used;
+                                            break;
+                                        }
+                                    }
+                                }
+                                CorrectionStrategy::Skip => {
+                                    monitor
+                                        .report_step_completed(subtask_id, "[SKIPPED]".to_string())
+                                        .await?;
+                                }
+                                _ => {
+                                    // 其他策略暂时标记为完成
+                                    monitor
+                                        .report_step_completed(
+                                            subtask_id,
+                                            format!(
+                                                "[HANDLED] {}",
+                                                decision.strategy.clone().debug_name()
+                                            ),
+                                        )
+                                        .await?;
+                                }
+                            }
+                        } else {
+                            // 不能继续，返回错误
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+        }
+
+        let summary = monitor.complete().await?;
+        info!(
+            plan_id = %plan.id,
+            completed = summary.completed_steps,
+            failed = summary.failed_steps,
+            corrections = summary.correction_count,
+            duration_ms = summary.duration.as_millis(),
+            "Planned execution completed"
+        );
+
+        Ok(AgentResult {
+            session_id: SessionId::new(),
+            final_state: if summary.failed_steps > 0 && summary.completed_steps == 0 {
+                AgentState::Error
+            } else {
+                AgentState::Completed
+            },
+            messages: all_messages,
+            tool_calls: all_tool_calls,
+            tool_results: all_tool_results,
+            iterations: total_iterations,
+            tokens_used: total_tokens,
+        })
     }
 
     /// 获取会话管理器引用
@@ -307,6 +580,47 @@ impl AgentRuntime {
         // Execute each tool call and collect results
         let mut results = Vec::with_capacity(pending.len());
         for tc in &pending {
+            // Check permission before executing tool
+            if let Some(pm) = &self.permission_manager {
+                let request = PermissionRequest::new(PermissionAction::Custom {
+                    description: format!("Execute tool: {} with args: {}", tc.name, tc.arguments),
+                });
+
+                match pm.check_permission(request) {
+                    Ok(response) => {
+                        if !response.decision.is_allowed() {
+                            warn!(
+                                tool = %tc.name,
+                                tool_call_id = %tc.id,
+                                "Tool execution denied by permission system"
+                            );
+                            results.push(ToolResult {
+                                tool_call_id: tc.id.clone(),
+                                name: tc.name.clone(),
+                                content: "Tool execution denied by permission system".to_string(),
+                                is_error: true,
+                            });
+                            continue;
+                        }
+                    }
+                    Err(e) => {
+                        warn!(
+                            tool = %tc.name,
+                            tool_call_id = %tc.id,
+                            error = %e,
+                            "Permission check failed"
+                        );
+                        results.push(ToolResult {
+                            tool_call_id: tc.id.clone(),
+                            name: tc.name.clone(),
+                            content: format!("Permission check failed: {}", e),
+                            is_error: true,
+                        });
+                        continue;
+                    }
+                }
+            }
+
             let result = match self.tool_registry.execute(&tc.name, &tc.arguments).await {
                 Ok(tool_result) => tool_result,
                 Err(e) => {
@@ -430,7 +744,7 @@ impl AgentRuntime {
             // Simulate a tool call on the second iteration
             let tool_name = &tools[0];
             let tool_call = ToolCall {
-                id: format!("tc_{}", &uuid::Uuid::new_v4().to_string()[..8]),
+                id: sh_layer1::generate_prefixed_id("tc"),
                 name: tool_name.clone(),
                 arguments: serde_json::json!({"task": task}).to_string(),
             };
@@ -456,6 +770,207 @@ impl AgentRuntime {
             tool_calls: Vec::new(),
             should_continue: false,
         })
+    }
+
+    /// 真实 LLM 调用：使用 Layer1 LlmClient 发送流式请求。
+    ///
+    /// 当配置了 LLM 客户端时使用此方法，否则回退到 simulate_llm_step。
+    async fn real_llm_step(
+        &self,
+        session_id: &SessionId,
+        task: &str,
+        iteration: i32,
+        max_iterations: i32,
+        config: &AgentConfig,
+        abort_flag: Option<Arc<AtomicBool>>,
+    ) -> Layer2Result<IterationResult> {
+        use sh_layer1::{LlmClientTrait, LlmRequestConfig};
+
+        let llm_client = self
+            .llm_client
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("LLM client not configured"))?;
+
+        // Get session messages
+        let session_messages: Vec<Message> = self
+            .session_manager
+            .read(session_id, |s| s.messages.clone())
+            .await?
+            .unwrap_or_default();
+
+        // Convert to Layer1 messages
+        let mut llm_messages: Vec<sh_layer1::Message> = session_messages
+            .iter()
+            .map(|m| sh_layer1::Message {
+                role: match m.role {
+                    MessageRole::System => sh_layer1::MessageRole::System,
+                    MessageRole::User => sh_layer1::MessageRole::User,
+                    MessageRole::Assistant => sh_layer1::MessageRole::Assistant,
+                    MessageRole::Tool => sh_layer1::MessageRole::User, // Tool results as user
+                },
+                content: m.content.clone(),
+            })
+            .collect();
+
+        // Add current task if not already present
+        if iteration == 1 {
+            llm_messages.push(sh_layer1::Message {
+                role: sh_layer1::MessageRole::User,
+                content: task.to_string(),
+            });
+        }
+
+        // Build request config
+        let request_config = LlmRequestConfig {
+            model: config.model.clone(),
+            max_tokens: 4096,
+            temperature: config.temperature,
+            system_prompt: config.system_prompt.clone(),
+            stop_sequences: vec!["\n\n\n".to_string()],
+        };
+
+        // Send streaming request
+        let response = if let Some(flag) = abort_flag {
+            llm_client
+                .send_stream_abortable(llm_messages, &request_config, flag)
+                .await
+                .map_err(|e| anyhow::anyhow!("LLM stream error: {}", e))?
+        } else {
+            llm_client
+                .send(llm_messages, &request_config)
+                .await
+                .map_err(|e| anyhow::anyhow!("LLM error: {}", e))?
+        };
+
+        // Update token usage in session
+        let tokens_used = response.usage.input_tokens as i64 + response.usage.output_tokens as i64;
+        self.session_manager
+            .update(session_id, |s| {
+                s.tokens_total += tokens_used;
+            })
+            .await?;
+
+        // Parse response for tool calls
+        let tool_calls = self.parse_tool_calls_from_response(&response.content);
+
+        // Determine state based on response
+        let state = if !tool_calls.is_empty() {
+            AgentState::ToolCalling
+        } else if iteration >= max_iterations {
+            AgentState::Completed
+        } else {
+            AgentState::Running
+        };
+
+        let should_continue = iteration < max_iterations && state != AgentState::Completed;
+
+        Ok(IterationResult {
+            iteration,
+            state,
+            message: Some(Message::assistant(&response.content)),
+            tool_calls,
+            should_continue,
+        })
+    }
+
+    /// 从 LLM 响应中解析工具调用
+    ///
+    /// 支持 Anthropic tool_use 格式和 OpenAI function_call 格式
+    fn parse_tool_calls_from_response(&self, content: &str) -> Vec<ToolCall> {
+        let mut tool_calls = Vec::new();
+
+        // Try to parse Anthropic-style tool_use blocks
+        // Format: <tool_use>{"name": "...", "input": {...}}</tool_use>
+        if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(content) {
+            // Check if it's a tool_use response
+            if let Some(content_array) = json_value.get("content").and_then(|c| c.as_array()) {
+                for block in content_array {
+                    if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                        if let (Some(name), Some(id), Some(input)) = (
+                            block.get("name").and_then(|n| n.as_str()),
+                            block.get("id").and_then(|i| i.as_str()),
+                            block.get("input"),
+                        ) {
+                            tool_calls.push(ToolCall {
+                                id: id.to_string(),
+                                name: name.to_string(),
+                                arguments: input.to_string(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also try OpenAI-style function_call
+        // Format: {"function_call": {"name": "...", "arguments": "..."}}
+        if tool_calls.is_empty() {
+            if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(content) {
+                if let Some(func_call) = json_value.get("function_call") {
+                    if let (Some(name), Some(args)) = (
+                        func_call.get("name").and_then(|n| n.as_str()),
+                        func_call.get("arguments").and_then(|a| a.as_str()),
+                    ) {
+                        tool_calls.push(ToolCall {
+                            id: sh_layer1::generate_prefixed_id("tc"),
+                            name: name.to_string(),
+                            arguments: args.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Also parse tool blocks in text format
+        // Format: ```tool\n{"name": "tool_name", "arguments": {...}}\n```
+        if tool_calls.is_empty() {
+            let re = regex::Regex::new(r"```tool\n(\{.*?\})\n```").unwrap();
+            for cap in re.captures_iter(content) {
+                if let Ok(tool_json) = serde_json::from_str::<serde_json::Value>(&cap[1]) {
+                    if let Some(name) = tool_json.get("name").and_then(|n| n.as_str()) {
+                        let args = tool_json
+                            .get("arguments")
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
+                        tool_calls.push(ToolCall {
+                            id: sh_layer1::generate_prefixed_id("tc"),
+                            name: name.to_string(),
+                            arguments: args.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        tool_calls
+    }
+
+    /// 执行一步 LLM 调用（自动选择真实或模拟）
+    ///
+    /// 如果配置了 LLM 客户端则使用真实调用，否则使用模拟。
+    async fn llm_step(
+        &self,
+        session_id: &SessionId,
+        task: &str,
+        iteration: i32,
+        max_iterations: i32,
+        config: &AgentConfig,
+        abort_flag: Option<Arc<AtomicBool>>,
+    ) -> Layer2Result<IterationResult> {
+        if self.llm_client.is_some() {
+            self.real_llm_step(
+                session_id,
+                task,
+                iteration,
+                max_iterations,
+                config,
+                abort_flag,
+            )
+            .await
+        } else {
+            self.simulate_llm_step(session_id, task, iteration, max_iterations)
+                .await
+        }
     }
 }
 
@@ -543,9 +1058,9 @@ impl AgentRuntimeTrait for AgentRuntime {
                 break;
             }
 
-            // Simulate one LLM step
+            // Execute one LLM step (real or simulated)
             let step_result = self
-                .simulate_llm_step(&session_id, task, iterations, max_iterations)
+                .llm_step(&session_id, task, iterations, max_iterations, &config, None)
                 .await?;
 
             // Add the assistant message if any
@@ -694,9 +1209,9 @@ impl AgentRuntimeTrait for AgentRuntime {
                 break;
             }
 
-            // Simulate one LLM step
+            // Execute one LLM step (real or simulated)
             let step_result = self
-                .simulate_llm_step(&session_id, task, iterations, max_iterations)
+                .llm_step(&session_id, task, iterations, max_iterations, &config, None)
                 .await?;
 
             // Add the assistant message if any
@@ -769,7 +1284,9 @@ impl AgentRuntimeTrait for AgentRuntime {
             };
 
             // after_iteration callback
-            callback.after_iteration(&session_id, iterations, &iter_result).await?;
+            callback
+                .after_iteration(&session_id, iterations, &iter_result)
+                .await?;
 
             if !iter_result.should_continue {
                 break;
@@ -902,9 +1419,16 @@ impl AgentRuntimeTrait for AgentRuntime {
                 break;
             }
 
-            // Simulate one LLM step
+            // Execute one LLM step (real or simulated)
             let step_result = self
-                .simulate_llm_step(&session_id, task, iterations, max_iterations)
+                .llm_step(
+                    &session_id,
+                    task,
+                    iterations,
+                    max_iterations,
+                    &config,
+                    Some(abort_flag.clone()),
+                )
                 .await?;
 
             // Add the assistant message if any
@@ -986,7 +1510,9 @@ impl AgentRuntimeTrait for AgentRuntime {
             };
 
             // after_iteration callback
-            callback.after_iteration(&session_id, iterations, &iter_result).await?;
+            callback
+                .after_iteration(&session_id, iterations, &iter_result)
+                .await?;
 
             if !iter_result.should_continue {
                 break;
@@ -1321,7 +1847,7 @@ mod tests {
     #[test]
     fn test_agent_config_default() {
         let config = AgentConfig::default();
-        assert_eq!(config.model, "gpt-4o");
+        assert_eq!(config.model, "claude-sonnet-4-6");
         assert_eq!(config.max_iterations, 100);
         assert_eq!(config.temperature, 0.7);
     }
@@ -1709,5 +2235,90 @@ mod tests {
         assert!(result.message.is_some());
         assert_eq!(result.tool_calls.len(), 1);
         assert!(result.should_continue);
+    }
+
+    #[test]
+    fn test_agent_runtime_with_permission_manager() {
+        use crate::permission::policy::PermissionPolicy;
+
+        let policy = PermissionPolicy::trusted();
+        let pm = Arc::new(PermissionManager::new(policy));
+
+        let session_manager = Arc::new(ConcurrentSessionManager::default_config());
+        let tool_registry = Arc::new(ToolRegistry::new());
+
+        let runtime = AgentRuntime::with_permissions(session_manager, tool_registry, pm.clone());
+
+        assert!(runtime.permission_manager().is_some());
+        assert_eq!(
+            runtime.permission_manager().unwrap().security_level(),
+            crate::permission::policy::SecurityLevel::Trusted
+        );
+    }
+
+    #[test]
+    fn test_agent_runtime_set_permission_manager() {
+        use crate::permission::policy::PermissionPolicy;
+
+        let mut runtime = AgentRuntime::with_defaults();
+        assert!(runtime.permission_manager().is_none());
+
+        let policy = PermissionPolicy::default();
+        let pm = Arc::new(PermissionManager::new(policy));
+        runtime.set_permission_manager(pm);
+
+        assert!(runtime.permission_manager().is_some());
+        assert_eq!(
+            runtime.permission_manager().unwrap().security_level(),
+            crate::permission::policy::SecurityLevel::Standard
+        );
+    }
+
+    #[test]
+    fn test_agent_runtime_has_decomposer() {
+        let runtime = AgentRuntime::with_defaults();
+        // with_defaults() now creates a TaskDecomposer
+        assert!(runtime.task_decomposer().is_some());
+    }
+
+    #[test]
+    fn test_agent_decompose_task() {
+        let runtime = AgentRuntime::with_defaults();
+
+        // Test simple task decomposition
+        let plan = runtime.decompose_task("Read a file and write output");
+        assert!(plan.is_ok());
+        let plan = plan.unwrap();
+        assert!(plan.is_some());
+
+        let plan = plan.unwrap();
+        assert!(!plan.subtasks.is_empty());
+        assert!(!plan.execution_order.is_empty());
+    }
+
+    #[test]
+    fn test_agent_set_decomposition_strategy() {
+        let mut runtime = AgentRuntime::with_defaults();
+        runtime.set_decomposition_strategy(DecompositionStrategy::Parallel);
+
+        let decomposer = runtime.task_decomposer().unwrap();
+        let plan = decomposer.decompose("Task A and Task B").unwrap();
+        assert_eq!(plan.strategy, DecompositionStrategy::Parallel);
+    }
+
+    #[tokio::test]
+    async fn test_agent_run_with_plan_simple() {
+        let runtime = AgentRuntime::with_defaults();
+        let config = AgentConfig {
+            max_iterations: 5,
+            ..Default::default()
+        };
+
+        // Test run_with_plan for a simple task
+        let result = runtime.run_with_plan("Simple task", config).await;
+        assert!(result.is_ok());
+
+        let agent_result = result.unwrap();
+        assert_eq!(agent_result.final_state, AgentState::Completed);
     }
 }

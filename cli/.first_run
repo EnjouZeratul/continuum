@@ -1,0 +1,5 @@
+tutorial_completed=false
+welcome_shown=false
+setup_completed=true
+setup_skipped=false
+detected_provider=anthropic

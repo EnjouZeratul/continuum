@@ -75,6 +75,12 @@ pub enum Commands {
         cmd: CheckpointCmd,
     },
 
+    /// 启动本地 Dashboard（可观测性界面）
+    Dashboard {
+        #[command(subcommand)]
+        cmd: DashboardCmd,
+    },
+
     // ===== 工具链命令 =====
     /// 执行 shell 命令
     Bash {
@@ -428,6 +434,22 @@ pub enum CheckpointCmd {
         /// 检查点 ID
         checkpoint_id: String,
     },
+}
+
+/// Dashboard 子命令
+#[derive(Subcommand, Debug, Clone)]
+pub enum DashboardCmd {
+    /// 启动 Dashboard Web UI
+    Start {
+        /// 监听端口
+        #[arg(short, long, default_value = "8080")]
+        port: u16,
+        /// 监听地址
+        #[arg(short, long, default_value = "127.0.0.1")]
+        host: String,
+    },
+    /// 显示 Dashboard 状态
+    Status,
 }
 
 impl CliArgs {

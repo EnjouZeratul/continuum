@@ -13,9 +13,9 @@
 use crate::types::Layer3Result;
 use async_trait::async_trait;
 use parking_lot::RwLock;
+use sh_layer2::generate_short_id;
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
 
 /// 检索引擎 trait
 ///
@@ -392,7 +392,10 @@ impl Default for ParagraphChunker {
 impl ChunkingStrategy for ParagraphChunker {
     fn chunk(&self, document: &Document) -> Vec<Chunk> {
         let content = &document.content;
-        let paragraphs: Vec<&str> = content.split('\n').filter(|p| !p.trim().is_empty()).collect();
+        let paragraphs: Vec<&str> = content
+            .split('\n')
+            .filter(|p| !p.trim().is_empty())
+            .collect();
 
         if paragraphs.is_empty() {
             return vec![Chunk {
@@ -415,7 +418,7 @@ impl ChunkingStrategy for ParagraphChunker {
         let mut index = 0;
 
         for paragraph in paragraphs {
-            if current_chunk.len() + paragraph.len() + 1 <= self.max_chunk_size {
+            if current_chunk.len() + paragraph.len() < self.max_chunk_size {
                 if !current_chunk.is_empty() {
                     current_chunk.push('\n');
                 }
@@ -532,7 +535,11 @@ impl RecursiveChunker {
     ) -> Vec<Chunk> {
         if text.len() <= self.max_chunk_size {
             return vec![Chunk {
-                id: format!("{}-{}", document.id.as_deref().unwrap_or("doc"), initial_index),
+                id: format!(
+                    "{}-{}",
+                    document.id.as_deref().unwrap_or("doc"),
+                    initial_index
+                ),
                 doc_id: document.id.clone().unwrap_or_default(),
                 content: text.to_string(),
                 position: ChunkPosition {
@@ -595,7 +602,11 @@ impl RecursiveChunker {
                     } else {
                         if !current_chunk.is_empty() {
                             chunks.push(Chunk {
-                                id: format!("{}-{}", document.id.as_deref().unwrap_or("doc"), index),
+                                id: format!(
+                                    "{}-{}",
+                                    document.id.as_deref().unwrap_or("doc"),
+                                    index
+                                ),
                                 doc_id: document.id.clone().unwrap_or_default(),
                                 content: current_chunk.clone(),
                                 position: ChunkPosition {
@@ -611,8 +622,12 @@ impl RecursiveChunker {
                         }
 
                         if part_with_sep.len() > self.max_chunk_size {
-                            let sub_chunks =
-                                self._recursive_split(document, &part_with_sep, current_start, index);
+                            let sub_chunks = self._recursive_split(
+                                document,
+                                &part_with_sep,
+                                current_start,
+                                index,
+                            );
                             for sub in sub_chunks {
                                 current_start = sub.position.end;
                                 index += 1;
@@ -648,7 +663,11 @@ impl RecursiveChunker {
         }
 
         vec![Chunk {
-            id: format!("{}-{}", document.id.as_deref().unwrap_or("doc"), initial_index),
+            id: format!(
+                "{}-{}",
+                document.id.as_deref().unwrap_or("doc"),
+                initial_index
+            ),
             doc_id: document.id.clone().unwrap_or_default(),
             content: text.to_string(),
             position: ChunkPosition {
@@ -666,7 +685,7 @@ impl RecursiveChunker {
 // Default Retriever Engine Implementation
 // ============================================================================
 
-use crate::vector_store::{VectorStore, VectorItem};
+use crate::vector_store::{VectorItem, VectorStore};
 
 /// 默认检索引擎实现
 ///
@@ -715,16 +734,14 @@ where
             .collect();
 
         let stop_words = std::collections::HashSet::from([
-            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-            "have", "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "must", "shall", "can", "need", "dare",
-            "ought", "used", "to", "of", "in", "for", "on", "with", "at", "by",
-            "from", "as", "into", "through", "during", "before", "after",
-            "above", "below", "between", "under", "again", "further", "then",
-            "once", "here", "there", "when", "where", "why", "how", "all", "each",
-            "few", "more", "most", "other", "some", "such", "no", "nor", "not",
-            "only", "own", "same", "so", "than", "too", "very", "s", "t", "just",
-            "and", "but", "if", "or", "because", "until", "while", "although",
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has",
+            "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must",
+            "shall", "can", "need", "dare", "ought", "used", "to", "of", "in", "for", "on", "with",
+            "at", "by", "from", "as", "into", "through", "during", "before", "after", "above",
+            "below", "between", "under", "again", "further", "then", "once", "here", "there",
+            "when", "where", "why", "how", "all", "each", "few", "more", "most", "other", "some",
+            "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s",
+            "t", "just", "and", "but", "if", "or", "because", "until", "while", "although",
         ]);
 
         words
@@ -769,8 +786,8 @@ where
         let avg_len = 500.0;
         let len_norm = 1.0 - 0.75 + 0.75 * (content_len / avg_len);
 
-        let bm25_score = (matched_keywords as f32 * (k1 + 1.0))
-            / (matched_keywords as f32 + k1 * len_norm);
+        let bm25_score =
+            (matched_keywords as f32 * (k1 + 1.0)) / (matched_keywords as f32 + k1 * len_norm);
 
         // 归一化到 [0, 1]
         let normalized_score = bm25_score / (query_keywords.len() as f32 + k1);
@@ -844,7 +861,7 @@ where
 
         for doc in documents {
             // 生成分块
-            let doc_id = doc.id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
+            let doc_id = doc.id.clone().unwrap_or_else(generate_short_id);
             let chunks = self.chunking_strategy.chunk(&Document {
                 id: Some(doc_id.clone()),
                 content: doc.content.clone(),
@@ -853,15 +870,9 @@ where
             });
 
             // 为每个分块生成 embedding 并存储
-            let chunk_ids: Vec<String> = chunks
-                .iter()
-                .map(|c| c.id.clone())
-                .collect();
+            let chunk_ids: Vec<String> = chunks.iter().map(|c| c.id.clone()).collect();
 
-            let chunk_contents: Vec<String> = chunks
-                .iter()
-                .map(|c| c.content.clone())
-                .collect();
+            let chunk_contents: Vec<String> = chunks.iter().map(|c| c.content.clone()).collect();
 
             // 批量生成 embeddings
             let embeddings = self.embedding_model.embed_batch(&chunk_contents).await?;
@@ -869,11 +880,14 @@ where
             // 构建向量项并存储
             let vector_items: Vec<VectorItem> = chunks
                 .into_iter()
-                .zip(embeddings.into_iter())
+                .zip(embeddings)
                 .map(|(chunk, embedding)| {
                     let mut metadata = chunk.metadata.clone();
                     metadata.insert("doc_id".to_string(), serde_json::json!(chunk.doc_id));
-                    metadata.insert("chunk_index".to_string(), serde_json::json!(chunk.position.index));
+                    metadata.insert(
+                        "chunk_index".to_string(),
+                        serde_json::json!(chunk.position.index),
+                    );
                     if let Some(source) = doc.source.clone() {
                         metadata.insert("source".to_string(), serde_json::json!(source));
                     }
@@ -962,7 +976,9 @@ where
 
         // 如果仅使用关键词搜索
         if config.weights.vector == 0.0 {
-            return self.keyword_only_search(query, vector_results, top_k, config).await;
+            return self
+                .keyword_only_search(query, vector_results, top_k, config)
+                .await;
         }
 
         // 2. 提取查询关键词
@@ -975,7 +991,8 @@ where
                 let keyword_score = self.compute_keyword_score(&query_keywords, &r.content, config);
 
                 // 混合分数
-                let final_score = r.score * config.weights.vector + keyword_score * config.weights.keyword;
+                let final_score =
+                    r.score * config.weights.vector + keyword_score * config.weights.keyword;
 
                 RetrievalResult {
                     doc_id: r.doc_id,
@@ -1045,54 +1062,36 @@ where
     }
 }
 
-// ============================================================================
-// Mock Embedding Model (for testing)
-// ============================================================================
-
-/// Mock Embedding 模型（用于测试）
-pub struct MockEmbeddingModel {
-    dimension: usize,
+/// Layer1 EmbeddingModel wrapper
+///
+/// Wraps a layer1 embedding model to implement layer3's EmbeddingModel trait.
+pub struct Layer1EmbeddingAdapter {
+    inner: Box<dyn sh_layer1::EmbeddingModel>,
 }
 
-impl MockEmbeddingModel {
-    pub fn new(dimension: usize) -> Self {
-        Self { dimension }
-    }
-}
-
-impl Default for MockEmbeddingModel {
-    fn default() -> Self {
-        Self::new(128)
+impl Layer1EmbeddingAdapter {
+    /// Create a new adapter wrapping a layer1 embedding model
+    pub fn new(model: Box<dyn sh_layer1::EmbeddingModel>) -> Self {
+        Self { inner: model }
     }
 }
 
 #[async_trait]
-impl EmbeddingModel for MockEmbeddingModel {
+impl EmbeddingModel for Layer1EmbeddingAdapter {
     async fn embed(&self, text: &str) -> Layer3Result<Vec<f32>> {
-        // 生成基于文本哈希的伪向量（仅用于测试）
-        let mut vector = Vec::with_capacity(self.dimension);
-        let bytes = text.as_bytes();
-        for i in 0..self.dimension {
-            let byte_val = bytes.get(i % bytes.len()).copied().unwrap_or(0);
-            vector.push((byte_val as f32) / 255.0);
-        }
-        Ok(vector)
+        self.inner.embed(text).await
     }
 
     async fn embed_batch(&self, texts: &[String]) -> Layer3Result<Vec<Vec<f32>>> {
-        let mut embeddings = Vec::with_capacity(texts.len());
-        for text in texts {
-            embeddings.push(self.embed(text).await?);
-        }
-        Ok(embeddings)
+        self.inner.embed_batch(texts).await
     }
 
     fn dimension(&self) -> usize {
-        self.dimension
+        self.inner.dimension()
     }
 
     fn model_name(&self) -> &str {
-        "mock-embedding-model"
+        self.inner.model_name()
     }
 }
 
@@ -1100,6 +1099,21 @@ impl EmbeddingModel for MockEmbeddingModel {
 mod tests {
     use super::*;
     use crate::vector_store::InMemoryVectorStore;
+
+    /// 创建测试用的 Mock Embedding 模型
+    /// 使用 Layer1 的 MockEmbeddingModel 通过适配器
+    fn create_mock_embedding_model(dimension: usize) -> Layer1EmbeddingAdapter {
+        #[cfg(any(feature = "mock", test))]
+        {
+            Layer1EmbeddingAdapter::new(Box::new(sh_layer1::MockEmbeddingModel::new(dimension)))
+        }
+        #[cfg(not(any(feature = "mock", test)))]
+        {
+            // 在非测试配置下，这个分支不应该被执行
+            // 使用 unreachable! 来确保编译时检查
+            compile_error!("MockEmbeddingModel requires 'mock' feature or test configuration")
+        }
+    }
 
     #[test]
     fn test_document_builder() {
@@ -1120,13 +1134,12 @@ mod tests {
     #[tokio::test]
     async fn test_default_retriever_engine_index() {
         let vector_store = InMemoryVectorStore::in_memory();
-        let embedding_model = MockEmbeddingModel::new(128);
+        let embedding_model = create_mock_embedding_model(128);
         let chunker = FixedSizeChunker::default();
 
         let engine = DefaultRetrieverEngine::new(vector_store, embedding_model, chunker);
 
-        let doc = Document::new("This is a test document for RAG.")
-            .with_source("test.txt");
+        let doc = Document::new("This is a test document for RAG.").with_source("test.txt");
 
         let doc_ids = engine.index(vec![doc]).await.unwrap();
         assert_eq!(doc_ids.len(), 1);
@@ -1136,7 +1149,7 @@ mod tests {
     #[tokio::test]
     async fn test_default_retriever_engine_retrieve() {
         let vector_store = InMemoryVectorStore::in_memory();
-        let embedding_model = MockEmbeddingModel::new(128);
+        let embedding_model = create_mock_embedding_model(128);
         let chunker = FixedSizeChunker::default();
 
         let engine = DefaultRetrieverEngine::new(vector_store, embedding_model, chunker);
@@ -1156,7 +1169,7 @@ mod tests {
     #[tokio::test]
     async fn test_default_retriever_engine_delete() {
         let vector_store = InMemoryVectorStore::in_memory();
-        let embedding_model = MockEmbeddingModel::new(128);
+        let embedding_model = create_mock_embedding_model(128);
         let chunker = FixedSizeChunker::default();
 
         let engine = DefaultRetrieverEngine::new(vector_store, embedding_model, chunker);
@@ -1171,21 +1184,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_embedding_model() {
-        let model = MockEmbeddingModel::new(64);
+        let model = create_mock_embedding_model(64);
 
         let embedding = model.embed("test").await.unwrap();
         assert_eq!(embedding.len(), 64);
         assert_eq!(model.dimension(), 64);
-        assert_eq!(model.model_name(), "mock-embedding-model");
+        assert_eq!(model.model_name(), "mock-embedding");
 
-        let embeddings = model.embed_batch(&["test1".to_string(), "test2".to_string()]).await.unwrap();
+        let embeddings = model
+            .embed_batch(&["test1".to_string(), "test2".to_string()])
+            .await
+            .unwrap();
         assert_eq!(embeddings.len(), 2);
     }
 
     #[tokio::test]
     async fn test_hybrid_retrieve() {
         let vector_store = InMemoryVectorStore::in_memory();
-        let embedding_model = MockEmbeddingModel::new(128);
+        let embedding_model = create_mock_embedding_model(128);
         let chunker = FixedSizeChunker::default();
 
         let engine = DefaultRetrieverEngine::new(vector_store, embedding_model, chunker);
@@ -1199,7 +1215,10 @@ mod tests {
         engine.index(docs).await.unwrap();
 
         // 混合检索
-        let results = engine.hybrid_retrieve("Rust programming language", 5).await.unwrap();
+        let results = engine
+            .hybrid_retrieve("Rust programming language", 5)
+            .await
+            .unwrap();
         assert!(!results.is_empty());
         // Rust 相关文档应该在前面
         assert!(results[0].content.contains("Rust"));
@@ -1208,7 +1227,7 @@ mod tests {
     #[tokio::test]
     async fn test_hybrid_retrieve_with_config() {
         let vector_store = InMemoryVectorStore::in_memory();
-        let embedding_model = MockEmbeddingModel::new(128);
+        let embedding_model = create_mock_embedding_model(128);
         let chunker = FixedSizeChunker::default();
 
         let engine = DefaultRetrieverEngine::new(vector_store, embedding_model, chunker);
@@ -1221,8 +1240,8 @@ mod tests {
         engine.index(docs).await.unwrap();
 
         // 测试仅向量搜索
-        let config_vector_only = HybridSearchConfig::new()
-            .with_weights(HybridWeights::vector_only());
+        let config_vector_only =
+            HybridSearchConfig::new().with_weights(HybridWeights::vector_only());
         let results = engine
             .hybrid_retrieve_with_config("neural networks", 5, &config_vector_only)
             .await
@@ -1230,8 +1249,8 @@ mod tests {
         assert!(!results.is_empty());
 
         // 测试仅关键词搜索
-        let config_keyword_only = HybridSearchConfig::new()
-            .with_weights(HybridWeights::keyword_only());
+        let config_keyword_only =
+            HybridSearchConfig::new().with_weights(HybridWeights::keyword_only());
         let results = engine
             .hybrid_retrieve_with_config("machine learning", 5, &config_keyword_only)
             .await
@@ -1267,7 +1286,7 @@ mod tests {
     #[test]
     fn test_extract_keywords() {
         let vector_store = InMemoryVectorStore::in_memory();
-        let embedding_model = MockEmbeddingModel::new(128);
+        let embedding_model = create_mock_embedding_model(128);
         let chunker = FixedSizeChunker::default();
 
         let engine = DefaultRetrieverEngine::new(vector_store, embedding_model, chunker);
@@ -1284,7 +1303,7 @@ mod tests {
     #[test]
     fn test_bm25_keyword_score() {
         let vector_store = InMemoryVectorStore::in_memory();
-        let embedding_model = MockEmbeddingModel::new(128);
+        let embedding_model = create_mock_embedding_model(128);
         let chunker = FixedSizeChunker::default();
 
         let engine = DefaultRetrieverEngine::new(vector_store, embedding_model, chunker);
@@ -1300,11 +1319,8 @@ mod tests {
         );
 
         // 低匹配内容
-        let score_low = engine.compute_keyword_score(
-            &keywords,
-            "Python data science frameworks",
-            &config,
-        );
+        let score_low =
+            engine.compute_keyword_score(&keywords, "Python data science frameworks", &config);
 
         assert!(score_high > score_low);
     }

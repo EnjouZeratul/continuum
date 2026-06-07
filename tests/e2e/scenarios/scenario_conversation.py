@@ -67,9 +67,22 @@ class ScenarioConversation:
             # 检查上下文引用
             expected_context = result["step"]["expect_context"]
             if expected_context:
-                # 响应应引用相关上下文
-                # TODO: 实现上下文相关性检查
-                pass
+                # 上下文相关性检查：验证响应包含相关上下文关键词
+                response = result["response"].lower()
+                context_keywords = expected_context.lower().split()
+
+                # 检查是否包含上下文关键词
+                matched = any(kw in response for kw in context_keywords)
+
+                # 对于编程相关上下文，检查代码关键词
+                if "python" in expected_context.lower() or "函数" in expected_context:
+                    code_keywords = ["def", "function", "python", "fibonacci", "斐波那契", "return"]
+                    matched = matched or any(kw in response for kw in code_keywords)
+
+                # 如果话题切换（expect_context为None），则不需要匹配
+                if expected_context is not None:
+                    assert matched, \
+                        f"第 {i+1} 步响应应引用上下文 '{expected_context}': {response}"
 
         # 检查历史累积
         expected_history_len = len(self.CONVERSATION_FLOW) * 2

@@ -10,9 +10,7 @@ use ratatui::{
 use std::collections::HashMap;
 
 use super::color_theme::ColorTheme;
-use super::syntax_highlight::{
-    HighlightedLine, HighlightedSpan, SyntaxHighlighter,
-};
+use super::syntax_highlight::{HighlightedLine, HighlightedSpan, SyntaxHighlighter};
 
 /// Markdown 渲染器
 pub struct MarkdownRenderer {
@@ -69,10 +67,8 @@ impl MarkdownRenderer {
                             }
                             self.render_heading_start(&mut current_line_spans, level);
                         }
-                        Tag::Paragraph => {
-                            if !lines.is_empty() && !self.in_code_block {
-                                lines.push(Line::from(Span::raw("")));
-                            }
+                        Tag::Paragraph if !lines.is_empty() && !self.in_code_block => {
+                            lines.push(Line::from(Span::raw("")));
                         }
                         Tag::CodeBlock(kind) => {
                             self.in_code_block = true;
@@ -142,11 +138,9 @@ impl MarkdownRenderer {
                         lines.push(Line::from(current_line_spans.clone()));
                         current_line_spans.clear();
                     }
-                    TagEnd::Paragraph => {
-                        if !current_line_spans.is_empty() {
-                            lines.push(Line::from(current_line_spans.clone()));
-                            current_line_spans.clear();
-                        }
+                    TagEnd::Paragraph if !current_line_spans.is_empty() => {
+                        lines.push(Line::from(current_line_spans.clone()));
+                        current_line_spans.clear();
                     }
                     TagEnd::CodeBlock => {
                         self.in_code_block = false;
@@ -162,17 +156,13 @@ impl MarkdownRenderer {
                         self.list_counters.remove(&self.list_depth);
                         self.list_depth = self.list_depth.saturating_sub(1);
                     }
-                    TagEnd::Item => {
-                        if !current_line_spans.is_empty() {
-                            lines.push(Line::from(current_line_spans.clone()));
-                            current_line_spans.clear();
-                        }
+                    TagEnd::Item if !current_line_spans.is_empty() => {
+                        lines.push(Line::from(current_line_spans.clone()));
+                        current_line_spans.clear();
                     }
-                    TagEnd::BlockQuote => {
-                        if !current_line_spans.is_empty() {
-                            lines.push(Line::from(current_line_spans.clone()));
-                            current_line_spans.clear();
-                        }
+                    TagEnd::BlockQuote if !current_line_spans.is_empty() => {
+                        lines.push(Line::from(current_line_spans.clone()));
+                        current_line_spans.clear();
                     }
                     TagEnd::Emphasis | TagEnd::Strong | TagEnd::Strikethrough => {}
                     _ => {}

@@ -12,6 +12,13 @@ readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+local-embeddings = []
+mock = []
+otel = ["opentelemetry", "tracing-opentelemetry", "opentelemetry-otlp"]
+prometheus = ["metrics", "metrics-exporter-prometheus"]
+
 [dependencies]
 sh-layer0.workspace = true
 
@@ -22,6 +29,7 @@ thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 reqwest.workspace = true
 sled.workspace = true
 config.workspace = true
@@ -32,6 +40,19 @@ parking_lot.workspace = true
 futures.workspace = true
 toml.workspace = true
 dirs.workspace = true
+
+# WebSocket support
+tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+
+# Async stream support
+async-stream = "0.3"
+
+# Optional observability dependencies
+opentelemetry = { version = "0.27", optional = true }
+tracing-opentelemetry = { version = "0.28", optional = true }
+opentelemetry-otlp = { version = "0.27", optional = true, features = ["grpc-tonic"] }
+metrics = { version = "0.24", optional = true }
+metrics-exporter-prometheus = { version = "0.15", optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true

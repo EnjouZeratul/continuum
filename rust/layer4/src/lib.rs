@@ -9,12 +9,14 @@
 //! - `worktree_manager`: Git Worktree 管理
 //! - `mcp_bridge`: MCP 协议桥接 (Terminal 1)
 //! - `audit_logger`: 审计日志 (Terminal 1)
+//! - `compliance_checker`: 合规检查器
 
 // 允许未使用的代码（测试和未来功能）
 #![allow(dead_code)]
 
 pub mod audit_logger;
 pub mod channel_gateway;
+pub mod compliance_checker;
 pub mod mcp_bridge;
 pub mod plugin_loader;
 pub mod types;
@@ -55,6 +57,13 @@ pub use mcp_bridge::{
 pub use audit_logger::{
     AuditAction, AuditConfig, AuditEntry, AuditFilter, AuditLogger, AuditResult, AuditStorage,
     ExportFormat, FileStorage, MemoryStorage,
+};
+
+// 导出合规检查器
+pub use compliance_checker::{
+    CheckContext, CheckResult, ComplianceChecker, ComplianceConfig, ComplianceReport,
+    ComplianceRule, ComplianceStandard, ComplianceStatus, ComplianceSummary, QuickCheckResult,
+    ReportFormat, ResourceInfo, RuleCategory, RuleChecker, RuleSeverity, Violation,
 };
 
 // 导出 traits

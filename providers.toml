@@ -1,0 +1,276 @@
+# Continuum Provider Registry
+# Single source of truth for all LLM provider configurations.
+# Read by Python SDK, CLI (via Rust), and documentation generators.
+
+[anthropic]
+name = "anthropic"
+display_name = "Anthropic (Claude)"
+api_format = "anthropic"
+default_base_url = "https://api.anthropic.com"
+env_key = "ANTHROPIC_API_KEY"
+default_model = "claude-sonnet-4-6"
+default_small_model = "claude-haiku-4-5"
+models = [
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-opus-4-5",
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-mythos-preview",
+]
+sdk_support = true
+cli_support = true
+
+[openai]
+name = "openai"
+display_name = "OpenAI (GPT)"
+api_format = "openai"
+default_base_url = "https://api.openai.com/v1"
+env_key = "OPENAI_API_KEY"
+default_model = "gpt-5.5"
+default_small_model = "gpt-4.1-mini"
+models = [
+    "gpt-5.5",
+    "gpt-5.4",
+    "gpt-5.2",
+    "gpt-5.1",
+    "gpt-5",
+    "o3-mini",
+    "o1",
+    "gpt-4o",
+    "gpt-4o-mini",
+]
+sdk_support = true
+cli_support = true
+
+[google]
+name = "google"
+display_name = "Google (Gemini)"
+api_format = "google"
+default_base_url = "https://generativelanguage.googleapis.com/v1beta"
+env_key = "GOOGLE_API_KEY"
+default_model = "gemini-3.0-pro"
+default_small_model = "gemini-3.0-flash"
+models = [
+    "gemini-3.1-pro-preview",
+    "gemini-3.5-flash",
+    "gemini-3.0-pro",
+    "gemini-3.0-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+]
+sdk_support = true
+cli_support = false
+
+[gemini]
+name = "gemini"
+display_name = "Google Gemini"
+api_format = "google"
+default_base_url = "https://generativelanguage.googleapis.com/v1beta"
+env_key = "GOOGLE_API_KEY"
+default_model = "gemini-3.0-pro"
+default_small_model = "gemini-3.0-flash"
+models = [
+    "gemini-3.1-pro-preview",
+    "gemini-3.5-flash",
+    "gemini-3.0-pro",
+    "gemini-3.0-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+]
+sdk_support = true
+cli_support = true
+
+[azure]
+name = "azure"
+display_name = "Azure OpenAI"
+api_format = "openai"
+default_base_url = "https://YOUR_RESOURCE.openai.azure.com"
+env_key = "AZURE_OPENAI_API_KEY"
+default_model = "gpt-4o"
+models = []
+sdk_support = true
+cli_support = true
+
+[bedrock]
+name = "bedrock"
+display_name = "AWS Bedrock"
+api_format = "openai"
+default_base_url = "https://bedrock-runtime.us-east-1.amazonaws.com"
+env_key = "AWS_ACCESS_KEY_ID"
+default_model = "anthropic.claude-sonnet-4-6"
+models = []
+sdk_support = true
+cli_support = true
+
+[ollama]
+name = "ollama"
+display_name = "Ollama (Local)"
+api_format = "openai"
+default_base_url = "http://localhost:11434"
+env_key = ""
+default_model = "llama3"
+models = []
+sdk_support = true
+cli_support = true
+
+[cohere]
+name = "cohere"
+display_name = "Cohere"
+api_format = "openai"
+default_base_url = "https://api.cohere.ai/v1"
+env_key = "COHERE_API_KEY"
+default_model = "command"
+default_small_model = "command-light"
+models = [
+    "command",
+    "command-light",
+]
+sdk_support = true
+cli_support = false
+
+[huggingface]
+name = "huggingface"
+display_name = "HuggingFace"
+api_format = "openai"
+default_base_url = "https://api-inference.huggingface.co/models"
+env_key = "HF_API_KEY"
+default_model = ""
+models = []
+sdk_support = true
+cli_support = false
+
+[together]
+name = "together"
+display_name = "Together AI"
+api_format = "openai"
+default_base_url = "https://api.together.xyz/v1"
+env_key = "TOGETHER_API_KEY"
+default_model = "meta-llama/Llama-3-70b-chat-hf"
+models = [
+    "meta-llama/Llama-3-70b-chat-hf",
+    "meta-llama/Llama-3-8b-chat-hf",
+    "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    "mistralai/Mistral-7B-Instruct-v0.1",
+    "togethercomputer/CodeLlama-34b-Instruct",
+]
+sdk_support = true
+cli_support = false
+
+[groq]
+name = "groq"
+display_name = "Groq"
+api_format = "openai"
+default_base_url = "https://api.groq.com/openai/v1"
+env_key = "GROQ_API_KEY"
+default_model = "llama-3.3-70b-versatile"
+models = [
+    "llama-3.3-70b-versatile",
+    "llama-3.3-70b-specdec",
+    "llama-3.1-8b-instant",
+    "llama-3.1-70b-versatile",
+    "llama-3.1-405b-reasoning",
+    "mixtral-8x7b-32768",
+    "gemma2-9b-it",
+]
+sdk_support = true
+cli_support = false
+
+[deepseek]
+name = "deepseek"
+display_name = "DeepSeek"
+api_format = "openai"
+default_base_url = "https://api.deepseek.com/v1"
+env_key = "DEEPSEEK_API_KEY"
+default_model = "deepseek-v4-pro"
+models = [
+    "deepseek-v4-pro",
+    "deepseek-v4-flash",
+    "deepseek-v3.2",
+    "deepseek-v3.1-terminus",
+    "deepseek-v3",
+    "deepseek-chat",
+    "deepseek-reasoner",
+]
+sdk_support = true
+cli_support = false
+
+[moonshot]
+name = "moonshot"
+display_name = "Moonshot (Kimi)"
+api_format = "openai"
+default_base_url = "https://api.moonshot.cn/v1"
+env_key = "MOONSHOT_API_KEY"
+default_model = "kimi-k2.6"
+models = [
+    "kimi-k2.6",
+    "kimi-k2-thinking",
+    "kimi-k2.5",
+    "moonshot-v1-8k",
+    "moonshot-v1-32k",
+    "moonshot-v1-128k",
+]
+sdk_support = true
+cli_support = false
+
+[glm]
+name = "glm"
+display_name = "GLM (智谱AI)"
+api_format = "openai"
+default_base_url = "https://open.bigmodel.cn/api/paas/v4"
+env_key = "GLM_API_KEY"
+default_model = "glm-5.1"
+models = [
+    "glm-5.1",
+    "glm-5",
+    "glm-4.7",
+    "glm-4.6",
+]
+sdk_support = true
+cli_support = false
+
+[kimi]
+name = "kimi"
+display_name = "KIMI (月之暗面)"
+api_format = "openai"
+default_base_url = "https://api.moonshot.cn/v1"
+env_key = "MOONSHOT_API_KEY"
+default_model = "kimi-k2.6"
+models = [
+    "kimi-k2.6",
+    "kimi-k2-thinking",
+    "kimi-k2.5",
+]
+sdk_support = true
+cli_support = false
+
+[qwen]
+name = "qwen"
+display_name = "Qwen (阿里巴巴)"
+api_format = "openai"
+default_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+env_key = "QWEN_API_KEY"
+default_model = "qwen3.7-max"
+models = [
+    "qwen3.7-max",
+    "qwen3.6-plus",
+    "qwen3.5-27B",
+]
+sdk_support = true
+cli_support = false
+
+[grok]
+name = "grok"
+display_name = "Grok (xAI)"
+api_format = "openai"
+default_base_url = "https://api.x.ai/v1"
+env_key = "XAI_API_KEY"
+default_model = "grok-4-heavy"
+models = [
+    "grok-4-heavy",
+    "grok-4",
+]
+sdk_support = true
+cli_support = false
