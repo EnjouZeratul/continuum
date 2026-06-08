@@ -830,7 +830,9 @@ class TestPermissionCheckerUnixSpecific:
             assert "No write permission in parent directory" in result.reason
 
 
-@pytest.mark.skipif(os.name == "nt", reason="PosixPath cannot be instantiated on Windows")
+@pytest.mark.skipif(
+    os.name == "nt", reason="PosixPath cannot be instantiated on Windows"
+)
 class TestPermissionCheckerCrossPlatformMocked:
     """Cross-platform tests using mocking to cover Unix code on Windows and vice versa."""
 

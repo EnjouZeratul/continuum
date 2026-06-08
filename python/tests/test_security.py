@@ -166,6 +166,9 @@ class TestPathValidator:
         finally:
             shutil.rmtree(outside_dir)
 
+    @pytest.mark.skipif(
+        os.name == "nt", reason="Windows requires admin privileges for symlinks"
+    )
     def test_symlink_no_follow(self, temp_dir):
         """Test symlink not followed when follow_symlinks=False"""
         # Create a file outside project
@@ -181,7 +184,9 @@ class TestPathValidator:
                 pytest.skip("Symlink creation not supported on this system")
 
             # Without following symlinks, the symlink path itself is inside project
-            validator = PathValidator(project_root=os.path.realpath(temp_dir), follow_symlinks=False)
+            validator = PathValidator(
+                project_root=os.path.realpath(temp_dir), follow_symlinks=False
+            )
             result = validator.validate(str(symlink_path))
             # Without follow_symlinks, validation is on the path itself, not the target
             # The symlink path is inside temp_dir, so should be valid
@@ -571,13 +576,23 @@ class TestPathValidator:
             resolved_outside_dir = os.path.realpath(outside_dir)
             # Add path twice
             validator.add_allowed_path(resolved_outside_dir)
-            initial_count = len([p for p in validator.get_config().get("allowed_paths", []) if resolved_outside_dir in p])
+            initial_count = len(
+                [
+                    p
+                    for p in validator.get_config().get("allowed_paths", [])
+                    if resolved_outside_dir in p
+                ]
+            )
             validator.add_allowed_path(resolved_outside_dir)  # Should not duplicate
 
             config = validator.get_config()
             # Count occurrences - should remain same as initial
-            final_count = sum(1 for p in config.get("allowed_paths", []) if resolved_outside_dir in p)
-            assert final_count == max(initial_count, 1)  # Should only appear once (or initial count)
+            final_count = sum(
+                1 for p in config.get("allowed_paths", []) if resolved_outside_dir in p
+            )
+            assert final_count == max(
+                initial_count, 1
+            )  # Should only appear once (or initial count)
         finally:
             shutil.rmtree(outside_dir)
 
@@ -808,7 +823,9 @@ class TestPathValidator:
         result2 = validator.validate("normal_path.py")
         assert result2.is_valid
 
-    @pytest.mark.skipif(os.name == "nt", reason="PosixPath cannot be instantiated on Windows")
+    @pytest.mark.skipif(
+        os.name == "nt", reason="PosixPath cannot be instantiated on Windows"
+    )
     def test_unix_path_comparison(self, temp_dir):
         """Test Unix-style path comparison (lines 358-359)"""
         import unittest.mock as mock
