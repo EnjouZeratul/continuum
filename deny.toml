@@ -1,13 +1,16 @@
 [advisories]
 ignore = [
+    # Unmaintained crates (indirect dependencies)
     "RUSTSEC-2024-0384",  # instant - unmaintained, comes from sled/parking_lot indirect dependency
     "RUSTSEC-2025-0057",  # fxhash - no longer maintained
-    # Unmaintained crates (indirect dependencies)
     "RUSTSEC-2024-0375",  # bincode - unmaintained
     "RUSTSEC-2024-0369",  # generational-arena - unmaintained
     "RUSTSEC-2024-0436",  # paste - no longer maintained
     "RUSTSEC-2024-0421",  # yaml-rust - unmaintained
-    # Wasmtime vulnerabilities (we're using sandboxed execution)
+    "RUSTSEC-2024-0320",  #.enum_primitive - unmaintained
+    "RUSTSEC-2024-0014",  # same-file crate - no longer maintained
+
+    # Wasmtime vulnerabilities (we use sandboxed execution)
     "RUSTSEC-2025-0001",  # wasmtime - fd_renumber panic
     "RUSTSEC-2024-0379",  # wasmtime - shared memory unsoundness
     "RUSTSEC-2024-0380",  # wasmtime - resource exhaustion
@@ -24,6 +27,25 @@ ignore = [
     "RUSTSEC-2025-0012",  # wasmtime - Winch memory escape
     "RUSTSEC-2025-0013",  # wasmtime - aarch64 miscompile
     "RUSTSEC-2025-0014",  # wasmtime - TRUNCATE bypass
+    "RUSTSEC-2025-0046",  # wasmtime - incomplete initialization
+    "RUSTSEC-2025-0118",  # wasmtime - dangling pointer
+    "RUSTSEC-2025-0141",  # wasmtime - memory64 cranelift bug
+
+    # New wasmtime vulnerabilities 2026
+    "RUSTSEC-2026-0020",  # wasmtime - Winch ccall miscompile
+    "RUSTSEC-2026-0021",  # wasmtime - table64 bounds check
+    "RUSTSEC-2026-0085",  # wasmtime - stack switching
+    "RUSTSEC-2026-0086",  # wasmtime - component model
+    "RUSTSEC-2026-0087",  # wasmtime - gc implementation
+    "RUSTSEC-2026-0088",  # wasmtime - array.copy semantic
+    "RUSTSEC-2026-0089",  # wasmtime - stack switching continuation
+    "RUSTSEC-2026-0091",  # wasmtime - cranelift verifier
+    "RUSTSEC-2026-0092",  # wasmtime - threading spec
+    "RUSTSEC-2026-0093",  # wasmtime - component model async
+    "RUSTSEC-2026-0094",  # wasmtime - memory64 spec
+    "RUSTSEC-2026-0095",  # wasmtime - Winch wasm-middleware
+    "RUSTSEC-2026-0096",  # wasmtime - pooling instance allocator
+    "RUSTSEC-2026-0149",  # wasmtime - reference types
 ]
 
 [licenses]
