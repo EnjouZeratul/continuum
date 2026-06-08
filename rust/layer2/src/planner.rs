@@ -9,22 +9,17 @@ use crate::workflow_engine::{Dag, Node};
 use serde::{Deserialize, Serialize};
 
 /// 任务分解策略
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DecompositionStrategy {
     /// 顺序分解：按步骤顺序执行
     Sequential,
     /// 并行分解：独立子任务并行执行
     Parallel,
     /// 混合分解：根据依赖关系自动选择
+    #[default]
     Hybrid,
     /// 层次分解：先粗粒度再细粒度
     Hierarchical,
-}
-
-impl Default for DecompositionStrategy {
-    fn default() -> Self {
-        Self::Hybrid
-    }
 }
 
 /// 子任务定义
@@ -127,22 +122,17 @@ pub struct ExecutionPlan {
 }
 
 /// 风险等级
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum RiskLevel {
     /// 低风险：简单的确定性任务
     Low,
     /// 中风险：需要多个工具协作
+    #[default]
     Medium,
     /// 高风险：涉及复杂逻辑或外部系统
     High,
     /// 极高风险：可能需要用户介入
     Critical,
-}
-
-impl Default for RiskLevel {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 impl ExecutionPlan {
@@ -231,6 +221,7 @@ pub struct TaskDecomposer {
     /// 最大分解深度
     max_depth: u32,
     /// 最小子任务粒度
+    #[allow(dead_code)]
     min_granularity: u32,
 }
 
@@ -404,7 +395,7 @@ impl TaskDecomposer {
     /// 层次分解
     fn decompose_hierarchical(&self, task: &str, depth: u32) -> Vec<SubTask> {
         if depth >= self.max_depth {
-            return vec![SubTask::new(&format!("leaf_{}", depth), "Execute", task)];
+            return vec![SubTask::new(format!("leaf_{}", depth), "Execute", task)];
         }
 
         let main_steps = self.extract_steps(task);

@@ -14,9 +14,10 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 /// 执行状态
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ExecutionStatus {
     /// 未开始
+    #[default]
     Pending,
     /// 运行中
     Running,
@@ -34,12 +35,6 @@ pub enum ExecutionStatus {
     AwaitingUserInput,
     /// 已取消
     Cancelled,
-}
-
-impl Default for ExecutionStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
 }
 
 /// 步骤执行结果
@@ -62,6 +57,7 @@ pub struct StepResult {
 }
 
 /// 执行监控器
+#[allow(clippy::type_complexity)]
 pub struct ExecutionMonitor {
     /// 执行计划
     plan: Arc<RwLock<ExecutionPlan>>,
@@ -70,6 +66,7 @@ pub struct ExecutionMonitor {
     /// 步骤结果
     step_results: Arc<RwLock<HashMap<String, StepResult>>>,
     /// 错误恢复器
+    #[allow(dead_code)]
     error_recovery: Arc<ErrorRecovery>,
     /// 开始时间
     start_time: Arc<RwLock<Option<Instant>>>,
@@ -386,7 +383,7 @@ impl ExecutionMonitor {
         decision: &CorrectionDecision,
     ) -> Layer2Result<bool> {
         match &decision.strategy {
-            CorrectionStrategy::Retry { max_attempts } => {
+            CorrectionStrategy::Retry { max_attempts: _ } => {
                 // 使用 ErrorRecovery 进行重试
                 // 简化实现：返回需要重试
                 Ok(true)
@@ -411,7 +408,7 @@ impl ExecutionMonitor {
                 .await?;
                 Ok(true)
             }
-            CorrectionStrategy::UserIntervention { action } => {
+            CorrectionStrategy::UserIntervention { action: _ } => {
                 // 标记需要用户介入
                 let mut status = self.status.write().await;
                 *status = ExecutionStatus::AwaitingUserInput;
@@ -426,7 +423,7 @@ impl ExecutionMonitor {
                 .await?;
                 Ok(true)
             }
-            CorrectionStrategy::AdjustParameters { new_params } => {
+            CorrectionStrategy::AdjustParameters { new_params: _ } => {
                 // 标记参数已调整
                 self.report_step_completed(
                     subtask_id,

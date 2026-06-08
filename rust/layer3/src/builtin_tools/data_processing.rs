@@ -88,6 +88,7 @@ fn query_json(value: &Value, path: &str) -> Layer3Result<Value> {
                     current.clear();
                 }
                 // Read until closing bracket
+                #[allow(clippy::while_let_on_iterator)]
                 while let Some(inner) = chars.next() {
                     if inner == ']' {
                         break;
@@ -732,7 +733,7 @@ impl BuiltinTool for UuidGenerateTool {
 
     async fn execute(&self, args: serde_json::Value) -> Layer3Result<String> {
         let version = args["version"].as_u64().unwrap_or(4);
-        let count = args["count"].as_u64().unwrap_or(1).max(1).min(100) as usize;
+        let count = args["count"].as_u64().unwrap_or(1).clamp(1, 100) as usize;
 
         let uuids: Vec<String> = (0..count)
             .map(|_| {

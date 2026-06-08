@@ -656,7 +656,7 @@ def sync_tool(args):
             let json = json!({
                 "string": "hello",
                 "number": 42,
-                "float": 3.14,
+                "float": 1.2345,
                 "bool": true,
                 "null": null,
                 "array": [1, 2, 3],
@@ -690,7 +690,7 @@ test_dict = {
             let py_dict = py.eval(c"test_dict", None, None).unwrap();
             let dict = py_dict.downcast::<PyDict>().unwrap();
 
-            let json = python_dict_to_json(&dict).unwrap();
+            let json = python_dict_to_json(dict).unwrap();
             let py_dict2 = json_to_python_dict(py, &json).unwrap();
             let json2 = python_dict_to_json(&py_dict2).unwrap();
 

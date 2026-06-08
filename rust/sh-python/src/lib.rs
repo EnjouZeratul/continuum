@@ -914,7 +914,7 @@ mod bindings {
             Self {
                 agent_id: agent_id
                     .map(|s| s.to_string())
-                    .unwrap_or_else(|| sh_layer1::generate_short_id()),
+                    .unwrap_or_else(sh_layer1::generate_short_id),
                 model: model.to_string(),
                 temperature,
                 max_iterations,

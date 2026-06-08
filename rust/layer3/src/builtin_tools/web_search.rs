@@ -662,13 +662,13 @@ mod tests {
         assert!(cached.is_some());
     }
 
-    #[test]
-    fn test_rate_limiter() {
+    #[tokio::test]
+    async fn test_rate_limiter() {
         let limiter = RateLimiter::new(Duration::from_millis(100));
 
         // First call should proceed immediately
         let start = Instant::now();
-        limiter.acquire();
+        limiter.acquire().await;
         let elapsed = start.elapsed();
         assert!(elapsed < Duration::from_millis(50));
     }

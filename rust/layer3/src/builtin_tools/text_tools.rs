@@ -124,7 +124,7 @@ impl BuiltinTool for WordFrequencyTool {
         }
 
         let mut freq_vec: Vec<_> = freq.into_iter().collect();
-        freq_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        freq_vec.sort_by_key(|b| std::cmp::Reverse(b.1));
 
         let result: Vec<String> = freq_vec
             .iter()
@@ -353,7 +353,7 @@ impl BuiltinTool for TextSplitTool {
             "lines" => {
                 let count = args["count"].as_u64().unwrap_or(10) as usize;
                 let lines: Vec<&str> = text.lines().collect();
-                let chunk_size = (lines.len() + count - 1) / count;
+                let chunk_size = lines.len().div_ceil(count);
                 lines
                     .chunks(chunk_size.max(1))
                     .enumerate()

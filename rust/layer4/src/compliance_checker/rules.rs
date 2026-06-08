@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 /// 合规标准
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum ComplianceStandard {
     /// SOC 2 (Service Organization Control)
     SOC2,
@@ -155,22 +156,17 @@ pub enum RuleCategory {
 }
 
 /// 规则严重性
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum RuleSeverity {
     /// 低
     Low,
     /// 中
+    #[default]
     Medium,
     /// 高
     High,
     /// 严重
     Critical,
-}
-
-impl Default for RuleSeverity {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 /// 合规规则

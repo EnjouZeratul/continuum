@@ -267,7 +267,7 @@ impl ToolDisplayComponent {
                     format_duration_short(call.started_at.elapsed())
                 } else {
                     call.duration
-                        .map(|d| format_duration_short(d))
+                        .map(format_duration_short)
                         .unwrap_or_default()
                 };
 

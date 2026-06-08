@@ -539,7 +539,6 @@ impl BuiltinTool for GitStashTool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     #[test]
     fn test_git_status_category() {

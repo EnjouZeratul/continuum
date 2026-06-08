@@ -357,13 +357,14 @@ impl McpBridge {
         let message = McpMessage::Request(request);
 
         // 发送请求
-        {
+        let transport = {
             let transport_guard = self.transport.read();
-            let transport = transport_guard
+            transport_guard
                 .as_ref()
-                .ok_or_else(|| anyhow!("Transport not initialized"))?;
-            transport.send(&message).await?;
-        }
+                .ok_or_else(|| anyhow!("Transport not initialized"))?
+                .clone()
+        };
+        transport.send(&message).await?;
 
         // 等待响应，带超时
         let result = tokio::time::timeout(timeout_duration, rx.recv()).await;

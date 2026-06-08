@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use super::rules::{ComplianceRule, ComplianceStandard, RuleCategory, RuleSeverity};
 
 /// 合规状态
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComplianceStatus {
     /// 合规
     Compliant,
@@ -18,30 +18,25 @@ pub enum ComplianceStatus {
     /// 部分合规
     PartiallyCompliant,
     /// 未检查
+    #[default]
     NotChecked,
     /// 不适用
     NotApplicable,
-}
-
-impl Default for ComplianceStatus {
-    fn default() -> Self {
-        Self::NotChecked
-    }
 }
 
 /// 报告格式
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReportFormat {
     /// JSON 格式
-    JSON,
+    Json,
     /// CSV 格式
-    CSV,
+    Csv,
     /// HTML 格式
-    HTML,
+    Html,
     /// Markdown 格式
     Markdown,
     /// PDF 格式
-    PDF,
+    Pdf,
 }
 
 /// 违规项
@@ -197,6 +192,7 @@ pub struct ComplianceReport {
 
 /// 报告摘要
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ReportSummary {
     /// 检查的规则总数
     pub total_rules: usize,
@@ -216,22 +212,6 @@ pub struct ReportSummary {
     pub medium_violations: usize,
     /// 低危违规数
     pub low_violations: usize,
-}
-
-impl Default for ReportSummary {
-    fn default() -> Self {
-        Self {
-            total_rules: 0,
-            compliant_rules: 0,
-            non_compliant_rules: 0,
-            not_applicable_rules: 0,
-            total_violations: 0,
-            critical_violations: 0,
-            high_violations: 0,
-            medium_violations: 0,
-            low_violations: 0,
-        }
-    }
 }
 
 impl ComplianceReport {
@@ -303,7 +283,7 @@ impl ComplianceReport {
             + (self.summary.medium_violations as f32 * 2.0)
             + (self.summary.low_violations as f32 * 0.5);
 
-        self.compliance_score = (base_score - penalty).max(0.0).min(100.0);
+        self.compliance_score = (base_score - penalty).clamp(0.0, 100.0);
 
         // 确定总体状态
         self.overall_status = if self.compliance_score >= 90.0 {
@@ -318,13 +298,13 @@ impl ComplianceReport {
     /// 导出报告
     pub fn export(&self, format: ReportFormat) -> Vec<u8> {
         match format {
-            ReportFormat::JSON => serde_json::to_string_pretty(self)
+            ReportFormat::Json => serde_json::to_string_pretty(self)
                 .unwrap_or_default()
                 .into_bytes(),
-            ReportFormat::CSV => self.export_csv(),
-            ReportFormat::HTML => self.export_html().into_bytes(),
+            ReportFormat::Csv => self.export_csv(),
+            ReportFormat::Html => self.export_html().into_bytes(),
             ReportFormat::Markdown => self.export_markdown().into_bytes(),
-            ReportFormat::PDF => {
+            ReportFormat::Pdf => {
                 // PDF 需要额外的依赖库，这里返回 HTML 作为占位
                 self.export_html().into_bytes()
             }
@@ -516,7 +496,7 @@ mod tests {
     #[test]
     fn test_export_json() {
         let report = ComplianceReport::new("Test", vec![ComplianceStandard::SOC2]);
-        let json = report.export(ReportFormat::JSON);
+        let json = report.export(ReportFormat::Json);
         assert!(!json.is_empty());
     }
 

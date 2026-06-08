@@ -147,10 +147,13 @@ pub trait RuleChecker: Send + Sync {
     fn rule_id(&self) -> &str;
 }
 
+/// 规则检查函数类型
+type RuleCheckFn = Arc<dyn Fn(&CheckContext) -> Option<Violation> + Send + Sync>;
+
 /// 内置规则检查器
 pub struct BuiltinRuleChecker {
     rule: ComplianceRule,
-    check_fn: Arc<dyn Fn(&CheckContext) -> Option<Violation> + Send + Sync>,
+    check_fn: RuleCheckFn,
 }
 
 impl BuiltinRuleChecker {

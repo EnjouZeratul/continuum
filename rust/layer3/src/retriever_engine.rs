@@ -1103,16 +1103,7 @@ mod tests {
     /// 创建测试用的 Mock Embedding 模型
     /// 使用 Layer1 的 MockEmbeddingModel 通过适配器
     fn create_mock_embedding_model(dimension: usize) -> Layer1EmbeddingAdapter {
-        #[cfg(any(feature = "mock", test))]
-        {
-            Layer1EmbeddingAdapter::new(Box::new(sh_layer1::MockEmbeddingModel::new(dimension)))
-        }
-        #[cfg(not(any(feature = "mock", test)))]
-        {
-            // 在非测试配置下，这个分支不应该被执行
-            // 使用 unreachable! 来确保编译时检查
-            compile_error!("MockEmbeddingModel requires 'mock' feature or test configuration")
-        }
+        Layer1EmbeddingAdapter::new(Box::new(sh_layer1::MockEmbeddingModel::new(dimension)))
     }
 
     #[test]

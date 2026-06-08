@@ -11,7 +11,7 @@ use crate::query_engine::{
 };
 use crate::types::{CodeLocation, CodeRange, Layer3Result, QueryResult, QueryType};
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// LSP 查询引擎
@@ -38,12 +38,12 @@ impl LspQueryEngine {
     }
 
     /// 确保语言服务器已连接
-    async fn ensure_connected(&self, file: &PathBuf) -> Layer3Result<String> {
+    async fn ensure_connected(&self, file: &Path) -> Layer3Result<String> {
         let language = detect_language(file);
 
         if !self.client.is_connected(&language).await {
             self.client
-                .initialize(&language, file.parent().unwrap_or(&PathBuf::from(".")))
+                .initialize(&language, file.parent().unwrap_or(Path::new(".")))
                 .await
                 .map_err(|e| anyhow::anyhow!("Failed to initialize LSP server: {}", e))?;
         }
@@ -79,7 +79,8 @@ impl LspQueryEngine {
     }
 
     /// 将 DocumentSymbol 转换为 SymbolInfo
-    fn doc_symbol_to_info(symbol: &DocumentSymbol, file: &PathBuf) -> SymbolInfo {
+    fn doc_symbol_to_info(symbol: &DocumentSymbol, file: &Path) -> SymbolInfo {
+        let file = file.to_path_buf();
         SymbolInfo {
             name: symbol.name.clone(),
             kind: lsp_kind_to_query_kind(symbol.kind),
@@ -95,7 +96,7 @@ impl LspQueryEngine {
                     column: symbol.range.start.character,
                 },
                 end: CodeLocation {
-                    file: file.clone(),
+                    file,
                     line: symbol.range.end.line,
                     column: symbol.range.end.character,
                 },
@@ -382,7 +383,7 @@ fn lsp_kind_to_query_kind(kind: LspSymbolKind) -> SymbolKind {
 }
 
 /// 根据文件扩展名检测语言
-fn detect_language(file: &PathBuf) -> String {
+fn detect_language(file: &Path) -> String {
     match file.extension().and_then(|e| e.to_str()) {
         Some("rs") => "rust",
         Some("py") => "python",
@@ -543,8 +544,7 @@ mod tests {
 
     #[test]
     fn test_lsp_query_engine_creation() {
-        let engine = LspQueryEngine::new();
+        let _engine = LspQueryEngine::new();
         // Basic creation test - no async needed for new()
-        assert!(true);
     }
 }

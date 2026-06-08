@@ -583,7 +583,6 @@ impl Default for WasiContextBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     #[test]
     fn test_wasm_loader_creation() {
@@ -639,7 +638,7 @@ mod tests {
         builder.arg("--help");
 
         // Build WASI context
-        let ctx = builder.build();
+        let _ctx = builder.build();
         // WasiCtx is created successfully (no need to verify contents directly)
         // The context is now a real wasmtime-wasi WasiCtx
     }
@@ -651,7 +650,7 @@ mod tests {
         builder.arg("--test");
         builder.preopen("/tmp", std::env::temp_dir());
 
-        let ctx = builder.build();
+        let _ctx = builder.build();
         // Successfully built with preopened directory
     }
 
@@ -662,7 +661,7 @@ mod tests {
         builder.inherit_stdio(true);
         builder.inherit_env(false);
 
-        let ctx = builder.build();
+        let _ctx = builder.build();
         // Successfully built with read-only preopen
     }
 

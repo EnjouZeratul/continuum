@@ -517,6 +517,9 @@ pub trait HybridRetriever: Send + Sync {
 // Default Hybrid Retriever Implementation
 // ============================================================================
 
+/// 文档缓存条目类型
+type DocCacheEntry = (String, HashMap<String, serde_json::Value>);
+
 /// 默认混合检索器实现
 ///
 /// 结合 BM25 和向量检索，使用 RRF 融合结果。
@@ -532,7 +535,7 @@ where
     /// BM25 索引
     bm25_index: BM25Index,
     /// 文档内容缓存
-    doc_cache: Arc<RwLock<HashMap<String, (String, HashMap<String, serde_json::Value>)>>>,
+    doc_cache: Arc<RwLock<HashMap<String, DocCacheEntry>>>,
     /// 默认配置
     default_config: HybridRetrieverConfig,
 }
@@ -595,6 +598,7 @@ where
     }
 
     /// 应用分数阈值过滤
+    #[allow(dead_code)]
     fn apply_threshold(&self, results: Vec<(String, f64)>, threshold: f64) -> Vec<(String, f64)> {
         results
             .into_iter()
@@ -766,23 +770,17 @@ where
 
         // 应用过滤器
         if let Some(f) = filter {
-            results = results
-                .into_iter()
-                .filter(|r| {
-                    // 简单的元数据匹配检查
-                    f.must
-                        .iter()
-                        .all(|(key, value)| r.metadata.get(key).map_or(false, |v| v == value))
-                })
-                .collect();
+            results.retain(|r| {
+                // 简单的元数据匹配检查
+                f.must
+                    .iter()
+                    .all(|(key, value)| r.metadata.get(key) == Some(value))
+            });
         }
 
         // 应用分数阈值
         if config.min_score_threshold > 0.0 {
-            results = results
-                .into_iter()
-                .filter(|r| r.score >= config.min_score_threshold as f32)
-                .collect();
+            results.retain(|r| r.score >= config.min_score_threshold as f32);
         }
 
         results.truncate(top_k);

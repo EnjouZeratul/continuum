@@ -21,6 +21,7 @@ use tracing::{debug, warn};
 
 /// PDF Loader 实现
 pub struct PdfLoader {
+    #[allow(dead_code)]
     options: LoadOptions,
 }
 
@@ -39,92 +40,56 @@ impl PdfLoader {
     fn extract_metadata(&self, pdf: &PdfDoc) -> HashMap<String, serde_json::Value> {
         let mut metadata = HashMap::new();
 
+        // Helper to extract string from PDF dictionary
+        fn get_string_from_dict(
+            dict: &lopdf::Dictionary,
+            key: &[u8],
+        ) -> Option<String> {
+            let obj = dict.get(key).ok()?;
+            if let lopdf::Object::String(bytes, _) = obj {
+                PdfLoader::decode_pdf_string(bytes).ok()
+            } else {
+                None
+            }
+        }
+
         // 提取文档信息
         if let Ok(trailer) = pdf.trailer.get(b"Info") {
             if let Ok(info_ref) = trailer.as_reference() {
-                if let Some(info_obj) = pdf.get_object(info_ref).ok() {
-                    if let lopdf::Object::Dictionary(dict) = info_obj {
-                        // 标题
-                        if let Some(title) = dict.get(b"Title").ok() {
-                            if let lopdf::Object::String(bytes, _) = title {
-                                if let Ok(title_str) = Self::decode_pdf_string(bytes) {
-                                    metadata
-                                        .insert("title".to_string(), serde_json::json!(title_str));
-                                }
-                            }
-                        }
+                if let Ok(lopdf::Object::Dictionary(dict)) = pdf.get_object(info_ref) {
+                    // 标题
+                    if let Some(title) = get_string_from_dict(dict, b"Title") {
+                        metadata.insert("title".to_string(), serde_json::json!(title));
+                    }
 
-                        // 作者
-                        if let Some(author) = dict.get(b"Author").ok() {
-                            if let lopdf::Object::String(bytes, _) = author {
-                                if let Ok(author_str) = Self::decode_pdf_string(bytes) {
-                                    metadata.insert(
-                                        "author".to_string(),
-                                        serde_json::json!(author_str),
-                                    );
-                                }
-                            }
-                        }
+                    // 作者
+                    if let Some(author) = get_string_from_dict(dict, b"Author") {
+                        metadata.insert("author".to_string(), serde_json::json!(author));
+                    }
 
-                        // 主题
-                        if let Some(subject) = dict.get(b"Subject").ok() {
-                            if let lopdf::Object::String(bytes, _) = subject {
-                                if let Ok(subject_str) = Self::decode_pdf_string(bytes) {
-                                    metadata.insert(
-                                        "subject".to_string(),
-                                        serde_json::json!(subject_str),
-                                    );
-                                }
-                            }
-                        }
+                    // 主题
+                    if let Some(subject) = get_string_from_dict(dict, b"Subject") {
+                        metadata.insert("subject".to_string(), serde_json::json!(subject));
+                    }
 
-                        // 创建者
-                        if let Some(creator) = dict.get(b"Creator").ok() {
-                            if let lopdf::Object::String(bytes, _) = creator {
-                                if let Ok(creator_str) = Self::decode_pdf_string(bytes) {
-                                    metadata.insert(
-                                        "creator".to_string(),
-                                        serde_json::json!(creator_str),
-                                    );
-                                }
-                            }
-                        }
+                    // 创建者
+                    if let Some(creator) = get_string_from_dict(dict, b"Creator") {
+                        metadata.insert("creator".to_string(), serde_json::json!(creator));
+                    }
 
-                        // 生产者
-                        if let Some(producer) = dict.get(b"Producer").ok() {
-                            if let lopdf::Object::String(bytes, _) = producer {
-                                if let Ok(producer_str) = Self::decode_pdf_string(bytes) {
-                                    metadata.insert(
-                                        "producer".to_string(),
-                                        serde_json::json!(producer_str),
-                                    );
-                                }
-                            }
-                        }
+                    // 生产者
+                    if let Some(producer) = get_string_from_dict(dict, b"Producer") {
+                        metadata.insert("producer".to_string(), serde_json::json!(producer));
+                    }
 
-                        // 创建日期
-                        if let Some(creation_date) = dict.get(b"CreationDate").ok() {
-                            if let lopdf::Object::String(bytes, _) = creation_date {
-                                if let Ok(date_str) = Self::decode_pdf_string(bytes) {
-                                    metadata.insert(
-                                        "creation_date".to_string(),
-                                        serde_json::json!(date_str),
-                                    );
-                                }
-                            }
-                        }
+                    // 创建日期
+                    if let Some(creation_date) = get_string_from_dict(dict, b"CreationDate") {
+                        metadata.insert("creation_date".to_string(), serde_json::json!(creation_date));
+                    }
 
-                        // 修改日期
-                        if let Some(mod_date) = dict.get(b"ModDate").ok() {
-                            if let lopdf::Object::String(bytes, _) = mod_date {
-                                if let Ok(date_str) = Self::decode_pdf_string(bytes) {
-                                    metadata.insert(
-                                        "modification_date".to_string(),
-                                        serde_json::json!(date_str),
-                                    );
-                                }
-                            }
-                        }
+                    // 修改日期
+                    if let Some(mod_date) = get_string_from_dict(dict, b"ModDate") {
+                        metadata.insert("modification_date".to_string(), serde_json::json!(mod_date));
                     }
                 }
             }
@@ -153,36 +118,28 @@ impl PdfLoader {
     fn extract_page_text(pdf: &PdfDoc, page_id: (u32, u16)) -> Layer3Result<String> {
         let mut text = String::new();
 
-        if let Ok(page) = pdf.get_object(page_id) {
-            if let lopdf::Object::Dictionary(dict) = page {
-                if let Some(contents) = dict.get(b"Contents").ok() {
-                    match contents {
-                        lopdf::Object::Reference(ref_id) => {
-                            if let Ok(stream) = pdf.get_object(*ref_id) {
-                                if let lopdf::Object::Stream(stream_obj) = stream {
+        if let Ok(lopdf::Object::Dictionary(dict)) = pdf.get_object(page_id) {
+            if let Ok(contents) = dict.get(b"Contents") {
+                match contents {
+                    lopdf::Object::Reference(ref_id) => {
+                        if let Ok(lopdf::Object::Stream(stream_obj)) = pdf.get_object(*ref_id) {
+                            if let Ok(content) = stream_obj.decompressed_content() {
+                                text.push_str(&Self::parse_content_stream(&content));
+                            }
+                        }
+                    }
+                    lopdf::Object::Array(arr) => {
+                        for obj in arr {
+                            if let lopdf::Object::Reference(ref_id) = obj {
+                                if let Ok(lopdf::Object::Stream(stream_obj)) = pdf.get_object(*ref_id) {
                                     if let Ok(content) = stream_obj.decompressed_content() {
                                         text.push_str(&Self::parse_content_stream(&content));
                                     }
                                 }
                             }
                         }
-                        lopdf::Object::Array(arr) => {
-                            for obj in arr {
-                                if let lopdf::Object::Reference(ref_id) = obj {
-                                    if let Ok(stream) = pdf.get_object(*ref_id) {
-                                        if let lopdf::Object::Stream(stream_obj) = stream {
-                                            if let Ok(content) = stream_obj.decompressed_content() {
-                                                text.push_str(&Self::parse_content_stream(
-                                                    &content,
-                                                ));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        _ => {}
                     }
+                    _ => {}
                 }
             }
         }

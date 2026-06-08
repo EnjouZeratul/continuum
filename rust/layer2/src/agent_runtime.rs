@@ -421,8 +421,7 @@ impl AgentRuntime {
                                         );
                                         let retry_result =
                                             self.run(&subtask.description, config.clone()).await;
-                                        if retry_result.is_ok() {
-                                            let result = retry_result.unwrap();
+                                        if let Ok(result) = retry_result {
                                             monitor
                                                 .report_step_completed(
                                                     subtask_id,

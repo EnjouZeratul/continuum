@@ -460,10 +460,10 @@ fn run_app(
                                 let new_idx = (current_idx + 1) % providers.len();
                                 setup_wizard.select_provider(providers[new_idx]);
                             }
-                            KeyCode::Enter => {
-                                if setup_wizard.selected_provider.is_some() {
-                                    setup_wizard.next_step();
-                                }
+                            KeyCode::Enter
+                                if setup_wizard.selected_provider.is_some() =>
+                            {
+                                setup_wizard.next_step();
                             }
                             KeyCode::Esc => {
                                 setup_wizard.prev_step();
@@ -480,10 +480,8 @@ fn run_app(
                             KeyCode::Tab => {
                                 setup_wizard.toggle_visibility();
                             }
-                            KeyCode::Enter => {
-                                if !setup_wizard.api_key_input.is_empty() {
-                                    setup_wizard.next_step();
-                                }
+                            KeyCode::Enter if !setup_wizard.api_key_input.is_empty() => {
+                                setup_wizard.next_step();
                             }
                             KeyCode::Esc => {
                                 setup_wizard.prev_step();
@@ -515,27 +513,24 @@ fn run_app(
                             }
                         }
                         components::WizardStep::Complete => {
-                            match key.code {
-                                KeyCode::Enter => {
-                                    setup_wizard.hide();
-                                    // Re-initialize agent with new config
-                                    let init_result = rt.block_on(async {
-                                        let agent_guard = agent.read().await;
-                                        agent_guard.init_from_config().await
+                            if key.code == KeyCode::Enter {
+                                setup_wizard.hide();
+                                // Re-initialize agent with new config
+                                let init_result = rt.block_on(async {
+                                    let agent_guard = agent.read().await;
+                                    agent_guard.init_from_config().await
+                                });
+                                if init_result.is_ok() {
+                                    chat.add_message(app::Message {
+                                        role: app::Role::System,
+                                        content: "Configuration saved! You can now start using Continuum.".to_string(),
                                     });
-                                    if init_result.is_ok() {
-                                        chat.add_message(app::Message {
-                                            role: app::Role::System,
-                                            content: "Configuration saved! You can now start using Continuum.".to_string(),
-                                        });
-                                        status.set_connected(true);
-                                        if let Some(provider) = setup_wizard.selected_provider {
-                                            status.set_provider(Some(provider.name().to_string()));
-                                        }
+                                    status.set_connected(true);
+                                    if let Some(provider) = setup_wizard.selected_provider {
+                                        status.set_provider(Some(provider.name().to_string()));
                                     }
-                                    status.set_message_count(chat.message_count());
                                 }
-                                _ => {}
+                                status.set_message_count(chat.message_count());
                             }
                         }
                     }

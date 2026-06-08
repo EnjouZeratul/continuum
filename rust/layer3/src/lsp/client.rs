@@ -1174,7 +1174,7 @@ mod tests {
     #[test]
     fn test_client_creation() {
         let client = LspClient::new();
-        assert!(!client.manager().get_config("rust").is_none());
+        assert!(client.manager().get_config("rust").is_some());
     }
 
     #[test]
