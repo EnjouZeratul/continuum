@@ -349,13 +349,10 @@ class PathValidator:
             Whether contained
         """
         try:
-            # Windows path comparison needs case handling
-            if os.name == "nt":
-                child_str = str(child).lower()
-                parent_str = str(parent).lower()
-            else:
-                child_str = str(child)
-                parent_str = str(parent)
+            # Use realpath to resolve Windows short path names (e.g., RUNNER~1 -> runneradmin)
+            # This ensures consistent path comparison across all platforms
+            child_str = os.path.normcase(os.path.realpath(str(child)))
+            parent_str = os.path.normcase(os.path.realpath(str(parent)))
 
             parent_str_bare = parent_str.rstrip(os.sep)
 

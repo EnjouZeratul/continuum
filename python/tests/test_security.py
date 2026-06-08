@@ -166,9 +166,6 @@ class TestPathValidator:
         finally:
             shutil.rmtree(outside_dir)
 
-    @pytest.mark.skipif(
-        os.name == "nt", reason="Windows requires admin privileges for symlinks"
-    )
     def test_symlink_no_follow(self, temp_dir):
         """Test symlink not followed when follow_symlinks=False"""
         # Create a file outside project
