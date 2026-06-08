@@ -121,8 +121,10 @@ class TestPathValidator:
         validator = PathValidator(project_root=temp_dir)
         path = validator.get_safe_path("src/main.py")
         assert path is not None
-        # Use os.path.normcase for case-insensitive path comparison on Windows
-        assert os.path.normcase(str(path)).startswith(os.path.normcase(temp_dir))
+        # On Windows, compare paths using os.path.normcase and resolve both
+        path_str = os.path.normcase(os.path.realpath(str(path)))
+        temp_dir_resolved = os.path.normcase(os.path.realpath(temp_dir))
+        assert path_str.startswith(temp_dir_resolved)
 
         path = validator.get_safe_path("/etc/passwd")
         assert path is None
@@ -217,6 +219,10 @@ class TestPathValidator:
         validator = PathValidator(project_root=resolved_temp_dir)
 
         result = validator.validate("file.py")
+        # On Windows CI, paths might use short names, so compare resolved paths
+        if result.resolved_path:
+            result_path = os.path.realpath(str(result.resolved_path))
+            assert result_path.startswith(resolved_temp_dir)
         assert result.is_valid
         assert result.resolved_path is not None
         assert temp_dir in result.resolved_path
