@@ -460,9 +460,7 @@ fn run_app(
                                 let new_idx = (current_idx + 1) % providers.len();
                                 setup_wizard.select_provider(providers[new_idx]);
                             }
-                            KeyCode::Enter
-                                if setup_wizard.selected_provider.is_some() =>
-                            {
+                            KeyCode::Enter if setup_wizard.selected_provider.is_some() => {
                                 setup_wizard.next_step();
                             }
                             KeyCode::Esc => {

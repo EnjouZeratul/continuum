@@ -191,8 +191,7 @@ pub struct ComplianceReport {
 }
 
 /// 报告摘要
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ReportSummary {
     /// 检查的规则总数
     pub total_rules: usize,

@@ -156,7 +156,9 @@ pub enum RuleCategory {
 }
 
 /// 规则严重性
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub enum RuleSeverity {
     /// 低
     Low,

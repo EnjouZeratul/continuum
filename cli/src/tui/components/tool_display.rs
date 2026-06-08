@@ -266,9 +266,7 @@ impl ToolDisplayComponent {
                 let elapsed_str = if call.status == ToolStatus::Running {
                     format_duration_short(call.started_at.elapsed())
                 } else {
-                    call.duration
-                        .map(format_duration_short)
-                        .unwrap_or_default()
+                    call.duration.map(format_duration_short).unwrap_or_default()
                 };
 
                 let mut spans = vec![

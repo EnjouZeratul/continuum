@@ -41,10 +41,7 @@ impl PdfLoader {
         let mut metadata = HashMap::new();
 
         // Helper to extract string from PDF dictionary
-        fn get_string_from_dict(
-            dict: &lopdf::Dictionary,
-            key: &[u8],
-        ) -> Option<String> {
+        fn get_string_from_dict(dict: &lopdf::Dictionary, key: &[u8]) -> Option<String> {
             let obj = dict.get(key).ok()?;
             if let lopdf::Object::String(bytes, _) = obj {
                 PdfLoader::decode_pdf_string(bytes).ok()
@@ -84,12 +81,16 @@ impl PdfLoader {
 
                     // 创建日期
                     if let Some(creation_date) = get_string_from_dict(dict, b"CreationDate") {
-                        metadata.insert("creation_date".to_string(), serde_json::json!(creation_date));
+                        metadata.insert(
+                            "creation_date".to_string(),
+                            serde_json::json!(creation_date),
+                        );
                     }
 
                     // 修改日期
                     if let Some(mod_date) = get_string_from_dict(dict, b"ModDate") {
-                        metadata.insert("modification_date".to_string(), serde_json::json!(mod_date));
+                        metadata
+                            .insert("modification_date".to_string(), serde_json::json!(mod_date));
                     }
                 }
             }
@@ -131,7 +132,9 @@ impl PdfLoader {
                     lopdf::Object::Array(arr) => {
                         for obj in arr {
                             if let lopdf::Object::Reference(ref_id) = obj {
-                                if let Ok(lopdf::Object::Stream(stream_obj)) = pdf.get_object(*ref_id) {
+                                if let Ok(lopdf::Object::Stream(stream_obj)) =
+                                    pdf.get_object(*ref_id)
+                                {
                                     if let Ok(content) = stream_obj.decompressed_content() {
                                         text.push_str(&Self::parse_content_stream(&content));
                                     }

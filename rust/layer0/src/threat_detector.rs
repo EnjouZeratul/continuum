@@ -28,7 +28,9 @@ pub enum ThreatError {
 }
 
 /// 威胁级别
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub enum ThreatLevel {
     /// 信息级别 - 无威胁
     #[default]
@@ -725,13 +727,10 @@ mod tests {
         assert!(!threat.handled);
     }
 
-#[test]
+    #[test]
     fn test_threat_level_conversion() {
         assert_eq!(ThreatLevel::parse("high"), Some(ThreatLevel::High));
-        assert_eq!(
-            ThreatLevel::parse("critical"),
-            Some(ThreatLevel::Critical)
-        );
+        assert_eq!(ThreatLevel::parse("critical"), Some(ThreatLevel::Critical));
         assert_eq!(ThreatLevel::parse("invalid"), None);
     }
 
