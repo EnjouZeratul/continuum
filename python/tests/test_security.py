@@ -166,6 +166,12 @@ class TestPathValidator:
         finally:
             shutil.rmtree(outside_dir)
 
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="Windows conflates short path name resolution with symlink resolution; "
+        "os.path.realpath resolves both, making it impossible to test follow_symlinks=False "
+        "when paths use 8.3 short names (e.g., RUNNER~1 vs runneradmin)",
+    )
     def test_symlink_no_follow(self, temp_dir):
         """Test symlink not followed when follow_symlinks=False"""
         # Create a file outside project

@@ -349,18 +349,11 @@ class PathValidator:
             Whether contained
         """
         try:
-            # Windows needs special handling for short path names (8.3 format)
-            # e.g., RUNNER~1 should match runneradmin
-            # On Linux, we must NOT use realpath as it would resolve symlinks,
-            # breaking the follow_symlinks=False functionality
+            # Windows path comparison needs case handling
             if os.name == "nt":
-                # On Windows: use realpath to resolve short path names
-                # but this also resolves symlinks, which is acceptable on Windows
-                # because Windows symlinks behave differently
-                child_str = os.path.normcase(os.path.realpath(str(child)))
-                parent_str = os.path.normcase(os.path.realpath(str(parent)))
+                child_str = str(child).lower()
+                parent_str = str(parent).lower()
             else:
-                # On Unix: preserve symlink semantics, use simple case handling
                 child_str = str(child)
                 parent_str = str(parent)
 
