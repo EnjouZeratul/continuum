@@ -105,8 +105,14 @@ model = "gemini-2.5-pro"  # Supports any Gemini model / 支持任意 Gemini 模�
 # base_url = "https://api.custom.com/v1"
 # model = "custom-model-1"        # Any model name / 任意模型名称
 
-# Anthropic format example (self-hosted Anthropic proxy, etc.)
-# Anthropic 格式示例（自建 Anthropic 代理等）
+# Anthropic compatible format example (Tencent Coding LKEAP, self-hosted Anthropic proxy, etc.)
+# Anthropic 格式示例（腾讯 Coding LKEAP, 自建 Anthropic 代理等）
+# [providers.tencent-coding]
+# api_format = "anthropic"        # Use Anthropic Messages API format
+# api_key = "${TENCENT_API_KEY}"
+# base_url = "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+# model = "claude-sonnet-4-6"
+
 # [providers.my-anthropic-proxy]
 # api_format = "anthropic"
 # api_key = "${ANTHROPIC_API_KEY}"

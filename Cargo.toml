@@ -99,6 +99,7 @@ abi_stable = "0.11"
 # 测试
 tempfile = "3.14"
 criterion = "0.5"
+wiremock = "0.6"
 
 # Layer 内部依赖（共享）
 sh-layer0 = { version = "1.0.0", path = "rust/layer0" }

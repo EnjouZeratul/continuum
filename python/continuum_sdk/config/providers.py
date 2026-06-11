@@ -276,6 +276,20 @@ BUILTIN_PROVIDERS: dict[str, ProviderInfo] = {
         ],
         api_format=ApiFormat.OPENAI,
     ),
+    # Anthropic-compatible providers - Tencent Cloud Coding (LKEAP)
+    "tencent-coding": ProviderInfo(
+        name="tencent-coding",
+        display_name="Tencent Cloud Coding (LKEAP)",
+        default_model="claude-sonnet-4-6",
+        default_base_url="https://api.lkeap.cloud.tencent.com/coding/anthropic",
+        env_key_name="TENCENT_API_KEY",
+        models=[
+            "claude-sonnet-4-6",
+            "claude-sonnet-4-5",
+            "claude-haiku-4-5",
+        ],
+        api_format=ApiFormat.ANTHROPIC,  # Uses Anthropic API format
+    ),
     # Cloud provider hosted models
     "azure": ProviderInfo(
         name="azure",

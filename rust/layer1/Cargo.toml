@@ -58,6 +58,7 @@ metrics-exporter-prometheus = { version = "0.15", optional = true }
 tempfile.workspace = true
 criterion.workspace = true
 dashmap.workspace = true
+wiremock.workspace = true
 
 [[bench]]
 name = "bench_config"

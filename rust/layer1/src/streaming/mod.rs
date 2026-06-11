@@ -97,8 +97,8 @@ impl MessageStream {
     pub fn new(response: Response, provider: StreamProvider, model: String) -> Self {
         let parser = SseParser::new().with_context(
             match provider {
-                StreamProvider::Anthropic => "Anthropic",
-                StreamProvider::OpenAI => "OpenAI",
+                StreamProvider::Anthropic | StreamProvider::AnthropicCompatible => "Anthropic",
+                StreamProvider::OpenAI | StreamProvider::OpenAICompatible => "OpenAI",
                 StreamProvider::Gemini => "Gemini",
                 StreamProvider::AzureOpenAI => "AzureOpenAI",
                 StreamProvider::Bedrock => "Bedrock",
@@ -156,11 +156,11 @@ impl MessageStream {
         use crate::streaming::providers::*;
 
         match self.provider {
-            StreamProvider::Anthropic => {
+            StreamProvider::Anthropic | StreamProvider::AnthropicCompatible => {
                 let anthropic_event: AnthropicStreamEvent = serde_json::from_str(&event.data)?;
                 Ok(self.state.ingest_anthropic(anthropic_event))
             }
-            StreamProvider::OpenAI => {
+            StreamProvider::OpenAI | StreamProvider::OpenAICompatible => {
                 let openai_chunk: OpenAiStreamChunk = serde_json::from_str(&event.data)?;
                 Ok(self.state.ingest_openai(openai_chunk))
             }

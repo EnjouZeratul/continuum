@@ -16,12 +16,19 @@ pub struct ProviderConfig {
     pub base_url: String,
     /// 默认模型
     pub model: String,
+    /// API 格式: "anthropic" | "openai" | "google"
+    #[serde(default = "default_api_format")]
+    pub api_format: String,
     /// 默认最大 token 数
     #[serde(default = "default_max_tokens")]
     pub default_max_tokens: u32,
     /// 默认温度
     #[serde(default = "default_temperature")]
     pub default_temperature: f32,
+}
+
+fn default_api_format() -> String {
+    "openai".to_string()
 }
 
 fn default_max_tokens() -> u32 {
@@ -38,6 +45,7 @@ impl Default for ProviderConfig {
             api_key: String::new(),
             base_url: String::new(),
             model: "claude-sonnet-4-6".to_string(),
+            api_format: default_api_format(),
             default_max_tokens: 4096,
             default_temperature: 0.7,
         }
@@ -395,6 +403,7 @@ impl ConfigManager {
                         api_key: "${ANTHROPIC_API_KEY}".to_string(),
                         base_url: "https://api.anthropic.com/v1".to_string(),
                         model: "claude-sonnet-4-6".to_string(),
+                        api_format: "anthropic".to_string(),
                         default_max_tokens: 4096,
                         default_temperature: 0.7,
                     },
@@ -405,6 +414,7 @@ impl ConfigManager {
                         api_key: "${OPENAI_API_KEY}".to_string(),
                         base_url: "https://api.openai.com/v1".to_string(),
                         model: "gpt-4".to_string(),
+                        api_format: "openai".to_string(),
                         default_max_tokens: 4096,
                         default_temperature: 0.7,
                     },
@@ -415,6 +425,7 @@ impl ConfigManager {
                         api_key: "${GEMINI_API_KEY}".to_string(),
                         base_url: "https://generativelanguage.googleapis.com/v1".to_string(),
                         model: "gemini-pro".to_string(),
+                        api_format: "google".to_string(),
                         default_max_tokens: 4096,
                         default_temperature: 0.7,
                     },
@@ -461,6 +472,7 @@ mod tests {
             api_key: "test_key".to_string(),
             base_url: "https://test.api.com".to_string(),
             model: "test-model".to_string(),
+            api_format: "openai".to_string(),
             default_max_tokens: 8192,
             default_temperature: 0.5,
         };
@@ -475,6 +487,7 @@ mod tests {
             api_key: "test_key".to_string(),
             base_url: "https://test.api.com".to_string(),
             model: "test-model".to_string(),
+            api_format: "openai".to_string(),
             default_max_tokens: 4096,
             default_temperature: 0.7,
         };
@@ -513,6 +526,7 @@ mod tests {
             api_key: "key1".to_string(),
             base_url: "url1".to_string(),
             model: "model1".to_string(),
+            api_format: "openai".to_string(),
             default_max_tokens: 4096,
             default_temperature: 0.7,
         };

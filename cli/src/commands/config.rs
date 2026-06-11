@@ -347,6 +347,7 @@ fn add_provider(
         "qwen" => "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "kimi" | "moonshot" => "https://api.moonshot.cn/v1",
         "grok" => "https://api.x.ai/v1",
+        "tencent-coding" | "lkeap" => "https://api.lkeap.cloud.tencent.com/coding/anthropic",
         _ => "",
     };
 
@@ -359,7 +360,14 @@ fn add_provider(
         "qwen" => "qwen-plus",
         "kimi" | "moonshot" => "moonshot-v1-8k",
         "grok" => "grok-3",
+        "tencent-coding" | "lkeap" => "claude-sonnet-4-6",
         _ => "",
+    };
+
+    let default_api_format = match name.as_str() {
+        "anthropic" | "tencent-coding" | "lkeap" => "anthropic",
+        "gemini" => "google",
+        _ => "openai",
     };
 
     let base_url = url.unwrap_or_else(|| default_url.to_string());
@@ -369,6 +377,7 @@ fn add_provider(
         api_key: key,
         base_url: base_url.clone(),
         model: provider_model.clone(),
+        api_format: default_api_format.to_string(),
         default_max_tokens: 4096,
         default_temperature: 0.7,
     };

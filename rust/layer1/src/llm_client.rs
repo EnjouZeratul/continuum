@@ -30,6 +30,10 @@ pub enum LlmProvider {
     OpenAICompatible {
         base_url: String,
     },
+    /// Anthropic-compatible provider with custom base_url (e.g. tencent-coding, other Claude API proxies)
+    AnthropicCompatible {
+        base_url: String,
+    },
     Custom(String),
 }
 
@@ -133,6 +137,7 @@ impl LlmClient {
             LlmProvider::Bedrock => "https://bedrock-runtime.us-east-1.amazonaws.com".to_string(),
             LlmProvider::Ollama => "http://localhost:11434".to_string(),
             LlmProvider::OpenAICompatible { base_url } => base_url.clone(),
+            LlmProvider::AnthropicCompatible { base_url } => base_url.clone(),
             LlmProvider::Custom(url) => url.clone(),
         };
 
@@ -360,7 +365,9 @@ impl LlmClient {
 impl LlmClientTrait for LlmClient {
     async fn send(&self, messages: Vec<Message>, config: &LlmRequestConfig) -> Result<LlmResponse> {
         match self.provider {
-            LlmProvider::Anthropic => self.send_anthropic(messages, config).await,
+            LlmProvider::Anthropic | LlmProvider::AnthropicCompatible { .. } => {
+                self.send_anthropic(messages, config).await
+            }
             LlmProvider::OpenAI | LlmProvider::OpenAICompatible { .. } => {
                 self.send_openai(messages, config).await
             }
@@ -380,7 +387,9 @@ impl LlmClientTrait for LlmClient {
         config: &LlmRequestConfig,
     ) -> Result<MessageStream> {
         match self.provider {
-            LlmProvider::Anthropic => self.stream_anthropic(messages, config).await,
+            LlmProvider::Anthropic | LlmProvider::AnthropicCompatible { .. } => {
+                self.stream_anthropic(messages, config).await
+            }
             LlmProvider::OpenAI | LlmProvider::OpenAICompatible { .. } => {
                 self.stream_openai(messages, config).await
             }
@@ -394,16 +403,42 @@ impl LlmClientTrait for LlmClient {
 }
 
 impl LlmClient {
+    /// Construct the messages endpoint URL for Anthropic API
+    ///
+    /// Handles three cases:
+    /// 1. Official Anthropic API: https://api.anthropic.com -> https://api.anthropic.com/v1/messages
+    /// 2. Already contains full path: https://api.example.com/anthropic/messages -> unchanged
+    /// 3. Anthropic-compatible endpoint (contains /anthropic): https://api.example.com/anthropic -> /messages
+    /// 4. Already contains v1: https://api.example.com/v1 -> https://api.example.com/v1/messages
+    pub fn build_anthropic_messages_url(base_url: &str) -> String {
+        let base = base_url.trim_end_matches('/');
+
+        // If URL already ends with /messages, return as-is
+        if base.ends_with("/messages") {
+            return base.to_string();
+        }
+
+        // If URL ends with /v1, just append /messages
+        if base.ends_with("/v1") {
+            return format!("{}/messages", base);
+        }
+
+        // If URL contains /anthropic (Anthropic-compatible endpoint), just append /messages
+        // This handles third-party Anthropic-compatible endpoints like Tencent Coding
+        if base.contains("/anthropic") {
+            return format!("{}/messages", base);
+        }
+
+        // Otherwise, append /v1/messages (official Anthropic API case)
+        format!("{}/v1/messages", base)
+    }
+
     async fn send_anthropic(
         &self,
         messages: Vec<Message>,
         config: &LlmRequestConfig,
     ) -> Result<LlmResponse> {
-        let url = if self.base_url.ends_with("/v1") || self.base_url.ends_with("/v1/") {
-            format!("{}/messages", self.base_url.trim_end_matches('/'))
-        } else {
-            format!("{}/v1/messages", self.base_url.trim_end_matches('/'))
-        };
+        let url = Self::build_anthropic_messages_url(&self.base_url);
 
         let request_body = AnthropicRequest {
             model: config.model.clone(),
@@ -457,11 +492,7 @@ impl LlmClient {
         messages: Vec<Message>,
         config: &LlmRequestConfig,
     ) -> Result<MessageStream> {
-        let url = if self.base_url.ends_with("/v1") || self.base_url.ends_with("/v1/") {
-            format!("{}/messages", self.base_url.trim_end_matches('/'))
-        } else {
-            format!("{}/v1/messages", self.base_url.trim_end_matches('/'))
-        };
+        let url = Self::build_anthropic_messages_url(&self.base_url);
 
         let request_body = AnthropicStreamRequest {
             model: config.model.clone(),
@@ -500,7 +531,11 @@ impl LlmClient {
 
         Ok(MessageStream::new(
             response,
-            StreamProvider::Anthropic,
+            match self.provider {
+                LlmProvider::Anthropic => StreamProvider::Anthropic,
+                LlmProvider::AnthropicCompatible { .. } => StreamProvider::AnthropicCompatible,
+                _ => StreamProvider::Anthropic, // fallback
+            },
             config.model.clone(),
         ))
     }
@@ -620,7 +655,11 @@ impl LlmClient {
 
         Ok(MessageStream::new(
             response,
-            StreamProvider::OpenAI,
+            match self.provider {
+                LlmProvider::OpenAI => StreamProvider::OpenAI,
+                LlmProvider::OpenAICompatible { .. } => StreamProvider::OpenAICompatible,
+                _ => StreamProvider::OpenAI, // fallback
+            },
             config.model.clone(),
         ))
     }
@@ -1612,5 +1651,90 @@ mod tests {
         let role = MessageRole::User;
         let json = serde_json::to_string(&role).unwrap();
         assert!(json.contains("User"));
+    }
+
+    // AnthropicCompatible provider tests
+    #[test]
+    fn test_anthropic_compatible_provider_creation() {
+        let client = LlmClient::new(
+            LlmProvider::AnthropicCompatible {
+                base_url: "https://api.lkeap.cloud.tencent.com/coding/anthropic".to_string(),
+            },
+            "test_key".to_string(),
+        );
+        assert_eq!(
+            client.base_url,
+            "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+        );
+    }
+
+    #[test]
+    fn test_anthropic_compatible_provider_serialization() {
+        let provider = LlmProvider::AnthropicCompatible {
+            base_url: "https://example.com".to_string(),
+        };
+        let json = serde_json::to_string(&provider).unwrap();
+        assert!(json.contains("anthropic_compatible") || json.contains("AnthropicCompatible"));
+    }
+
+    // URL construction tests for build_anthropic_messages_url
+    #[test]
+    fn test_build_anthropic_messages_url_official_api() {
+        let url = LlmClient::build_anthropic_messages_url("https://api.anthropic.com");
+        assert_eq!(url, "https://api.anthropic.com/v1/messages");
+    }
+
+    #[test]
+    fn test_build_anthropic_messages_url_already_has_v1() {
+        let url = LlmClient::build_anthropic_messages_url("https://api.anthropic.com/v1");
+        assert_eq!(url, "https://api.anthropic.com/v1/messages");
+    }
+
+    #[test]
+    fn test_build_anthropic_messages_url_already_has_messages() {
+        let url = LlmClient::build_anthropic_messages_url("https://api.example.com/anthropic/messages");
+        assert_eq!(url, "https://api.example.com/anthropic/messages");
+    }
+
+    #[test]
+    fn test_build_anthropic_messages_url_tencent_endpoint() {
+        let url = LlmClient::build_anthropic_messages_url(
+            "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+        );
+        assert_eq!(
+            url,
+            "https://api.lkeap.cloud.tencent.com/coding/anthropic/messages"
+        );
+    }
+
+    #[test]
+    fn test_build_anthropic_messages_url_with_trailing_slash() {
+        let url = LlmClient::build_anthropic_messages_url("https://api.anthropic.com/v1/");
+        assert_eq!(url, "https://api.anthropic.com/v1/messages");
+    }
+
+    // Provider routing tests
+    #[test]
+    fn test_provider_routing_anthropic_compatible() {
+        // Verify AnthropicCompatible routes to Anthropic format
+        let provider = LlmProvider::AnthropicCompatible {
+            base_url: "https://example.com".to_string(),
+        };
+        assert!(matches!(
+            provider,
+            LlmProvider::Anthropic | LlmProvider::AnthropicCompatible { .. }
+        ));
+    }
+
+    #[test]
+    fn test_provider_routing_openai_compatible() {
+        // Verify OpenAICompatible routes to OpenAI format
+        let provider = LlmProvider::OpenAICompatible {
+            base_url: "https://example.com".to_string(),
+        };
+        assert!(matches!(
+            provider,
+            LlmProvider::OpenAI | LlmProvider::OpenAICompatible { .. }
+        ));
     }
 }

@@ -179,7 +179,7 @@ impl AgentClient {
         }
 
         // 创建 LLM 客户端
-        let llm_provider = Self::map_provider(&provider_name, &provider_config.base_url);
+        let llm_provider = Self::map_provider(&provider_name, &provider_config.api_format, &provider_config.base_url);
         let llm_client = LlmClient::new(llm_provider, provider_config.api_key.clone());
 
         // 更新状态
@@ -201,48 +201,60 @@ impl AgentClient {
     }
 
     /// 映射提供商名称到 LlmProvider
-    fn map_provider(name: &str, base_url: &str) -> LlmProvider {
+    fn map_provider(name: &str, api_format: &str, base_url: &str) -> LlmProvider {
+        // 优先级：配置的 api_format > 已知提供商映射
+        match api_format {
+            "anthropic" => {
+                let url = if base_url.is_empty() {
+                    "https://api.anthropic.com".to_string()
+                } else {
+                    base_url.to_string()
+                };
+                LlmProvider::AnthropicCompatible { base_url: url }
+            }
+            "google" => LlmProvider::Gemini,
+            "openai" | _ => Self::map_provider_by_name(name, base_url),
+        }
+    }
+
+    /// 根据提供商名称映射（用于 api_format = "openai" 或未指定）
+    fn map_provider_by_name(name: &str, base_url: &str) -> LlmProvider {
         match name {
             "anthropic" => LlmProvider::Anthropic,
             "openai" => LlmProvider::OpenAI,
             "gemini" => LlmProvider::Gemini,
-            // OpenAI-compatible providers: reuse OpenAI chat/completions protocol
+            // OpenAI-compatible providers
             "deepseek" => LlmProvider::OpenAICompatible {
-                base_url: if base_url.is_empty() {
-                    "https://api.deepseek.com/v1".to_string()
-                } else {
-                    base_url.to_string()
-                },
+                base_url: Self::url_or_default(base_url, "https://api.deepseek.com/v1"),
             },
             "glm" => LlmProvider::OpenAICompatible {
-                base_url: if base_url.is_empty() {
-                    "https://open.bigmodel.cn/api/paas/v4".to_string()
-                } else {
-                    base_url.to_string()
-                },
+                base_url: Self::url_or_default(base_url, "https://open.bigmodel.cn/api/paas/v4"),
             },
             "qwen" => LlmProvider::OpenAICompatible {
-                base_url: if base_url.is_empty() {
-                    "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string()
-                } else {
-                    base_url.to_string()
-                },
+                base_url: Self::url_or_default(base_url, "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             },
             "kimi" | "moonshot" => LlmProvider::OpenAICompatible {
-                base_url: if base_url.is_empty() {
-                    "https://api.moonshot.cn/v1".to_string()
-                } else {
-                    base_url.to_string()
-                },
+                base_url: Self::url_or_default(base_url, "https://api.moonshot.cn/v1"),
             },
             "grok" => LlmProvider::OpenAICompatible {
-                base_url: if base_url.is_empty() {
-                    "https://api.x.ai/v1".to_string()
-                } else {
-                    base_url.to_string()
-                },
+                base_url: Self::url_or_default(base_url, "https://api.x.ai/v1"),
             },
-            _ => LlmProvider::Custom(base_url.to_string()),
+            // Anthropic-compatible providers
+            "tencent-coding" | "lkeap" => LlmProvider::AnthropicCompatible {
+                base_url: Self::url_or_default(base_url, "https://api.lkeap.cloud.tencent.com/coding/anthropic"),
+            },
+            _ => LlmProvider::OpenAICompatible {
+                base_url: base_url.to_string(),
+            },
+        }
+    }
+
+    /// 返回配置的 URL 或默认值
+    fn url_or_default(configured: &str, default: &str) -> String {
+        if configured.is_empty() {
+            default.to_string()
+        } else {
+            configured.to_string()
         }
     }
 
@@ -548,7 +560,7 @@ impl AgentClient {
                     )));
                 }
 
-                let llm_provider = Self::map_provider(provider_name, &pc.base_url);
+                let llm_provider = Self::map_provider(provider_name, &pc.api_format, &pc.base_url);
                 let llm_client = LlmClient::new(llm_provider, pc.api_key.clone());
 
                 let mut client = self.llm_client.write().await;

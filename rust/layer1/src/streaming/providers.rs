@@ -54,7 +54,11 @@ pub struct StreamUsage {
 #[derive(Debug, Clone, Copy)]
 pub enum StreamProvider {
     Anthropic,
+    /// Anthropic-compatible provider (e.g. tencent-coding)
+    AnthropicCompatible,
     OpenAI,
+    /// OpenAI-compatible provider (e.g. deepseek, glm, qwen)
+    OpenAICompatible,
     Gemini,
     AzureOpenAI,
     Bedrock,

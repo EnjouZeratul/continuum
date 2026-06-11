@@ -274,3 +274,19 @@ models = [
 ]
 sdk_support = true
 cli_support = false
+
+# Anthropic-compatible providers
+[tencent-coding]
+name = "tencent-coding"
+display_name = "Tencent Cloud Coding (LKEAP)"
+api_format = "anthropic"
+default_base_url = "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+env_key = "TENCENT_API_KEY"
+default_model = "claude-sonnet-4-6"
+models = [
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+]
+sdk_support = true
+cli_support = true
