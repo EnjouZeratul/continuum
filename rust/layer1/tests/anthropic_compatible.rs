@@ -359,10 +359,12 @@ async fn test_real_streaming_anthropic() {
 
     use sh_layer1::streaming::StreamEvent;
     while let Some(event) = stream.next_event().await.unwrap() {
-        if let StreamEvent::ContentBlockDelta { delta, .. } = event {
-            if let sh_layer1::streaming::ContentDelta::Text(t) = delta {
-                text.push_str(&t);
-            }
+        if let StreamEvent::ContentBlockDelta {
+            delta: sh_layer1::streaming::ContentDelta::Text(t),
+            ..
+        } = event
+        {
+            text.push_str(&t);
         }
     }
 
