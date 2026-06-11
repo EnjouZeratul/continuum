@@ -217,7 +217,7 @@ impl AgentClient {
                 LlmProvider::AnthropicCompatible { base_url: url }
             }
             "google" => LlmProvider::Gemini,
-            "openai" => Self::map_provider_by_name(name, base_url),
+            // "openai" 和其他未知格式都使用 provider 名称映射
             _ => Self::map_provider_by_name(name, base_url),
         }
     }
