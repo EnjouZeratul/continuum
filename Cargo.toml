@@ -13,7 +13,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.2"
 edition = "2021"
 authors = ["Continuum Team"]
 license = "MIT"
@@ -102,12 +102,12 @@ criterion = "0.5"
 wiremock = "0.6"
 
 # Layer 内部依赖（共享）
-sh-layer0 = { version = "1.0.0", path = "rust/layer0" }
-sh-layer1 = { version = "1.0.0", path = "rust/layer1" }
-sh-layer2 = { version = "1.0.0", path = "rust/layer2" }
-sh-layer3 = { version = "1.0.0", path = "rust/layer3" }
-sh-layer4 = { version = "1.0.0", path = "rust/layer4" }
-sh-core = { version = "1.0.0", path = "rust/sh-core" }
+sh-layer0 = { version = "1.0.2", path = "rust/layer0" }
+sh-layer1 = { version = "1.0.2", path = "rust/layer1" }
+sh-layer2 = { version = "1.0.2", path = "rust/layer2" }
+sh-layer3 = { version = "1.0.2", path = "rust/layer3" }
+sh-layer4 = { version = "1.0.2", path = "rust/layer4" }
+sh-core = { version = "1.0.2", path = "rust/sh-core" }
 
 [profile.release]
 lto = true

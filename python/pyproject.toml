@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "continuum-agent-sdk"
-version = "1.0.1"
+version = "1.0.2"
 description = "Production-Grade Agent Framework with Crash Safety Guarantees"
 readme = "README.md"
 license = {text = "MIT"}

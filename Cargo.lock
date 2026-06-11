@@ -822,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "continuum"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -836,8 +836,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sh-core",
- "sh-layer1 1.0.0",
- "sh-layer2 1.0.0",
+ "sh-layer1",
+ "sh-layer2",
  "sh-layer4",
  "syntect",
  "tempfile",
@@ -4256,15 +4256,15 @@ dependencies = [
 
 [[package]]
 name = "sh-core"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "chrono",
  "serde",
  "serde_json",
- "sh-layer0 1.0.0",
- "sh-layer1 1.0.0",
- "sh-layer2 1.0.0",
+ "sh-layer0",
+ "sh-layer1",
+ "sh-layer2",
  "sh-layer3",
  "sh-layer4",
  "tempfile",
@@ -4275,7 +4275,7 @@ dependencies = [
 
 [[package]]
 name = "sh-layer0"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -4299,32 +4299,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "sh-layer0"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20ccd638e63a747bd0f43778bb09ab7c5a5781fcd0c04683476596c986e32f83"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "argon2",
- "base64 0.22.1",
- "chacha20poly1305",
- "chrono",
- "dashmap",
- "parking_lot 0.12.5",
- "rand 0.8.6",
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tracing",
- "uuid",
- "zeroize",
-]
-
-[[package]]
 name = "sh-layer1"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4344,7 +4320,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sh-layer0 1.0.0",
+ "sh-layer0",
  "sled",
  "tempfile",
  "thiserror 2.0.18",
@@ -4359,37 +4335,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "sh-layer1"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cbb91e910217effe1c583a5f523a7254812a21ee13e343e2407db46978a60d3"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "chrono",
- "config",
- "dirs 5.0.1",
- "futures",
- "moka",
- "parking_lot 0.12.5",
- "reqwest",
- "serde",
- "serde_json",
- "sh-layer0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sled",
- "thiserror 2.0.18",
- "tokio",
- "tokio-tungstenite",
- "toml",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "sh-layer2"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4400,8 +4347,8 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "sh-layer0 1.0.0",
- "sh-layer1 1.0.0",
+ "sh-layer0",
+ "sh-layer1",
  "sha2",
  "tempfile",
  "thiserror 2.0.18",
@@ -4412,33 +4359,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "sh-layer2"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77cd514182c8790061351fc352b128cc43eb44da4c1ff84dc47ea5adb44a341f"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "glob",
- "libc",
- "parking_lot 0.12.5",
- "regex",
- "serde",
- "serde_json",
- "sh-layer0 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sh-layer1 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sha2",
- "thiserror 2.0.18",
- "tokio",
- "toml",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "sh-layer3"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4456,8 +4378,8 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "sh-layer1 1.0.0",
- "sh-layer2 1.0.0",
+ "sh-layer1",
+ "sh-layer2",
  "sha2",
  "sysinfo",
  "tempfile",
@@ -4473,7 +4395,7 @@ dependencies = [
 
 [[package]]
 name = "sh-layer4"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -4485,8 +4407,8 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sh-layer1 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "sh-layer2 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sh-layer1",
+ "sh-layer2",
  "sh-layer3",
  "tempfile",
  "thiserror 2.0.18",
@@ -4500,7 +4422,7 @@ dependencies = [
 
 [[package]]
 name = "sh-python"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4509,9 +4431,9 @@ dependencies = [
  "pyo3-async-runtimes",
  "serde_json",
  "sh-core",
- "sh-layer0 1.0.0",
- "sh-layer1 1.0.0",
- "sh-layer2 1.0.0",
+ "sh-layer0",
+ "sh-layer1",
+ "sh-layer2",
  "sh-layer3",
  "sh-layer4",
  "tokio",
