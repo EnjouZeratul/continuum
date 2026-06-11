@@ -254,8 +254,10 @@ pub extern "C" fn plugin_get_call_count(_handle: *const ()) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_plugin_lifecycle() {
         // Create
         let handle = plugin_create();
@@ -290,6 +292,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_plugin_execute_multiple() {
         let handle = plugin_create();
         plugin_init(handle);
