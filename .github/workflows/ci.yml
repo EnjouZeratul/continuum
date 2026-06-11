@@ -9,6 +9,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+  # 提前切换到 Node.js 24（2026-06-16 后会成为默认）
+  # 消除 Node.js 20 deprecation 警告
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   # Rust CI
