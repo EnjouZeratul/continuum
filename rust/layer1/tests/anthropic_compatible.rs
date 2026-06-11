@@ -70,7 +70,7 @@ async fn test_anthropic_official_api_url_construction() {
 async fn test_anthropic_compatible_endpoint_url_construction() {
     // 第三方 Anthropic 兼容端点（包含 /anthropic）
     let url = LlmClient::build_anthropic_messages_url(
-        "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+        "https://api.lkeap.cloud.tencent.com/coding/anthropic",
     );
     assert_eq!(
         url,
@@ -98,8 +98,8 @@ async fn test_mock_anthropic_api_request() {
 
     // 创建 Anthropic provider
     let provider = LlmProvider::Anthropic;
-    let client = LlmClient::new(provider, "test_api_key".to_string())
-        .with_base_url(mock_server.uri());
+    let client =
+        LlmClient::new(provider, "test_api_key".to_string()).with_base_url(mock_server.uri());
 
     let config = LlmRequestConfig {
         model: "claude-sonnet-4-6".to_string(),
@@ -226,8 +226,7 @@ async fn test_provider_routing_correctness() {
 #[ignore = "requires TENCENT_API_KEY environment variable"]
 async fn test_real_tencent_coding_api() {
     // 测试真实的腾讯 Coding API
-    let api_key = std::env::var("TENCENT_API_KEY")
-        .expect("TENCENT_API_KEY not set");
+    let api_key = std::env::var("TENCENT_API_KEY").expect("TENCENT_API_KEY not set");
 
     let provider = LlmProvider::AnthropicCompatible {
         base_url: "https://api.lkeap.cloud.tencent.com/coding/anthropic".to_string(),
@@ -247,7 +246,11 @@ async fn test_real_tencent_coding_api() {
     }];
 
     let result = client.send(messages, &config).await;
-    assert!(result.is_ok(), "Tencent API request should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Tencent API request should succeed: {:?}",
+        result
+    );
 
     let response = result.unwrap();
     println!("Tencent API response: {}", response.content);
@@ -279,7 +282,11 @@ async fn test_real_anthropic_api() {
     }];
 
     let result = client.send(messages, &config).await;
-    assert!(result.is_ok(), "Anthropic API request should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Anthropic API request should succeed: {:?}",
+        result
+    );
 
     let response = result.unwrap();
     println!("Anthropic API response: {}", response.content);
@@ -290,8 +297,7 @@ async fn test_real_anthropic_api() {
 #[ignore = "requires DEEPSEEK_API_KEY environment variable"]
 async fn test_real_deepseek_api() {
     // 测试真实的 DeepSeek API（OpenAI 兼容）
-    let api_key = std::env::var("DEEPSEEK_API_KEY")
-        .expect("DEEPSEEK_API_KEY not set");
+    let api_key = std::env::var("DEEPSEEK_API_KEY").expect("DEEPSEEK_API_KEY not set");
 
     let provider = LlmProvider::OpenAICompatible {
         base_url: "https://api.deepseek.com/v1".to_string(),
@@ -311,7 +317,11 @@ async fn test_real_deepseek_api() {
     }];
 
     let result = client.send(messages, &config).await;
-    assert!(result.is_ok(), "DeepSeek API request should succeed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "DeepSeek API request should succeed: {:?}",
+        result
+    );
 
     let response = result.unwrap();
     println!("DeepSeek API response: {}", response.content);

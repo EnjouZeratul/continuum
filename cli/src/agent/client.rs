@@ -179,7 +179,11 @@ impl AgentClient {
         }
 
         // 创建 LLM 客户端
-        let llm_provider = Self::map_provider(&provider_name, &provider_config.api_format, &provider_config.base_url);
+        let llm_provider = Self::map_provider(
+            &provider_name,
+            &provider_config.api_format,
+            &provider_config.base_url,
+        );
         let llm_client = LlmClient::new(llm_provider, provider_config.api_key.clone());
 
         // 更新状态
@@ -231,7 +235,10 @@ impl AgentClient {
                 base_url: Self::url_or_default(base_url, "https://open.bigmodel.cn/api/paas/v4"),
             },
             "qwen" => LlmProvider::OpenAICompatible {
-                base_url: Self::url_or_default(base_url, "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+                base_url: Self::url_or_default(
+                    base_url,
+                    "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                ),
             },
             "kimi" | "moonshot" => LlmProvider::OpenAICompatible {
                 base_url: Self::url_or_default(base_url, "https://api.moonshot.cn/v1"),
@@ -241,7 +248,10 @@ impl AgentClient {
             },
             // Anthropic-compatible providers
             "tencent-coding" | "lkeap" => LlmProvider::AnthropicCompatible {
-                base_url: Self::url_or_default(base_url, "https://api.lkeap.cloud.tencent.com/coding/anthropic"),
+                base_url: Self::url_or_default(
+                    base_url,
+                    "https://api.lkeap.cloud.tencent.com/coding/anthropic",
+                ),
             },
             _ => LlmProvider::OpenAICompatible {
                 base_url: base_url.to_string(),

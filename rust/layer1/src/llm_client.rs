@@ -1692,14 +1692,15 @@ mod tests {
 
     #[test]
     fn test_build_anthropic_messages_url_already_has_messages() {
-        let url = LlmClient::build_anthropic_messages_url("https://api.example.com/anthropic/messages");
+        let url =
+            LlmClient::build_anthropic_messages_url("https://api.example.com/anthropic/messages");
         assert_eq!(url, "https://api.example.com/anthropic/messages");
     }
 
     #[test]
     fn test_build_anthropic_messages_url_tencent_endpoint() {
         let url = LlmClient::build_anthropic_messages_url(
-            "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+            "https://api.lkeap.cloud.tencent.com/coding/anthropic",
         );
         assert_eq!(
             url,
