@@ -2,12 +2,23 @@
 //!
 //! 网络工具集：HTTP 请求、文件下载、WebSocket 等。
 
+use crate::builtin_tools::limits::FileOpsLimits;
+use crate::builtin_tools::network_safety::{DefaultUrlValidator, UrlValidator};
 use crate::builtin_tools::BuiltinTool;
 use crate::types::{Layer3Result, ToolCategory};
 use async_trait::async_trait;
 use futures::{SinkExt, StreamExt};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
+
+/// SSRF validation — shared by HTTP tools. Blocks loopback/private/metadata IPs.
+async fn validate_url_ssrf(url_str: &str) -> Layer3Result<()> {
+    let url = url::Url::parse(url_str)
+        .map_err(|e| anyhow::anyhow!("Invalid URL '{}': {}", url_str, e))?;
+    let validator = DefaultUrlValidator::new(Arc::new(FileOpsLimits::default()));
+    validator.validate(&url).await
+}
 
 // ============================================================================
 // HTTP GET Tool
@@ -55,6 +66,7 @@ impl BuiltinTool for HttpGetTool {
         let url = args["url"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing url parameter"))?;
+        validate_url_ssrf(url).await?;
 
         let timeout_secs = args["timeout"].as_u64().unwrap_or(30);
 
@@ -139,6 +151,7 @@ impl BuiltinTool for HttpPostTool {
         let url = args["url"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing url parameter"))?;
+        validate_url_ssrf(url).await?;
 
         let timeout_secs = args["timeout"].as_u64().unwrap_or(30);
         let content_type = args["content_type"].as_str().unwrap_or("application/json");
@@ -223,6 +236,7 @@ impl BuiltinTool for DownloadFileTool {
         let url = args["url"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing url parameter"))?;
+        validate_url_ssrf(url).await?;
 
         let path = args["path"]
             .as_str()
@@ -313,6 +327,7 @@ impl BuiltinTool for WebSocketConnectTool {
         let url = args["url"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing url parameter"))?;
+        validate_url_ssrf(url).await?;
 
         let message = args["message"].as_str().unwrap_or("");
         let receive_count = args["receive_count"].as_u64().unwrap_or(1).min(100) as usize;
@@ -437,6 +452,7 @@ impl BuiltinTool for PingTool {
         let url = args["url"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing url parameter"))?;
+        validate_url_ssrf(url).await?;
 
         let timeout_secs = args["timeout"].as_u64().unwrap_or(5);
 
