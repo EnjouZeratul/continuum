@@ -257,6 +257,12 @@ impl BuiltinTool for GitDiffTool {
             git_args.push("--cached");
         }
         if let Some(c) = commit {
+            if !is_valid_git_ref(c) && !is_valid_commit_hash(c) {
+                return Err(anyhow::anyhow!(
+                    "git_diff rejected: invalid commit/ref '{}'",
+                    c
+                ));
+            }
             git_args.push(c);
         }
         if let Some(f) = file {
@@ -335,11 +341,23 @@ impl BuiltinTool for GitBranchTool {
             "create" => {
                 let name = branch_name
                     .ok_or_else(|| anyhow::anyhow!("branch_name required for create"))?;
+                if !is_valid_git_ref(name) {
+                    return Err(anyhow::anyhow!(
+                        "git_branch rejected: invalid branch name '{}'",
+                        name
+                    ));
+                }
                 vec!["branch", name]
             }
             "delete" => {
                 let name = branch_name
                     .ok_or_else(|| anyhow::anyhow!("branch_name required for delete"))?;
+                if !is_valid_git_ref(name) {
+                    return Err(anyhow::anyhow!(
+                        "git_branch rejected: invalid branch name '{}'",
+                        name
+                    ));
+                }
                 vec!["branch", "-D", name]
             }
             _ => return Err(anyhow::anyhow!("Invalid action: {}", action)),

@@ -1058,6 +1058,9 @@ fn copy_dir_all(
             let src_path = entry.path();
             let dest_path = std::path::Path::new(&destination).join(entry.file_name());
 
+            if ty.is_symlink() {
+                continue; // skip symlinks — don't follow/copy targets
+            }
             if ty.is_dir() {
                 copy_dir_all(
                     src_path.to_string_lossy().to_string(),
