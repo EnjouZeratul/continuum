@@ -154,7 +154,7 @@ mod bindings {
     // ========================================================================
 
     /// SecurityGateway Python 绑定
-    #[pyclass(name = "SecurityGateway")]
+    #[pyclass(skip_from_py_object, name = "SecurityGateway")]
     pub struct PySecurityGateway {
         inner: std::sync::Arc<tokio::sync::Mutex<sh_layer0::SecurityGateway>>,
     }
@@ -187,7 +187,7 @@ mod bindings {
     // ========================================================================
 
     /// Permission Python 类
-    #[pyclass(name = "Permission")]
+    #[pyclass(skip_from_py_object, name = "Permission")]
     #[derive(Clone)]
     pub struct PyPermission {
         #[pyo3(get)]
@@ -231,7 +231,7 @@ mod bindings {
     }
 
     /// Role Python 类
-    #[pyclass(name = "Role")]
+    #[pyclass(skip_from_py_object, name = "Role")]
     #[derive(Clone)]
     pub struct PyRole {
         #[pyo3(get)]
@@ -275,7 +275,7 @@ mod bindings {
     ///     True
     ///     >>> pm.grant("user1", "custom_resource", "custom_action")
     ///     >>> pm.revoke("user1", "admin")
-    #[pyclass(name = "PermissionManager")]
+    #[pyclass(skip_from_py_object, name = "PermissionManager")]
     pub struct PyPermissionManager {
         inner: std::sync::Arc<sh_layer0::AccessController>,
     }
@@ -399,7 +399,7 @@ mod bindings {
     // ========================================================================
 
     /// LLM 提供商类型枚举
-    #[pyclass(name = "LlmProvider")]
+    #[pyclass(skip_from_py_object, name = "LlmProvider")]
     #[derive(Clone)]
     pub enum PyLlmProvider {
         Anthropic(),
@@ -423,7 +423,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "LlmRequestConfig")]
+    #[pyclass(skip_from_py_object, name = "LlmRequestConfig")]
     #[derive(Clone)]
     pub struct PyLlmRequestConfig {
         #[pyo3(get)]
@@ -468,7 +468,7 @@ mod bindings {
     }
 
     /// LLM 响应 Python 类
-    #[pyclass(name = "LlmResponse")]
+    #[pyclass(skip_from_py_object, name = "LlmResponse")]
     pub struct PyLlmResponse {
         #[pyo3(get)]
         content: String,
@@ -502,7 +502,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "LlmClient")]
+    #[pyclass(skip_from_py_object, name = "LlmClient")]
     pub struct PyLlmClient {
         inner: std::sync::Arc<tokio::sync::Mutex<Option<sh_layer1::LlmClient>>>,
         provider: PyLlmProvider,
@@ -572,7 +572,7 @@ mod bindings {
         fn connect(&self, py: Python<'_>) -> PyResult<bool> {
             // 简单检查是否配置了客户端，释放 GIL
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let client = inner.lock().await;
                     Ok(client.is_some())
@@ -583,7 +583,7 @@ mod bindings {
         /// 检查是否已连接
         fn is_connected(&self, py: Python<'_>) -> bool {
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let client = inner.lock().await;
                     client.is_some()
@@ -705,7 +705,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "CostTracker")]
+    #[pyclass(skip_from_py_object, name = "CostTracker")]
     pub struct PyCostTracker {
         inner: std::sync::Arc<tokio::sync::Mutex<sh_layer1::CostTracker>>,
     }
@@ -722,7 +722,7 @@ mod bindings {
         /// 设置预算上限
         fn set_budget_limit(&self, py: Python<'_>, limit: f64) {
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let tracker = inner.lock().await;
                     tracker.set_budget_limit(limit);
@@ -770,7 +770,7 @@ mod bindings {
         ) -> PyCostEstimate {
             let inner = self.inner.clone();
             let model_str = model.to_string();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let tracker = inner.lock().await;
                     let estimate =
@@ -795,7 +795,7 @@ mod bindings {
         /// 重置追踪器
         fn reset(&self, py: Python<'_>) {
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let tracker = inner.lock().await;
                     tracker.reset();
@@ -806,7 +806,7 @@ mod bindings {
         /// 获取总成本（便捷方法）
         fn total_cost(&self, py: Python<'_>) -> f64 {
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let tracker = inner.lock().await;
                     tracker.get_current_usage().total_cost_usd
@@ -816,7 +816,7 @@ mod bindings {
     }
 
     /// 使用情况快照 Python 类
-    #[pyclass(name = "UsageSnapshot")]
+    #[pyclass(skip_from_py_object, name = "UsageSnapshot")]
     pub struct PyUsageSnapshot {
         #[pyo3(get)]
         total_input_tokens: u64,
@@ -857,7 +857,7 @@ mod bindings {
     }
 
     /// 成本预估 Python 类
-    #[pyclass(name = "CostEstimate")]
+    #[pyclass(skip_from_py_object, name = "CostEstimate")]
     pub struct PyCostEstimate {
         #[pyo3(get)]
         min_tokens: u64,
@@ -885,7 +885,7 @@ mod bindings {
     // ========================================================================
 
     /// Agent 配置 Python 类
-    #[pyclass(name = "AgentConfig")]
+    #[pyclass(skip_from_py_object, name = "AgentConfig")]
     #[derive(Clone)]
     pub struct PyAgentConfig {
         #[pyo3(get)]
@@ -936,7 +936,7 @@ mod bindings {
     }
 
     /// Agent 结果 Python 类
-    #[pyclass(name = "AgentResult")]
+    #[pyclass(skip_from_py_object, name = "AgentResult")]
     pub struct PyAgentResult {
         #[pyo3(get)]
         session_id: String,
@@ -984,7 +984,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "AgentRuntime")]
+    #[pyclass(skip_from_py_object, name = "AgentRuntime")]
     pub struct PyAgentRuntime {
         inner: std::sync::Arc<tokio::sync::Mutex<sh_layer2::AgentRuntime>>,
     }
@@ -1109,7 +1109,7 @@ mod bindings {
             let inner = self.inner.clone();
             let sid = sh_layer2::SessionId::from(session_id);
 
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let rt = inner.lock().await;
                     let state = rt
@@ -1177,7 +1177,7 @@ mod bindings {
             let inner = self.inner.clone();
             let name_owned = name.to_string();
 
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let rt = inner.lock().await;
                     rt.tool_registry().register(Box::new(adapter)).map_err(|e| {
@@ -1194,7 +1194,7 @@ mod bindings {
         fn list_tools(&self, py: Python<'_>) -> PyResult<Vec<String>> {
             let inner = self.inner.clone();
 
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let rt = inner.lock().await;
                     Ok(rt
@@ -1243,7 +1243,7 @@ mod bindings {
     /// 流式响应块
     ///
     /// 表示 Agent 执行过程中的一次迭代结果。
-    #[pyclass(name = "StreamChunk")]
+    #[pyclass(skip_from_py_object, name = "StreamChunk")]
     #[derive(Clone)]
     pub struct PyStreamChunk {
         /// 迭代次数
@@ -1273,7 +1273,7 @@ mod bindings {
     impl PyStreamChunk {
         /// 转换为字典
         fn to_dict(&self) -> PyResult<Py<PyDict>> {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let dict = PyDict::new(py);
                 let _ = dict.set_item("iteration", self.iteration);
                 let _ = dict.set_item("state", &self.state);
@@ -1297,7 +1297,7 @@ mod bindings {
     ///             print(chunk.content)
     ///         if chunk.is_final:
     ///             break
-    #[pyclass(name = "AgentStreamIterator")]
+    #[pyclass(skip_from_py_object, name = "AgentStreamIterator")]
     pub struct PyAgentStreamIterator {
         /// Agent runtime 引用
         runtime: std::sync::Arc<tokio::sync::Mutex<sh_layer2::AgentRuntime>>,
@@ -1489,7 +1489,7 @@ mod bindings {
     /// 流式迭代器的 awaitable 对象
     ///
     /// 这个对象实现了 `__await__` 协议，可以被 await。
-    #[pyclass(name = "_StreamIteratorAwaitable")]
+    #[pyclass(skip_from_py_object, name = "_StreamIteratorAwaitable")]
     pub struct PyStreamIteratorAwaitable {
         runtime: std::sync::Arc<tokio::sync::Mutex<sh_layer2::AgentRuntime>>,
         task: String,
@@ -1838,7 +1838,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "SessionManager")]
+    #[pyclass(skip_from_py_object, name = "SessionManager")]
     pub struct PySessionManager {
         inner: std::sync::Arc<sh_layer2::ConcurrentSessionManager>,
     }
@@ -2029,7 +2029,7 @@ mod bindings {
     }
 
     /// CheckpointSystem - 检查点写入器
-    #[pyclass(name = "CheckpointSystem")]
+    #[pyclass(skip_from_py_object, name = "CheckpointSystem")]
     pub struct PyCheckpointSystem {
         inner: std::sync::Arc<tokio::sync::Mutex<sh_layer2::CheckpointWriter>>,
     }
@@ -2153,7 +2153,7 @@ mod bindings {
     ///     >>> agent.start()
     ///     >>> agent.pause()
     ///     >>> agent.stop()
-    #[pyclass(name = "Agent")]
+    #[pyclass(skip_from_py_object, name = "Agent")]
     pub struct PyAgent {
         id: String,
         agent_state: std::sync::Mutex<AgentState>,
@@ -2257,7 +2257,7 @@ mod bindings {
     ///     >>> len(session.get_history())
     ///     2
     ///     >>> session.clear()
-    #[pyclass(name = "Session")]
+    #[pyclass(skip_from_py_object, name = "Session")]
     pub struct PySession {
         id: String,
         created_at: chrono::DateTime<chrono::Utc>,
@@ -2349,7 +2349,7 @@ mod bindings {
     // ========================================================================
 
     /// ToolExecutor - 工具执行器
-    #[pyclass(name = "ToolExecutor")]
+    #[pyclass(skip_from_py_object, name = "ToolExecutor")]
     pub struct PyToolExecutor {
         inner: std::sync::Arc<tokio::sync::Mutex<sh_layer3::DefaultToolExecutor>>,
     }
@@ -2405,7 +2405,7 @@ mod bindings {
             });
 
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let executor = inner.lock().await;
                     let request = sh_layer3::ToolRequest {
@@ -2430,7 +2430,7 @@ mod bindings {
             });
 
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let executor = inner.lock().await;
                     let request = sh_layer3::ToolRequest {
@@ -2467,7 +2467,7 @@ mod bindings {
             }
 
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let executor = inner.lock().await;
                     let request = sh_layer3::ToolRequest {
@@ -2504,7 +2504,7 @@ mod bindings {
             }
 
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let executor = inner.lock().await;
                     let request = sh_layer3::ToolRequest {
@@ -2537,7 +2537,7 @@ mod bindings {
             }
 
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let executor = inner.lock().await;
                     let request = sh_layer3::ToolRequest {
@@ -2557,7 +2557,7 @@ mod bindings {
         /// 列出可用工具
         fn list_tools<'py>(&self, py: Python<'py>) -> Vec<(String, String)> {
             let inner = self.inner.clone();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let executor = inner.lock().await;
                     executor
@@ -2573,7 +2573,7 @@ mod bindings {
         fn is_available<'py>(&self, py: Python<'py>, name: &str) -> bool {
             let inner = self.inner.clone();
             let tool_name = name.to_string();
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let executor = inner.lock().await;
                     executor.is_available(&tool_name)
@@ -2582,7 +2582,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "QueryEngine")]
+    #[pyclass(skip_from_py_object, name = "QueryEngine")]
     pub struct PyQueryEngine {
         inner: std::sync::Arc<sh_layer3::SyncLspClient>,
     }
@@ -2956,7 +2956,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "MemorySystem")]
+    #[pyclass(skip_from_py_object, name = "MemorySystem")]
     pub struct PyMemorySystem {
         inner: std::sync::Arc<tokio::sync::Mutex<sh_layer3::UnifiedMemorySystem>>,
     }
@@ -2989,7 +2989,7 @@ mod bindings {
             };
             let content_str = content.to_string();
 
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let system = inner.lock().await;
                     match system.store_at(memory_tier, content_str).await {
@@ -3022,7 +3022,7 @@ mod bindings {
             };
 
             let entries = py
-                .allow_threads(|| {
+                .detach(|| {
                     runtime().block_on(async {
                         let system = inner.lock().await;
                         system
@@ -3069,7 +3069,7 @@ mod bindings {
             let id_str = id.to_string();
 
             let entry_opt = py
-                .allow_threads(|| {
+                .detach(|| {
                     runtime().block_on(async {
                         let system = inner.lock().await;
                         system
@@ -3097,7 +3097,7 @@ mod bindings {
             let inner = self.inner.clone();
 
             let stats = py
-                .allow_threads(|| {
+                .detach(|| {
                     runtime().block_on(async {
                         let system = inner.lock().await;
                         system
@@ -3129,7 +3129,7 @@ mod bindings {
                 }
             };
 
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let system = inner.lock().await;
                     match system.clear_tier(memory_tier).await {
@@ -3156,7 +3156,7 @@ mod bindings {
             };
             let id_str = id.to_string();
 
-            py.allow_threads(|| {
+            py.detach(|| {
                 runtime().block_on(async {
                     let system = inner.lock().await;
                     match system.delete(memory_tier, &id_str).await {
@@ -3236,7 +3236,7 @@ mod bindings {
     ///
     /// 混合检索引擎：支持向量检索 + 关键词检索的混合搜索。
     /// 使用 InMemoryVectorStore + MockEmbeddingModel + FixedSizeChunker 作为默认配置
-    #[pyclass(name = "RetrieverEngine")]
+    #[pyclass(skip_from_py_object, name = "RetrieverEngine")]
     pub struct PyRetrieverEngine {
         inner: std::sync::Arc<tokio::sync::Mutex<PyRetrieverEngineInner>>,
     }
@@ -3380,7 +3380,7 @@ mod bindings {
     /// DocumentLoader - 文档加载器 Python 绑定
     ///
     /// 支持加载多种格式文档：TXT, CSV, JSON, Markdown, PDF
-    #[pyclass(name = "DocumentLoader")]
+    #[pyclass(skip_from_py_object, name = "DocumentLoader")]
     pub struct PyDocumentLoader {
         loader_type: String,
     }
@@ -3399,7 +3399,7 @@ mod bindings {
         fn load<'py>(&self, py: Python<'py>, path: &str) -> PyResult<(String, String, String)> {
             let path_buf = std::path::PathBuf::from(path);
 
-            py.allow_threads(|| {
+            py.detach(|| {
                 // 根据类型选择加载器
                 match self.loader_type.to_lowercase().as_str() {
                     "text" | "txt" => {
@@ -3470,7 +3470,7 @@ mod bindings {
     /// TextSplitter - 文本分割器 Python 绑定
     ///
     /// 将长文本分割为小块，支持递归字符分割
-    #[pyclass(name = "TextSplitter")]
+    #[pyclass(skip_from_py_object, name = "TextSplitter")]
     pub struct PyTextSplitter {
         chunk_size: usize,
         chunk_overlap: usize,
@@ -3489,7 +3489,7 @@ mod bindings {
 
         /// 分割文本
         fn split<'py>(&self, py: Python<'py>, text: &str) -> PyResult<Vec<(String, usize, usize)>> {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let splitter = sh_layer3::text_splitters::RecursiveCharacterTextSplitter::new(
                     self.chunk_size,
                     self.chunk_overlap,
@@ -3514,7 +3514,7 @@ mod bindings {
 
         /// 分割文本并返回 JSON
         fn split_json<'py>(&self, py: Python<'py>, text: &str) -> PyResult<String> {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let splitter = sh_layer3::text_splitters::RecursiveCharacterTextSplitter::new(
                     self.chunk_size,
                     self.chunk_overlap,
@@ -3564,7 +3564,7 @@ mod bindings {
 
     /// EmbeddingProvider - 嵌入模型提供商枚举
     #[derive(Debug, Clone, PartialEq, Eq)]
-    #[pyclass(name = "EmbeddingProvider")]
+    #[pyclass(skip_from_py_object, name = "EmbeddingProvider")]
     pub enum PyEmbeddingProvider {
         OpenAI,
         HuggingFace,
@@ -3584,7 +3584,7 @@ mod bindings {
     /// - OPENAI_API_KEY: OpenAI API 密钥
     /// - HUGGINGFACE_API_KEY: HuggingFace API 密钥
     /// - COHERE_API_KEY: Cohere API 密钥
-    #[pyclass(name = "Embeddings")]
+    #[pyclass(skip_from_py_object, name = "Embeddings")]
     pub struct PyEmbeddings {
         provider: PyEmbeddingProvider,
         model: String,
@@ -3861,7 +3861,7 @@ mod bindings {
     // Layer 4: McpBridge, AuditLogger
     // ========================================================================
 
-    #[pyclass(name = "McpBridge")]
+    #[pyclass(skip_from_py_object, name = "McpBridge")]
     pub struct PyMcpBridge;
 
     #[pymethods]
@@ -3872,7 +3872,7 @@ mod bindings {
         }
     }
 
-    #[pyclass(name = "AuditLogger")]
+    #[pyclass(skip_from_py_object, name = "AuditLogger")]
     pub struct PyAuditLogger {
         inner: std::sync::Arc<sh_layer4::AuditLogger>,
     }
@@ -3933,7 +3933,7 @@ mod bindings {
     // ========================================================================
 
     /// VectorStore Python 绑定
-    #[pyclass(name = "VectorStore")]
+    #[pyclass(skip_from_py_object, name = "VectorStore")]
     #[derive(Clone)]
     pub struct PyVectorStore {
         inner: std::sync::Arc<tokio::sync::Mutex<sh_layer3::InMemoryVectorStore>>,
@@ -4120,7 +4120,7 @@ mod bindings {
     }
 
     /// VectorItem Python 类
-    #[pyclass(name = "VectorItem")]
+    #[pyclass(skip_from_py_object, name = "VectorItem")]
     pub struct PyVectorItem {
         #[pyo3(get)]
         id: String,
@@ -4140,7 +4140,7 @@ mod bindings {
     }
 
     /// SearchResult Python 类
-    #[pyclass(name = "SearchResult")]
+    #[pyclass(skip_from_py_object, name = "SearchResult")]
     pub struct PySearchResult {
         #[pyo3(get)]
         id: String,
@@ -4172,7 +4172,7 @@ mod bindings {
     ///     - Standard: 默认，对危险操作需要确认
     ///     - Strict: 所有操作都需要确认
     ///     - Paranoid: 所有操作需要确认 + 详细日志
-    #[pyclass(name = "SecurityLevel")]
+    #[pyclass(skip_from_py_object, name = "SecurityLevel")]
     #[derive(Clone)]
     pub struct PySecurityLevel {
         #[pyo3(get)]
@@ -4229,7 +4229,7 @@ mod bindings {
     /// PermissionDecision Python 类
     ///
     /// 权限决策结果。
-    #[pyclass(name = "PermissionDecision")]
+    #[pyclass(skip_from_py_object, name = "PermissionDecision")]
     #[derive(Clone)]
     pub struct PyPermissionDecision {
         #[pyo3(get)]
@@ -4294,7 +4294,7 @@ mod bindings {
     /// PermissionAction Python 类
     ///
     /// 权限请求的动作类型。
-    #[pyclass(name = "PermissionAction")]
+    #[pyclass(skip_from_py_object, name = "PermissionAction")]
     #[derive(Clone)]
     pub struct PyPermissionAction {
         #[pyo3(get)]
@@ -4416,7 +4416,7 @@ mod bindings {
     /// PermissionPolicy Python 类
     ///
     /// 权限策略配置。
-    #[pyclass(name = "PermissionPolicy")]
+    #[pyclass(skip_from_py_object, name = "PermissionPolicy")]
     #[derive(Clone)]
     pub struct PyPermissionPolicy {
         inner: sh_layer2::PermissionPolicy,
@@ -4518,7 +4518,7 @@ mod bindings {
     ///     >>> pm = InteractivePermissionManager()
     ///     >>> pm.set_policy(PermissionPolicy.strict())
     ///     >>> pm.check_permission(PermissionAction.file_read("/test/file.txt"))
-    #[pyclass(name = "InteractivePermissionManager")]
+    #[pyclass(skip_from_py_object, name = "InteractivePermissionManager")]
     pub struct PyInteractivePermissionManager {
         inner: std::sync::Arc<sh_layer2::PermissionManager>,
     }

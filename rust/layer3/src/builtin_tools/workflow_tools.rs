@@ -15,8 +15,23 @@ use std::sync::Arc;
 use sh_layer2::{CheckpointData, CheckpointId, CheckpointSystemTrait, CheckpointWriter, SessionId};
 
 /// 默认检查点存储路径
+///
+/// WC1 (v1.0.6): Prefer `data_local_dir` over `temp_dir` — temp is
+/// world-writable, predictable, and vulnerable to symlink attacks.
 fn default_checkpoint_path() -> PathBuf {
-    std::env::temp_dir().join("continuum_checkpoints")
+    dirs::data_local_dir()
+        .unwrap_or_else(std::env::temp_dir)
+        .join("continuum")
+        .join("checkpoints")
+}
+
+/// Validate session_id format: alphanumeric, dash, underscore; no `..`.
+fn is_valid_session_id(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 128
+        && !s.contains("..")
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Create Checkpoint Tool
@@ -103,6 +118,14 @@ impl BuiltinTool for CreateCheckpointTool {
         let session_id_str = args["session_id"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing session_id parameter"))?;
+
+        // WC5: Validate session_id (prevent path traversal via session_id-as-filename)
+        if !is_valid_session_id(session_id_str) {
+            return Err(anyhow::anyhow!(
+                "create_checkpoint rejected: session_id '{}' contains invalid characters",
+                session_id_str,
+            ));
+        }
 
         let session_id = SessionId::from(session_id_str);
         let trigger = args["trigger"].as_str().unwrap_or("manual");
@@ -212,6 +235,13 @@ impl BuiltinTool for RestoreCheckpointTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing session_id parameter"))?;
 
+        if !is_valid_session_id(session_id_str) {
+            return Err(anyhow::anyhow!(
+                "restore_checkpoint rejected: session_id '{}' contains invalid characters",
+                session_id_str,
+            ));
+        }
+
         let session_id = SessionId::from(session_id_str);
         let checkpoint_id_opt = args["checkpoint_id"]
             .as_str()
@@ -302,6 +332,13 @@ impl BuiltinTool for ListCheckpointsTool {
         let session_id_str = args["session_id"]
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing session_id parameter"))?;
+
+        if !is_valid_session_id(session_id_str) {
+            return Err(anyhow::anyhow!(
+                "list_checkpoints rejected: session_id '{}' contains invalid characters",
+                session_id_str,
+            ));
+        }
 
         let session_id = SessionId::from(session_id_str);
 

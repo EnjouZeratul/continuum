@@ -1207,6 +1207,7 @@ mod tests {
     // ==========================================================================
 
     #[test]
+    #[serial_test::serial]
     fn test_config_openai_from_env() {
         std::env::set_var("OPENAI_API_KEY", "test_key");
         std::env::remove_var("OPENAI_BASE_URL");
@@ -1220,6 +1221,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_config_huggingface_from_env() {
         std::env::set_var("HUGGINGFACE_API_KEY", "hf_test");
         std::env::remove_var("HUGGINGFACE_EMBEDDING_MODEL");
@@ -1232,6 +1234,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_config_cohere_from_env() {
         std::env::set_var("COHERE_API_KEY", "cohere_test");
         std::env::remove_var("COHERE_EMBEDDING_MODEL");
@@ -1309,6 +1312,7 @@ mod tests {
     // ==========================================================================
 
     #[test]
+    #[serial_test::serial]
     fn test_factory_create_openai() {
         std::env::set_var("OPENAI_API_KEY", "test_key");
 
@@ -1352,6 +1356,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_factory_create_safe_with_valid_config() {
         std::env::set_var("OPENAI_API_KEY", "test_key");
         let factory = EmbeddingsFactory::new();
@@ -1398,6 +1403,7 @@ mod tests {
     // ==========================================================================
 
     #[test]
+    #[serial_test::serial]
     fn test_backward_compatible_embeddings() {
         std::env::set_var("OPENAI_API_KEY", "test_key");
 

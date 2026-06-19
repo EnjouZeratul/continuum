@@ -193,3 +193,81 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # Performance benchmark (Task 2.5) — runs criterion benchmarks and stores
+  # results as artifact. Full regression-blocking requires baseline cache +
+  # criterion --baseline comparison parsing (listed as follow-up).
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run benchmarks
+        run: cargo bench --workspace --exclude sh-python
+
+      - name: Store benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: target/criterion/
+          retention-days: 30
+
+  # Clippy pedantic baseline (Task 4.5) — non-blocking, tracks strictness
+  # baseline over time. Full pedantic-clean is a long-term goal (1622 warnings,
+  # mostly style noise). High-value subsets (cast truncation, must_use) to be
+  # fixed incrementally.
+  clippy-pedantic:
+    name: Clippy Pedantic (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Run clippy pedantic (baseline tracking)
+        run: cargo clippy --workspace --exclude sh-python --all-targets -- -W clippy::pedantic 2>&1 | tee pedantic-report.txt
+
+      - name: Count pedantic warnings
+        run: |
+          echo "Pedantic warnings: $(grep -c '^warning' pedantic-report.txt || echo 0)"
+        continue-on-error: true
+
+  # Fuzz testing (Task 2.3 / #9) — Linux only (Windows ASan/libFuzzer unsupported).
+  # Non-blocking, 5-min per target. For 24h runs, use a dedicated Linux machine/WSL.
+  # Fuzz targets are in rust/layer3/fuzz/ (independent workspace).
+  fuzz:
+    name: Fuzz Testing (Linux, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzz targets (5 min each)
+        run: |
+          cd rust/layer3
+          cargo +nightly fuzz run fuzz_path_safety -- --max-total-time=300
+        continue-on-error: true
+

@@ -5,12 +5,20 @@
 pub mod adapter;
 pub mod code;
 pub mod data_processing;
+pub mod exec_context;
 pub mod file_ops;
 pub mod git_tools;
+pub mod limits;
 pub mod memory_tools;
+pub mod metrics;
 pub mod network;
+pub mod network_safety;
 pub mod network_tools;
+pub mod path_safety;
+pub mod read_state;
+pub mod safe_truncate;
 pub mod search;
+pub mod secret_scrub;
 pub mod shell;
 pub mod system_tools;
 pub mod text_tools;
@@ -27,6 +35,14 @@ use std::collections::HashMap;
 /// 内置工具 trait
 ///
 /// 所有内置工具必须实现此 trait。
+///
+/// # v1.1.0 演进说明
+///
+/// v1.1.0 引入 `LegacyBuiltinTool` 作为本 trait 的别名，标记 sessionless
+/// 工具。新工具（需要 session 上下文）应实现未来的 `ContextualBuiltinTool`
+/// trait（v1.1.1+ 引入），通过 `ExecutionContext` 参数接收会话状态。
+///
+/// 详见 `docs/superpowers/specs/2026-06-14-stale-read-prevention-design.md`。
 #[async_trait]
 pub trait BuiltinTool: Send + Sync {
     /// 工具名称
@@ -54,6 +70,21 @@ pub trait BuiltinTool: Send + Sync {
     /// 执行工具
     async fn execute(&self, args: serde_json::Value) -> Layer3Result<String>;
 
+    /// Context-aware execute. Default implementation ignores the context and
+    /// delegates to `execute(args)`. Tools that need session-scoped state
+    /// (e.g., `ReadFileTool`, `EditFileTool`, `WriteFileTool` for stale-read
+    /// prevention) override this method.
+    ///
+    /// The executor should always call `execute_with_context`; the default
+    /// impl makes it safe for sessionless tools.
+    async fn execute_with_context(
+        &self,
+        args: serde_json::Value,
+        _ctx: &crate::builtin_tools::exec_context::ExecutionContext,
+    ) -> Layer3Result<String> {
+        self.execute(args).await
+    }
+
     /// 获取元数据
     fn meta(&self) -> ToolMeta {
         ToolMeta {
@@ -66,6 +97,16 @@ pub trait BuiltinTool: Send + Sync {
         }
     }
 }
+
+// v1.1.0 引入：标记 sessionless 工具的概念性别名。
+//
+// 当前 `BuiltinTool` 就是 sessionless trait（无 context 参数）。v1.1.1+ 将
+// 引入 `ContextualBuiltinTool` 接收 `ExecutionContext`，届时本 trait 会
+// 重命名为 `LegacyBuiltinTool`，新 `BuiltinTool` 名字会绑定到 context-aware 版本。
+//
+// 工具实现者目前实现的 `BuiltinTool` 即等价于未来的 `LegacyBuiltinTool`。
+//
+// 注：Rust 不支持 trait alias，因此这里没有真正的 `type` 别名 — 通过文档约定。
 
 /// 内置工具注册表
 ///
@@ -87,7 +128,7 @@ impl BuiltinToolRegistry {
         let mut registry = Self::new();
 
         // Shell 工具 (1)
-        registry.register(Box::new(shell::BashTool));
+        registry.register(Box::new(shell::BashTool::new()));
 
         // 搜索工具 (2)
         registry.register(Box::new(search::GrepTool));
@@ -97,14 +138,14 @@ impl BuiltinToolRegistry {
         registry.register(Box::new(web_search::WebSearchTool::new()));
 
         // 文件操作工具 (8)
-        registry.register(Box::new(file_ops::ReadFileTool));
-        registry.register(Box::new(file_ops::WriteFileTool));
-        registry.register(Box::new(file_ops::EditFileTool));
-        registry.register(Box::new(file_ops::ListDirectoryTool));
+        registry.register(Box::new(file_ops::ReadFileTool::new()));
+        registry.register(Box::new(file_ops::WriteFileTool::new()));
+        registry.register(Box::new(file_ops::EditFileTool::new()));
+        registry.register(Box::new(file_ops::ListDirectoryTool::new()));
         registry.register(Box::new(file_ops::CreateDirectoryTool));
-        registry.register(Box::new(file_ops::MoveFileTool));
+        registry.register(Box::new(file_ops::MoveFileTool::new()));
         registry.register(Box::new(file_ops::CopyFileTool));
-        registry.register(Box::new(file_ops::DeleteFileTool));
+        registry.register(Box::new(file_ops::DeleteFileTool::new()));
 
         // Workflow 工具 (3)
         registry.register(Box::new(workflow_tools::CreateCheckpointTool::new()));
@@ -118,10 +159,15 @@ impl BuiltinToolRegistry {
         registry.register(Box::new(code::RenameSymbolTool));
 
         // Network 工具 (2)
-        registry.register(Box::new(network::HttpRequestTool));
-        registry.register(Box::new(network::WebFetchTool));
+        registry.register(Box::new(network::HttpRequestTool::new()));
+        registry.register(Box::new(network::WebFetchTool::new()));
 
-        // Memory 工具 (3)
+        // System Tools (8)
+        registry.register(Box::new(system_tools::GetEnvTool::new()));
+        registry.register(Box::new(system_tools::ListEnvTool::new()));
+        registry.register(Box::new(system_tools::SetEnvTool));
+
+        // Memory Tools (3)
         registry.register(Box::new(memory_tools::SaveMemoryTool::new()));
         registry.register(Box::new(memory_tools::QueryMemoryTool::new()));
         registry.register(Box::new(memory_tools::ClearMemoryTool::new()));
@@ -157,14 +203,11 @@ impl BuiltinToolRegistry {
         registry.register(Box::new(git_tools::GitShowTool));
         registry.register(Box::new(git_tools::GitStashTool));
 
-        // System Tools (8)
-        registry.register(Box::new(system_tools::GetEnvTool));
-        registry.register(Box::new(system_tools::ListEnvTool));
-        registry.register(Box::new(system_tools::SetEnvTool));
+        // System Tools (remaining - GetEnv/ListEnv/SetEnv registered above)
         registry.register(Box::new(system_tools::GetCwdTool));
         registry.register(Box::new(system_tools::ChangeDirTool));
         registry.register(Box::new(system_tools::SystemInfoTool));
-        registry.register(Box::new(system_tools::ProcessListTool));
+        registry.register(Box::new(system_tools::ProcessListTool::new()));
         registry.register(Box::new(system_tools::DiskUsageTool));
         registry.register(Box::new(system_tools::MemoryUsageTool));
 

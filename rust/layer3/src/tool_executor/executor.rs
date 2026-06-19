@@ -86,9 +86,11 @@ impl ToolExecutor for DefaultToolExecutor {
             .get(&request.name)
             .ok_or_else(|| Layer3Error::ToolNotFound(request.name.clone()))?;
 
-        // 执行工具
+        // 执行工具 (always use context-aware path so file tools get staleness check)
+        let ctx = crate::builtin_tools::exec_context::current_context()
+            .with_call_id(request.call_id.clone());
         let result = tool
-            .execute(request.arguments.clone())
+            .execute_with_context(request.arguments.clone(), &ctx)
             .await
             .map_err(|e| Layer3Error::ToolExecutionFailed(e.to_string()))?;
 

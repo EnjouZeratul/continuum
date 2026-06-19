@@ -20,8 +20,6 @@ otel = ["opentelemetry", "tracing-opentelemetry", "opentelemetry-otlp"]
 prometheus = ["metrics", "metrics-exporter-prometheus"]
 
 [dependencies]
-sh-layer0.workspace = true
-
 tokio.workspace = true
 async-trait.workspace = true
 anyhow.workspace = true
@@ -31,7 +29,6 @@ serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 reqwest.workspace = true
-sled.workspace = true
 config.workspace = true
 moka.workspace = true
 chrono.workspace = true
@@ -59,6 +56,7 @@ tempfile.workspace = true
 criterion.workspace = true
 dashmap.workspace = true
 wiremock.workspace = true
+serial_test = "3"
 
 [[bench]]
 name = "bench_config"

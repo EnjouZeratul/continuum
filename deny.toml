@@ -46,6 +46,7 @@ ignore = [
     "RUSTSEC-2026-0095",  # wasmtime - Winch wasm-middleware
     "RUSTSEC-2026-0096",  # wasmtime - pooling instance allocator
     "RUSTSEC-2026-0149",  # wasmtime - reference types
+    "RUSTSEC-2026-0182",  # wasmtime - WASIp1 fd_renumber leak (consistent with wasmtime 25.x tracking strategy)
 ]
 
 [licenses]

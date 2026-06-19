@@ -2,6 +2,19 @@
 //!
 //! 特定领域的能力扩展。
 
+// Clippy policy (Task 4.5):
+// `cast_possible_truncation` is allowed for value-domain-restricted casts where
+// the source value is guaranteed far below the target type's max:
+//   - LSP line/column numbers (usize -> u32 for Position): real files < 40M lines
+//   - elapsed millis (u128 -> u64): would need ~584 million years of runtime
+//   - file sizes/counts (u64 -> usize): 64-bit targets == u64; 32-bit targets
+//     can't address >4GiB anyway
+// Genuine risk casts (e.g. network packet sizes -> u16) MUST use try_from
+// explicitly and are NOT covered by this allow.
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_sign_loss)]
+
 pub mod builtin_tools;
 pub mod document_loaders;
 pub mod example_selectors;

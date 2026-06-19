@@ -570,6 +570,14 @@ impl BuiltinTool for WebSearchTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing query parameter"))?;
 
+        // WS1: Query length cap
+        if query.chars().count() > 1000 {
+            return Err(anyhow::anyhow!(
+                "web_search rejected: query too long ({} > 1000 chars)",
+                query.chars().count(),
+            ));
+        }
+
         // Parse engine if specified
         let engine_str = args["engine"].as_str().unwrap_or("duckduckgo");
         let engine = match engine_str.to_lowercase().as_str() {

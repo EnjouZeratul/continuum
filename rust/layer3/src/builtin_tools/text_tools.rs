@@ -435,23 +435,54 @@ impl BuiltinTool for RegexMatchTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing pattern parameter"))?;
 
+        // TT1: Input size cap
+        if text.len() > 10 * 1024 * 1024 {
+            return Err(anyhow::anyhow!(
+                "regex_match rejected: text {} bytes > 10 MiB limit",
+                text.len(),
+            ));
+        }
+        // TT3: ReDoS pattern check — use literal substring detection (regex-on-regex has false positives)
+        if pattern.len() > 1024 {
+            return Err(anyhow::anyhow!(
+                "regex_match rejected: pattern too long ({} > 1024 chars)",
+                pattern.len(),
+            ));
+        }
+        // Detect classic nested-quantifier ReDoS patterns via literal substring match.
+        // These signatures match the textual pattern string, not its AST.
+        const REDOS_SUBSTRINGS: &[&str] = &[
+            "(.+)+", "(.*)+", "(.+)*", "(.*)*", "(\\w+)+", "(\\w+)*", "(\\d+)+", "(\\d+)*",
+        ];
+        for sig in REDOS_SUBSTRINGS {
+            if pattern.contains(sig) {
+                return Err(anyhow::anyhow!(
+                    "regex_match rejected: pattern contains nested quantifier '{}' (ReDoS risk). \
+                     Refactor to avoid nested repetition.",
+                    sig,
+                ));
+            }
+        }
+
         let group = args["group"].as_u64().unwrap_or(0) as usize;
 
         let re = regex::Regex::new(pattern).map_err(|e| anyhow::anyhow!("Invalid regex: {}", e))?;
 
+        // TT3: Cap total matches to bound work
         let matches: Vec<String> = re
             .captures_iter(text)
+            .take(1000)
             .filter_map(|cap| cap.get(group).map(|m| m.as_str().to_string()))
             .collect();
 
         if matches.is_empty() {
             Ok("No matches found".to_string())
         } else {
-            Ok(format!(
-                "Found {} matches:\n{}",
-                matches.len(),
-                matches.join("\n")
-            ))
+            // Bound output size
+            let joined = matches.join("\n");
+            let preview =
+                crate::builtin_tools::safe_truncate::safe_truncate_bytes(&joined, 64 * 1024);
+            Ok(format!("Found {} matches:\n{}", matches.len(), preview))
         }
     }
 }
@@ -503,8 +534,18 @@ impl BuiltinTool for TextDiffTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing text2 parameter"))?;
 
+        // TT4: Line count cap to bound O(N*M) LCS work
         let lines1: Vec<&str> = text1.lines().collect();
         let lines2: Vec<&str> = text2.lines().collect();
+        const MAX_DIFF_LINES: usize = 5000;
+        if lines1.len() > MAX_DIFF_LINES || lines2.len() > MAX_DIFF_LINES {
+            return Err(anyhow::anyhow!(
+                "text_diff rejected: input too large ({}/{} lines > {} limit)",
+                lines1.len(),
+                lines2.len(),
+                MAX_DIFF_LINES,
+            ));
+        }
 
         // Simple line-by-line diff
         let mut result = Vec::new();

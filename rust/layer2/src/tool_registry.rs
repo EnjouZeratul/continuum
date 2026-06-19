@@ -58,6 +58,17 @@ pub trait Tool: Send + Sync {
     /// 执行工具
     async fn execute(&self, args: &str) -> Layer2Result<ToolResult>;
 
+    /// Context-aware execute: receives the LLM-issued `call_id` so it can be
+    /// propagated to the resulting `ToolResult.tool_call_id` (instead of being
+    /// lost at the adapter boundary).
+    ///
+    /// Default impl: ignore call_id, delegate to `execute(args)`. The result
+    /// will then have `tool_call_id: String::new()` (legacy behavior).
+    /// Adapters that want to preserve call_id override this method.
+    async fn execute_with_call_id(&self, args: &str, _call_id: &str) -> Layer2Result<ToolResult> {
+        self.execute(args).await
+    }
+
     /// 验证参数
     fn validate_args(&self, _args: &serde_json::Value) -> Layer2Result<bool> {
         // 默认实现：总是返回 true
@@ -88,6 +99,17 @@ pub trait ToolRegistryTrait: Send + Sync {
 
     /// 执行工具
     async fn execute(&self, name: &str, args: &str) -> Layer2Result<ToolResult>;
+
+    /// 执行工具 (with call_id propagation). Default delegates to execute().
+    async fn execute_with_call_id(
+        &self,
+        name: &str,
+        args: &str,
+        call_id: &str,
+    ) -> Layer2Result<ToolResult> {
+        let _ = call_id;
+        self.execute(name, args).await
+    }
 
     /// 获取工具数量
     fn count(&self) -> usize;
@@ -168,6 +190,19 @@ impl ToolRegistryTrait for ToolRegistry {
             .ok_or_else(|| Layer2Error::ToolNotFound(name.to_string()))?;
 
         tool.execute(args).await
+    }
+
+    async fn execute_with_call_id(
+        &self,
+        name: &str,
+        args: &str,
+        call_id: &str,
+    ) -> Layer2Result<ToolResult> {
+        let tool = self
+            .get(name)
+            .ok_or_else(|| Layer2Error::ToolNotFound(name.to_string()))?;
+
+        tool.execute_with_call_id(args, call_id).await
     }
 
     fn count(&self) -> usize {

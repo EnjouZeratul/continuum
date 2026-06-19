@@ -2,6 +2,8 @@
 //!
 //! 记忆操作工具集，使用分层记忆系统。
 
+use crate::builtin_tools::safe_truncate::safe_truncate_chars;
+use crate::builtin_tools::secret_scrub::SecretScrubber;
 use crate::builtin_tools::BuiltinTool;
 use crate::memory_system::{MemoryStore, WorkingMemory};
 use crate::types::{Layer3Result, MemoryEntry, MemoryQuery, MemoryTier, ToolCategory};
@@ -13,18 +15,23 @@ use std::sync::Arc;
 /// Save Memory Tool
 pub struct SaveMemoryTool {
     store: Arc<WorkingMemory>,
+    scrubber: Arc<SecretScrubber>,
 }
 
 impl SaveMemoryTool {
     pub fn new() -> Self {
         Self {
             store: Arc::new(WorkingMemory::default()),
+            scrubber: Arc::new(SecretScrubber::new()),
         }
     }
 
     /// 使用指定的 store 创建
     pub fn with_store(store: Arc<WorkingMemory>) -> Self {
-        Self { store }
+        Self {
+            store,
+            scrubber: Arc::new(SecretScrubber::new()),
+        }
     }
 }
 
@@ -75,6 +82,25 @@ impl BuiltinTool for SaveMemoryTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing content parameter"))?;
 
+        // SM1: Content size cap (1 MiB)
+        if content.len() > 1024 * 1024 {
+            return Err(anyhow::anyhow!(
+                "save_memory rejected: content {} bytes > 1 MiB limit",
+                content.len(),
+            ));
+        }
+
+        // SM3: Secret scrubbing before storing
+        let safe_content = self.scrubber.scrub(content);
+        if let Some(kind) = self.scrubber.contains_secret(content) {
+            tracing::warn!(
+                target: "continuum.tools.memory",
+                memory_secret_detected = %kind,
+                "save_memory: scrubbed secret of kind '{}' before storing",
+                kind,
+            );
+        }
+
         let tier_str = args["tier"].as_str().unwrap_or("working");
         let tier = match tier_str {
             "working" => MemoryTier::Working,
@@ -84,8 +110,15 @@ impl BuiltinTool for SaveMemoryTool {
             _ => MemoryTier::Working,
         };
 
-        // Extract metadata as Map
+        // SM2: Metadata size cap
         let metadata = if let Some(obj) = args["metadata"].as_object() {
+            let serialized = serde_json::to_string(obj)?;
+            if serialized.len() > 64 * 1024 {
+                return Err(anyhow::anyhow!(
+                    "save_memory rejected: metadata {} bytes > 64 KiB limit",
+                    serialized.len(),
+                ));
+            }
             obj.clone()
         } else {
             serde_json::Map::new()
@@ -94,7 +127,7 @@ impl BuiltinTool for SaveMemoryTool {
         // Create memory entry
         let entry = MemoryEntry {
             id: generate_short_id(),
-            content: content.to_string(),
+            content: safe_content,
             tier,
             created_at: Utc::now(),
             last_accessed: Utc::now(),
@@ -113,18 +146,23 @@ impl BuiltinTool for SaveMemoryTool {
 /// Query Memory Tool
 pub struct QueryMemoryTool {
     store: Arc<WorkingMemory>,
+    scrubber: Arc<SecretScrubber>,
 }
 
 impl QueryMemoryTool {
     pub fn new() -> Self {
         Self {
             store: Arc::new(WorkingMemory::default()),
+            scrubber: Arc::new(SecretScrubber::new()),
         }
     }
 
     /// 使用指定的 store 创建
     pub fn with_store(store: Arc<WorkingMemory>) -> Self {
-        Self { store }
+        Self {
+            store,
+            scrubber: Arc::new(SecretScrubber::new()),
+        }
     }
 }
 
@@ -175,6 +213,14 @@ impl BuiltinTool for QueryMemoryTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing query parameter"))?;
 
+        // QM2: Query length cap
+        if query_text.chars().count() > 1000 {
+            return Err(anyhow::anyhow!(
+                "query_memory rejected: query too long ({} > 1000 chars)",
+                query_text.chars().count(),
+            ));
+        }
+
         let limit = args["limit"].as_u64().map(|l| l as usize);
         let tier = args["tier"].as_str().and_then(|t| match t {
             "working" => Some(MemoryTier::Working),
@@ -197,15 +243,16 @@ impl BuiltinTool for QueryMemoryTool {
         if results.is_empty() {
             Ok("(no memories found)".to_string())
         } else {
+            let max = limit.unwrap_or(10).min(100); // QM3: hard cap
+            let scrubber = &self.scrubber;
             let output: Vec<String> = results
                 .iter()
-                .take(limit.unwrap_or(10))
+                .take(max)
                 .map(|e| {
-                    let preview = if e.content.len() > 200 {
-                        format!("{}...", &e.content[..200])
-                    } else {
-                        e.content.clone()
-                    };
+                    // QM1: UTF-8-safe truncation
+                    let preview = safe_truncate_chars(&e.content, 200);
+                    // QM4: Scrub secrets from output (defense-in-depth even though SaveMemory scrubs)
+                    let preview = scrubber.scrub(preview);
                     format!("{}: {}", e.id, preview)
                 })
                 .collect();
@@ -256,6 +303,10 @@ impl BuiltinTool for ClearMemoryTool {
                     "type": "string",
                     "enum": ["working", "session", "project", "long_term"],
                     "description": "Memory tier to clear (default: working)"
+                },
+                "confirm": {
+                    "type": "boolean",
+                    "description": "Must be true to actually clear (default: false)"
                 }
             },
             "required": []
@@ -268,9 +319,36 @@ impl BuiltinTool for ClearMemoryTool {
 
     async fn execute(&self, args: serde_json::Value) -> Layer3Result<String> {
         let tier_str = args["tier"].as_str().unwrap_or("working");
+        let confirm = args["confirm"].as_bool().unwrap_or(false);
 
-        // Clear working memory
-        let count = self.store.clear().await?;
+        // CM2: Require confirmation
+        if !confirm {
+            return Ok(format!(
+                "clear_memory: pass confirm=true to clear '{}' tier.",
+                tier_str,
+            ));
+        }
+
+        let tier = match tier_str {
+            "working" => MemoryTier::Working,
+            "session" => MemoryTier::Session,
+            "project" => MemoryTier::Project,
+            "long_term" => MemoryTier::LongTerm,
+            _ => MemoryTier::Working,
+        };
+
+        // CM1 fix: actually clear only the specified tier
+        let count = self.store.clear_tier(tier).await?;
+
+        // CM3: Audit log
+        tracing::info!(
+            target: "continuum.tools.memory",
+            memory_tier = %tier_str,
+            memory_cleared_count = count,
+            "clear_memory: cleared {} entries from {} tier",
+            count,
+            tier_str,
+        );
 
         Ok(format!("Cleared {} memories from {} tier", count, tier_str))
     }

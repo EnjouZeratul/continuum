@@ -31,6 +31,20 @@ impl WorkingMemory {
             decay_policy: Box::new(TimeBasedDecay::default()),
         }
     }
+
+    /// Clear only entries matching the given tier (CM1 fix).
+    /// Returns count of removed entries.
+    pub async fn clear_tier(&self, tier: MemoryTier) -> Layer3Result<usize> {
+        let mut buffer = self.buffer.write();
+        let len_before = buffer.len();
+        buffer.retain(|e| e.tier != tier);
+        Ok(len_before - buffer.len())
+    }
+
+    /// Count entries in a specific tier.
+    pub async fn count_tier(&self, tier: MemoryTier) -> Layer3Result<usize> {
+        Ok(self.buffer.read().iter().filter(|e| e.tier == tier).count())
+    }
 }
 
 impl Default for WorkingMemory {

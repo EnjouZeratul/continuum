@@ -2,17 +2,37 @@
 //!
 //! 系统工具集：环境变量、进程管理、系统信息。
 
+use crate::builtin_tools::safe_truncate::safe_truncate_bytes;
+use crate::builtin_tools::secret_scrub::{
+    is_valid_env_name, SecretScrubber, DANGEROUS_ENV_NAMES, SENSITIVE_ENV_NAMES,
+};
 use crate::builtin_tools::BuiltinTool;
 use crate::types::{Layer3Result, ToolCategory};
 use async_trait::async_trait;
-use std::collections::HashMap;
+use std::sync::Arc;
 
 // ============================================================================
 // Get Environment Variable Tool
 // ============================================================================
 
 /// 环境变量获取工具
-pub struct GetEnvTool;
+pub struct GetEnvTool {
+    scrubber: Arc<SecretScrubber>,
+}
+
+impl GetEnvTool {
+    pub fn new() -> Self {
+        Self {
+            scrubber: Arc::new(SecretScrubber::new()),
+        }
+    }
+}
+
+impl Default for GetEnvTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait]
 impl BuiltinTool for GetEnvTool {
@@ -21,7 +41,7 @@ impl BuiltinTool for GetEnvTool {
     }
 
     fn description(&self) -> &str {
-        "Get an environment variable value."
+        "Get an environment variable value. Sensitive vars are redacted."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -46,8 +66,21 @@ impl BuiltinTool for GetEnvTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing name parameter"))?;
 
-        std::env::var(name)
-            .map_err(|_| anyhow::anyhow!("Environment variable '{}' not found", name))
+        if !is_valid_env_name(name) {
+            return Err(anyhow::anyhow!("Invalid env var name: '{}'", name));
+        }
+
+        let value = std::env::var(name)
+            .map_err(|_| anyhow::anyhow!("Environment variable '{}' not found", name))?;
+
+        // === GE1: Redact sensitive vars ===
+        if SENSITIVE_ENV_NAMES.contains(&name) {
+            return Ok(format!("{}=<REDACTED:env-secret>", name));
+        }
+        if let Some(kind) = self.scrubber.contains_secret(&value) {
+            return Ok(format!("{}=<REDACTED:{}>", name, kind));
+        }
+        Ok(value)
     }
 }
 
@@ -56,7 +89,23 @@ impl BuiltinTool for GetEnvTool {
 // ============================================================================
 
 /// 环境变量列表工具
-pub struct ListEnvTool;
+pub struct ListEnvTool {
+    scrubber: Arc<SecretScrubber>,
+}
+
+impl ListEnvTool {
+    pub fn new() -> Self {
+        Self {
+            scrubber: Arc::new(SecretScrubber::new()),
+        }
+    }
+}
+
+impl Default for ListEnvTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait]
 impl BuiltinTool for ListEnvTool {
@@ -65,7 +114,7 @@ impl BuiltinTool for ListEnvTool {
     }
 
     fn description(&self) -> &str {
-        "List all environment variables."
+        "List all environment variables. Sensitive vars are redacted."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -87,16 +136,27 @@ impl BuiltinTool for ListEnvTool {
     async fn execute(&self, args: serde_json::Value) -> Layer3Result<String> {
         let filter = args["filter"].as_str().unwrap_or("");
 
-        let env_vars: HashMap<String, String> = std::env::vars()
+        let scrubber = &self.scrubber;
+        let mut env_vars: Vec<(String, String)> = std::env::vars()
             .filter(|(k, _)| filter.is_empty() || k.contains(filter))
+            .map(|(k, v)| {
+                if SENSITIVE_ENV_NAMES.contains(&k.as_str()) {
+                    (k, "<REDACTED:env-secret>".to_string())
+                } else if let Some(kind) = scrubber.contains_secret(&v) {
+                    (k, format!("<REDACTED:{}>", kind))
+                } else {
+                    (k, v)
+                }
+            })
             .collect();
+        env_vars.sort_by(|a, b| a.0.cmp(&b.0));
 
-        let mut result: Vec<(String, String)> = env_vars.into_iter().collect();
-        result.sort_by_key(|(k, _)| k.clone());
-
-        let output: Vec<String> = result.iter().map(|(k, v)| format!("{}={}", k, v)).collect();
-
-        Ok(output.join("\n"))
+        let output: Vec<String> = env_vars
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect();
+        // === LE2: Output size cap ===
+        Ok(safe_truncate_bytes(&output.join("\n"), 64 * 1024).to_string())
     }
 }
 
@@ -114,7 +174,7 @@ impl BuiltinTool for SetEnvTool {
     }
 
     fn description(&self) -> &str {
-        "Set an environment variable for the current process."
+        "Set an environment variable. Dangerous variables (LD_PRELOAD, etc.) are rejected."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -151,8 +211,33 @@ impl BuiltinTool for SetEnvTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing value parameter"))?;
 
+        if !is_valid_env_name(name) {
+            return Err(anyhow::anyhow!("Invalid env var name: '{}'", name));
+        }
+        if value.len() > 1024 * 1024 {
+            return Err(anyhow::anyhow!(
+                "set_env rejected: value {} bytes > 1 MiB limit",
+                value.len(),
+            ));
+        }
+
+        // === SE1: Dangerous env denylist ===
+        if DANGEROUS_ENV_NAMES.contains(&name) {
+            return Err(anyhow::anyhow!(
+                "set_env rejected: '{}' is in dangerous-env denylist \
+                 (privilege escalation / injection vector).",
+                name,
+            ));
+        }
+
+        // SAFETY: set_var in Rust 2024 edition is unsafe. In single-threaded agent loop
+        // context this is fine. Multi-threaded Session-scoped env model deferred to v1.1.0.
+        // suppress deprecation warning in earlier editions
+        #[allow(deprecated)]
         std::env::set_var(name, value);
-        Ok(format!("Set {}={}", name, value))
+
+        // === SE5: Don't echo value (avoid re-injection into context) ===
+        Ok(format!("Set {}=<value>", name))
     }
 }
 
@@ -312,7 +397,23 @@ impl BuiltinTool for SystemInfoTool {
 // ============================================================================
 
 /// 进程列表工具
-pub struct ProcessListTool;
+pub struct ProcessListTool {
+    scrubber: Arc<SecretScrubber>,
+}
+
+impl ProcessListTool {
+    pub fn new() -> Self {
+        Self {
+            scrubber: Arc::new(SecretScrubber::new()),
+        }
+    }
+}
+
+impl Default for ProcessListTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 #[async_trait]
 impl BuiltinTool for ProcessListTool {
@@ -321,7 +422,7 @@ impl BuiltinTool for ProcessListTool {
     }
 
     fn description(&self) -> &str {
-        "List running processes (platform-dependent, limited info)."
+        "List running processes. Command-line secrets are automatically scrubbed."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -331,6 +432,10 @@ impl BuiltinTool for ProcessListTool {
                 "filter": {
                     "type": "string",
                     "description": "Optional filter by process name"
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Optional: max processes to return (default: 50, max: 500)"
                 }
             }
         })
@@ -342,17 +447,23 @@ impl BuiltinTool for ProcessListTool {
 
     async fn execute(&self, args: serde_json::Value) -> Layer3Result<String> {
         let filter = args["filter"].as_str().unwrap_or("");
+        let limit = args["limit"].as_u64().unwrap_or(50).min(500) as usize;
 
-        // Use sysinfo crate for process listing
         let mut system = sysinfo::System::new_all();
         system.refresh_all();
 
+        let scrubber = &self.scrubber;
         let processes: Vec<String> = system
             .processes()
             .iter()
             .filter(|(_, proc)| filter.is_empty() || proc.name().contains(filter))
-            .map(|(pid, proc)| format!("{}\t{}\t{}", pid, proc.name(), proc.cmd().join(" ")))
-            .take(50) // Limit output
+            .map(|(pid, proc)| {
+                // PL2: Scrub secrets from command-line args
+                let cmd = proc.cmd().join(" ");
+                let cmd = scrubber.scrub(&cmd);
+                format!("{}\t{}\t{}", pid, proc.name(), cmd)
+            })
+            .take(limit)
             .collect();
 
         Ok(format!("PID\tName\tCommand\n{}", processes.join("\n")))
@@ -483,7 +594,7 @@ mod tests {
 
     #[test]
     fn test_get_env_category() {
-        let tool = GetEnvTool;
+        let tool = GetEnvTool::new();
         assert_eq!(tool.category(), ToolCategory::System);
     }
 
@@ -496,7 +607,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_env() {
-        let tool = ListEnvTool;
+        let tool = ListEnvTool::new();
         let result = tool.execute(json!({})).await;
         assert!(result.is_ok());
         let output = result.unwrap();

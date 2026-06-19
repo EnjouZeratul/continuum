@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyString};
+use pyo3::IntoPyObjectExt;
 use serde_json::{json, Value as JsonValue};
 use sh_layer2::{Layer2Result, Tool, ToolResult};
 use std::sync::Arc;
@@ -132,7 +133,7 @@ impl PythonToolAdapter {
         }
 
         // Determine if async by checking if it's a coroutine function
-        let is_async = Python::with_gil(|py| {
+        let is_async = Python::attach(|py| {
             let inspect = py.import("inspect").ok();
             if let Some(inspect) = inspect {
                 if let Ok(is_coro_fn) =
@@ -182,11 +183,11 @@ impl PythonToolAdapter {
 
         // Convert result to string
         let bound = result.bind(py);
-        if let Ok(dict) = bound.downcast::<PyDict>() {
+        if let Ok(dict) = bound.cast::<PyDict>() {
             python_dict_to_json_string(dict)
         } else if let Ok(s) = bound.extract::<String>() {
             Ok(s)
-        } else if let Ok(py_str) = bound.downcast::<PyString>() {
+        } else if let Ok(py_str) = bound.cast::<PyString>() {
             py_str
                 .extract::<String>()
                 .map_err(|e| PythonToolError::TypeConversion(e.to_string()))
@@ -204,7 +205,7 @@ impl PythonToolAdapter {
         let callable = Arc::clone(&self.callable);
 
         // Get the Python event loop and convert coroutine to future
-        let coroutine_result = Python::with_gil(|py| {
+        let coroutine_result = Python::attach(|py| {
             let py_args = json_to_python_dict(py, &args)?;
 
             // Call the async function to get a coroutine
@@ -232,10 +233,10 @@ impl PythonToolAdapter {
         let result = coroutine_result.await;
 
         // Convert result to string
-        Python::with_gil(|py| match result {
+        Python::attach(|py| match result {
             Ok(py_result) => {
                 let bound = py_result.bind(py);
-                if let Ok(dict) = bound.downcast::<PyDict>() {
+                if let Ok(dict) = bound.cast::<PyDict>() {
                     python_dict_to_json_string(dict)
                 } else if let Ok(s) = bound.extract::<String>() {
                     Ok(s)
@@ -281,7 +282,7 @@ impl Tool for PythonToolAdapter {
             self.execute_async(args_json).await
         } else {
             // For sync execution, we need to acquire GIL
-            Python::with_gil(|py| self.execute_sync(py, args_json))
+            Python::attach(|py| self.execute_sync(py, args_json))
         };
 
         match result {
@@ -397,17 +398,17 @@ fn json_to_python_dict<'py>(py: Python<'py>, json: &JsonValue) -> PyResult<Bound
 fn json_value_to_python<'py>(py: Python<'py>, value: &JsonValue) -> PyResult<Bound<'py, PyAny>> {
     match value {
         JsonValue::Null => Ok(py.None().into_bound(py)),
-        JsonValue::Bool(b) => Ok(b.to_object(py).into_bound(py)),
+        JsonValue::Bool(b) => Ok(b.into_py_any(py)?.into_bound(py)),
         JsonValue::Number(n) => {
             if let Some(i) = n.as_i64() {
-                Ok(i.to_object(py).into_bound(py))
+                Ok(i.into_py_any(py)?.into_bound(py))
             } else if let Some(f) = n.as_f64() {
-                Ok(f.to_object(py).into_bound(py))
+                Ok(f.into_py_any(py)?.into_bound(py))
             } else {
-                Ok(n.to_string().to_object(py).into_bound(py))
+                Ok(n.to_string().into_py_any(py)?.into_bound(py))
             }
         }
-        JsonValue::String(s) => Ok(s.to_object(py).into_bound(py)),
+        JsonValue::String(s) => Ok(s.into_py_any(py)?.into_bound(py)),
         JsonValue::Array(arr) => {
             let list = PyList::empty(py);
             for item in arr {
@@ -462,7 +463,7 @@ fn python_value_to_json(value: &Bound<'_, PyAny>) -> PyResult<JsonValue> {
         return Ok(JsonValue::String(s));
     }
 
-    if let Ok(list) = value.downcast::<PyList>() {
+    if let Ok(list) = value.cast::<PyList>() {
         let mut arr = Vec::new();
         for item in list.iter() {
             arr.push(python_value_to_json(&item)?);
@@ -470,7 +471,7 @@ fn python_value_to_json(value: &Bound<'_, PyAny>) -> PyResult<JsonValue> {
         return Ok(JsonValue::Array(arr));
     }
 
-    if let Ok(dict) = value.downcast::<PyDict>() {
+    if let Ok(dict) = value.cast::<PyDict>() {
         return python_dict_to_json(dict);
     }
 
@@ -503,7 +504,7 @@ mod tests {
         F: FnOnce(Python<'_>) -> R,
     {
         ensure_python_init();
-        Python::with_gil(f)
+        Python::attach(f)
     }
 
     #[test]
@@ -688,7 +689,7 @@ test_dict = {
             )
             .unwrap();
             let py_dict = py.eval(c"test_dict", None, None).unwrap();
-            let dict = py_dict.downcast::<PyDict>().unwrap();
+            let dict = py_dict.cast::<PyDict>().unwrap();
 
             let json = python_dict_to_json(dict).unwrap();
             let py_dict2 = json_to_python_dict(py, &json).unwrap();

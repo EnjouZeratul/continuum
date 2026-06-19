@@ -30,6 +30,3 @@ chrono.workspace = true
 [lib]
 name = "sh_core"
 crate-type = ["rlib"]
-
-[dev-dependencies]
-tempfile.workspace = true

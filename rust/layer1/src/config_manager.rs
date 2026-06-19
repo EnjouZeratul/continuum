@@ -505,6 +505,7 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_resolve_env_string() {
         std::env::set_var("TEST_VAR", "test_value");
         let resolved = ConfigManager::resolve_env_string("${TEST_VAR}");

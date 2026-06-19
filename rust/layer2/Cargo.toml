@@ -13,7 +13,6 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-sh-layer0.workspace = true
 sh-layer1.workspace = true
 
 tokio.workspace = true

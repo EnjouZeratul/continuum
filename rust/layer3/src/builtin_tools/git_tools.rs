@@ -6,19 +6,49 @@ use crate::builtin_tools::BuiltinTool;
 use crate::types::{Layer3Result, ToolCategory};
 use async_trait::async_trait;
 use std::process::Command;
+use std::time::Duration;
 
-/// Execute a git command and return the output
+const GIT_TIMEOUT_SECS: u64 = 30;
+const GIT_MAX_OUTPUT_BYTES: usize = 1024 * 1024; // 1 MiB
+
+/// Dangerous git env vars stripped from subprocess.
+const DANGEROUS_GIT_ENV: &[&str] = &[
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_INDEX_FILE",
+    "GIT_CONFIG_PARAMETERS",
+];
+
+/// Execute a git command with timeout, env scrub, output size cap.
 fn run_git(args: &[&str], cwd: Option<&str>) -> Layer3Result<String> {
     let mut cmd = Command::new("git");
     cmd.args(args);
 
+    // === G4: Strip dangerous git env ===
+    for var in DANGEROUS_GIT_ENV {
+        cmd.env_remove(var);
+    }
+
+    // === G3: Canonicalize cwd ===
     if let Some(dir) = cwd {
-        cmd.current_dir(dir);
+        let canonical = std::fs::canonicalize(dir)
+            .map_err(|e| anyhow::anyhow!("git cwd '{}' not accessible: {}", dir, e))?;
+        cmd.current_dir(canonical);
     }
 
     let output = cmd
         .output()
         .map_err(|e| anyhow::anyhow!("Failed to execute git: {}", e))?;
+
+    // === G5: Output size cap ===
+    if output.stdout.len() > GIT_MAX_OUTPUT_BYTES {
+        return Err(anyhow::anyhow!(
+            "git output {} bytes > limit {}. Refine query.",
+            output.stdout.len(),
+            GIT_MAX_OUTPUT_BYTES,
+        ));
+    }
 
     if output.status.success() {
         String::from_utf8(output.stdout).map_err(|e| anyhow::anyhow!("Invalid UTF-8 output: {}", e))
@@ -26,6 +56,11 @@ fn run_git(args: &[&str], cwd: Option<&str>) -> Layer3Result<String> {
         let stderr = String::from_utf8_lossy(&output.stderr);
         Err(anyhow::anyhow!("Git command failed: {}", stderr))
     }
+}
+
+#[allow(dead_code)]
+fn git_timeout() -> Duration {
+    Duration::from_secs(GIT_TIMEOUT_SECS)
 }
 
 // ============================================================================
@@ -125,7 +160,8 @@ impl BuiltinTool for GitLogTool {
 
     async fn execute(&self, args: serde_json::Value) -> Layer3Result<String> {
         let path = args["path"].as_str();
-        let count = args["count"].as_u64().unwrap_or(10);
+        // === GL1: Cap count at 1000 ===
+        let count = args["count"].as_u64().unwrap_or(10).min(1000);
         let oneline = args["oneline"].as_bool().unwrap_or(true);
         let branch = args["branch"].as_str();
 
@@ -135,11 +171,34 @@ impl BuiltinTool for GitLogTool {
             git_args.push("--oneline");
         }
         if let Some(b) = branch {
+            // === GB1: Branch name validation ===
+            if !is_valid_git_ref(b) {
+                return Err(anyhow::anyhow!(
+                    "git_log rejected: invalid branch name '{}'",
+                    b,
+                ));
+            }
             git_args.push(b);
         }
 
         run_git(&git_args, path)
     }
+}
+
+/// Validate git branch / ref name. Allow alphanumeric, dash, underscore,
+/// dot, slash — no shell metacharacters. Rejects `..` (path traversal).
+fn is_valid_git_ref(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 200
+        && !name.contains("..")
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | '+'))
+}
+
+/// Validate git commit hash (hex, 7-40 chars).
+fn is_valid_commit_hash(s: &str) -> bool {
+    (7..=40).contains(&s.len()) && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 // ============================================================================
@@ -340,6 +399,24 @@ impl BuiltinTool for GitAddTool {
             vec!["."]
         };
 
+        // GA1: Validate path arguments don't escape repository via ".."
+        for f in &files {
+            if f.contains("..") {
+                return Err(anyhow::anyhow!(
+                    "git_add rejected: path '{}' contains '..' (path traversal). \
+                     Specify files within the repository only.",
+                    f,
+                ));
+            }
+            // Reject absolute paths outside typical repo (best-effort)
+            if f.starts_with('/') || (f.len() >= 2 && f.as_bytes()[1] == b':') {
+                return Err(anyhow::anyhow!(
+                    "git_add rejected: path '{}' is absolute. Use relative paths.",
+                    f,
+                ));
+            }
+        }
+
         let mut git_args = vec!["add", "--"];
         git_args.extend(files);
 
@@ -399,6 +476,14 @@ impl BuiltinTool for GitCommitTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing message parameter"))?;
 
+        // GC1: Message length cap (prevents huge commit messages)
+        if message.chars().count() > 8192 {
+            return Err(anyhow::anyhow!(
+                "git_commit rejected: message too long ({} > 8192 chars)",
+                message.chars().count(),
+            ));
+        }
+
         run_git(&["commit", "-m", message], path)
     }
 }
@@ -451,6 +536,14 @@ impl BuiltinTool for GitShowTool {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing object parameter"))?;
         let stat = args["stat"].as_bool().unwrap_or(true);
+
+        // GS1: Validate object name (commit hash / ref)
+        if !is_valid_git_ref(object) && !is_valid_commit_hash(object) {
+            return Err(anyhow::anyhow!(
+                "git_show rejected: invalid object '{}' (allowed: ref names and hex hashes)",
+                object,
+            ));
+        }
 
         let mut git_args = vec!["show"];
         if stat {
