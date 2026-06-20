@@ -187,7 +187,7 @@ mod bindings {
     // ========================================================================
 
     /// Permission Python 类
-    #[pyclass(skip_from_py_object, name = "Permission")]
+    #[pyclass(from_py_object, name = "Permission")]
     #[derive(Clone)]
     pub struct PyPermission {
         #[pyo3(get)]

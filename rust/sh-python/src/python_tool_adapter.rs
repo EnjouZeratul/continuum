@@ -495,7 +495,7 @@ mod tests {
 
     fn ensure_python_init() {
         INIT.call_once(|| {
-            pyo3::prepare_freethreaded_python();
+            Python::initialize();
         });
     }
 
