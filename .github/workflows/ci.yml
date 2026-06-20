@@ -256,14 +256,27 @@ jobs:
     name: Fuzz Testing (Linux, non-blocking)
     runs-on: ubuntu-latest
     continue-on-error: true
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
 
+      - name: Cache cargo-fuzz binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: cargo-fuzz-${{ runner.os }}-v0.13.2
+
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
+        run: cargo install cargo-fuzz --locked || true
+
+      - name: Cache fuzz build
+        uses: actions/cache@v4
+        with:
+          path: rust/layer3/fuzz/target
+          key: fuzz-target-${{ hashFiles('rust/layer3/Cargo.toml', 'rust/layer3/Cargo.lock') }}
 
       - name: Run fuzz targets (5 min each)
         run: |
