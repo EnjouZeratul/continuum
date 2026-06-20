@@ -53,7 +53,16 @@ pub fn check_path_danger(path: &Path) -> PathDanger {
     ];
     for c in critical_roots {
         let root = Path::new(c);
-        if path == root || path.starts_with(root) {
+        if *c == "/" {
+            // "/" is prefix of ALL POSIX absolute paths — must use exact match
+            // only, otherwise every /tmp, /home, etc. would be flagged critical.
+            if path == root {
+                return PathDanger {
+                    is_critical: true,
+                    reason: "system-critical path",
+                };
+            }
+        } else if path == root || path.starts_with(root) {
             return PathDanger {
                 is_critical: true,
                 reason: "system-critical path",
@@ -152,5 +161,20 @@ mod tests {
         let d = PathDanger::safe();
         assert!(!d.is_critical);
         assert_eq!(d.reason, "");
+    }
+
+    #[test]
+    fn test_posix_tmp_not_critical() {
+        // Regression: "/" starts_with matched ALL POSIX paths, causing
+        // /tmp, /home, /var etc. to be flagged critical on Linux CI.
+        // Fix: "/" uses exact match only.
+        let d = check_path_danger(Path::new("/tmp"));
+        assert!(!d.is_critical, "/tmp should NOT be critical");
+        let d = check_path_danger(Path::new("/tmp/continuum_test"));
+        assert!(!d.is_critical, "/tmp/xxx should NOT be critical");
+        let d = check_path_danger(Path::new("/var/tmp"));
+        assert!(!d.is_critical, "/var/tmp should NOT be critical");
+        let d = check_path_danger(Path::new("/home/user/project"));
+        assert!(!d.is_critical, "/home/user/project should NOT be critical");
     }
 }
