@@ -18,6 +18,7 @@
 //! - 当 LSP 服务器不可用时，自动回退到正则匹配
 //! - 确保在任何环境下都能提供基本功能
 
+use crate::builtin_tools::path_safety::check_path_danger;
 use crate::builtin_tools::BuiltinTool;
 use crate::lsp::{LspClient, Position};
 use crate::types::{Layer3Result, ToolCategory};
@@ -28,6 +29,30 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
+
+/// Validate file path for code analysis tools — canonicalize + critical-path
+/// check + size limit. Prevents path traversal and reading sensitive files
+/// (aligned with OWASP LLM Top 10 "tool input validation" + Hermes CVE-2026-7396 lesson).
+fn validate_code_file(path_str: &str) -> Layer3Result<PathBuf> {
+    let canonical = fs::canonicalize(path_str)
+        .map_err(|e| anyhow::anyhow!("File not accessible '{}': {}", path_str, e))?;
+    let danger = check_path_danger(&canonical);
+    if danger.is_critical {
+        return Err(anyhow::anyhow!(
+            "code tool rejected: path '{}' is critical ({})",
+            canonical.display(),
+            danger.reason
+        ));
+    }
+    let meta = fs::metadata(&canonical)?;
+    if meta.len() > 10 * 1024 * 1024 {
+        return Err(anyhow::anyhow!(
+            "code tool rejected: file too large ({} bytes > 10 MiB limit)",
+            meta.len()
+        ));
+    }
+    Ok(canonical)
+}
 
 /// 工具版本标识
 pub const CODE_ANALYSIS_VERSION: &str = "v2-lsp-integrated";
@@ -106,7 +131,7 @@ impl BuiltinTool for GoToDefinitionTool {
         let column = args["column"].as_u64().unwrap_or(1) as usize;
         let symbol = args["symbol"].as_str();
 
-        let path = PathBuf::from(file_path);
+        let path = validate_code_file(file_path)?;
 
         // 尝试使用 LSP
         match self.execute_with_lsp(&path, line, column).await {
@@ -334,7 +359,7 @@ impl BuiltinTool for FindReferencesTool {
         let symbol = args["symbol"].as_str();
         let include_declaration = args["include_declaration"].as_bool().unwrap_or(true);
 
-        let path = PathBuf::from(file_path);
+        let path = validate_code_file(file_path)?;
 
         // 尝试使用 LSP
         match self
@@ -571,7 +596,7 @@ impl BuiltinTool for GetHoverTool {
         let line = args["line"].as_u64().unwrap_or(1) as usize;
         let column = args["column"].as_u64().unwrap_or(1) as usize;
 
-        let path = PathBuf::from(file_path);
+        let path = validate_code_file(file_path)?;
 
         // 尝试使用 LSP
         match self.execute_with_lsp(&path, line, column).await {
@@ -749,7 +774,7 @@ impl BuiltinTool for RenameSymbolTool {
             .ok_or_else(|| anyhow::anyhow!("Missing new_name parameter"))?;
         let dry_run = args["dry_run"].as_bool().unwrap_or(true);
 
-        let path = PathBuf::from(file_path);
+        let path = validate_code_file(file_path)?;
 
         // 重命名必须使用 LSP
         let ext = path

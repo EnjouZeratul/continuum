@@ -6,6 +6,7 @@
 //! which were missing dedicated tests.
 
 use serde_json::json;
+use sh_layer3::builtin_tools::code::GoToDefinitionTool;
 use sh_layer3::builtin_tools::git_tools::{GitAddTool, GitShowTool};
 use sh_layer3::builtin_tools::system_tools::SetEnvTool;
 use sh_layer3::builtin_tools::BuiltinTool;
@@ -97,4 +98,24 @@ async fn cwe78_git_show_accepts_valid_hash() {
     let result = GitShowTool.execute(json!({"object": "abc1234"})).await;
     // Don't assert Ok/Err — depends on git repo state. Just ensure no panic.
     let _ = result;
+}
+
+// === CWE-22: Path Traversal (code tools — round 3 audit) ===
+
+#[tokio::test]
+async fn cwe22_code_tool_rejects_critical_path() {
+    // /etc/passwd is critical on Linux; nonexistent on Windows (canonicalize fails).
+    // Either way, must error — never silently read system files.
+    let result = GoToDefinitionTool
+        .execute(json!({"file": "/etc/passwd", "line": 1, "column": 1}))
+        .await;
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn cwe22_code_tool_rejects_nonexistent() {
+    let result = GoToDefinitionTool
+        .execute(json!({"file": "/nonexistent/code_audit_test.rs", "line": 1, "column": 1}))
+        .await;
+    assert!(result.is_err());
 }
