@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "rust/sh-core",
     "rust/sh-python",
+    "rust/safety",
     "rust/layer0",
     "rust/layer1",
     "rust/layer2",
@@ -103,6 +104,7 @@ wiremock = "0.6"
 proptest = "1.5"
 
 # Layer 内部依赖（共享）
+sh-safety = { version = "1.1.0", path = "rust/safety" }
 sh-layer0 = { version = "1.0.2", path = "rust/layer0" }
 sh-layer1 = { version = "1.0.2", path = "rust/layer1" }
 sh-layer2 = { version = "1.0.2", path = "rust/layer2" }

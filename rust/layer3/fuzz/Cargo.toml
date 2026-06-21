@@ -1,5 +1,5 @@
 [package]
-name = "sh-layer3-fuzz"
+name = "sh-safety-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2021"
@@ -10,8 +10,8 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 
-[dependencies.sh-layer3]
-path = ".."
+[dependencies.sh-safety]
+path = "../../safety"
 
 [[bin]]
 name = "fuzz_path_safety"
@@ -20,5 +20,12 @@ test = false
 doc = false
 bench = false
 
-# Keep fuzz crate out of the main workspace (cargo-fuzz requires independence)
+[[bin]]
+name = "fuzz_secret_scrub"
+path = "fuzz_targets/fuzz_secret_scrub.rs"
+test = false
+doc = false
+bench = false
+
+# Keep fuzz crate out of the main workspace
 [workspace]

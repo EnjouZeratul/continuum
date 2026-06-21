@@ -249,38 +249,33 @@ jobs:
           echo "Pedantic warnings: $(grep -c '^warning' pedantic-report.txt || echo 0)"
         continue-on-error: true
 
-  # Fuzz testing (Task 2.3 / #9) — Linux only (Windows ASan/libFuzzer unsupported).
-  # Non-blocking, 5-min per target. For 24h runs, use a dedicated Linux machine/WSL.
-  # Fuzz targets are in rust/layer3/fuzz/ (independent workspace).
+  # Fuzz testing — Linux only (Windows ASan/libFuzzer unsupported).
+  # Non-blocking, 5-min per target. Depends on sh-safety crate (compiles in <15s,
+  # no heavy deps like reqwest/tokio/lopdf). Assertion-based (not just no-panic).
   fuzz:
     name: Fuzz Testing (Linux, non-blocking)
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust nightly
         uses: dtolnay/rust-toolchain@nightly
 
-      - name: Cache cargo-fuzz binary
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/cargo-fuzz
-          key: cargo-fuzz-${{ runner.os }}-v0.13.2
-
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz --locked || true
+        run: cargo install cargo-fuzz --locked
 
-      - name: Cache fuzz build
-        uses: actions/cache@v4
-        with:
-          path: rust/layer3/fuzz/target
-          key: fuzz-target-${{ hashFiles('rust/layer3/Cargo.toml', 'rust/layer3/Cargo.lock') }}
-
-      - name: Run fuzz targets (5 min each)
+      - name: Run fuzz_path_safety (5 min)
         run: |
           cd rust/layer3
           cargo +nightly fuzz run fuzz_path_safety -- --max-total-time=300
         continue-on-error: true
+
+      - name: Run fuzz_secret_scrub (5 min)
+        run: |
+          cd rust/layer3
+          cargo +nightly fuzz run fuzz_secret_scrub -- --max-total-time=300
+        continue-on-error: true
+
 

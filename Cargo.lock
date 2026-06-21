@@ -4379,6 +4379,7 @@ dependencies = [
  "serde_yaml",
  "sh-layer1",
  "sh-layer2",
+ "sh-safety",
  "sha2",
  "sysinfo",
  "tempfile",
@@ -4439,6 +4440,15 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "sh-safety"
+version = "1.1.0"
+dependencies = [
+ "anyhow",
+ "dirs 5.0.1",
+ "regex",
 ]
 
 [[package]]

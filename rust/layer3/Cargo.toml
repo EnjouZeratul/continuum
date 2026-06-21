@@ -13,6 +13,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+sh-safety.workspace = true
 sh-layer1.workspace = true
 sh-layer2.workspace = true
 

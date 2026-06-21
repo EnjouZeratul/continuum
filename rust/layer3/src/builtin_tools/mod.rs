@@ -14,16 +14,16 @@ pub mod metrics;
 pub mod network;
 pub mod network_safety;
 pub mod network_tools;
-pub mod path_safety;
 pub mod read_state;
-pub mod safe_truncate;
 pub mod search;
-pub mod secret_scrub;
 pub mod shell;
 pub mod system_tools;
 pub mod text_tools;
 pub mod web_search;
 pub mod workflow_tools;
+
+// Re-export safety modules from sh-safety crate (extracted for fast fuzz compilation)
+pub use sh_safety::{path_safety, safe_truncate, secret_scrub};
 
 // Re-export adapter for Layer 2 integration
 pub use adapter::{register_builtin_tools, ToolAdapter};

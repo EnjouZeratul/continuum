@@ -303,16 +303,27 @@ impl BuiltinTool for WriteFileTool {
             ));
         }
 
-        // === Stale-read prevention: overwriting an existing file requires prior read ===
+        // === Critical-path check (was missing — security gap found in round-3 audit) ===
         let force = args["force"].as_bool().unwrap_or(false);
+        let write_canonical = tokio::fs::canonicalize(path)
+            .await
+            .unwrap_or_else(|_| path.to_path_buf());
+        let write_danger = crate::builtin_tools::path_safety::check_path_danger(&write_canonical);
+        if write_danger.is_critical && !force {
+            return Err(anyhow::anyhow!(
+                "write_file rejected: path '{}' is critical ({}). \
+                 Pass force=true to override.",
+                write_canonical.display(),
+                write_danger.reason,
+            ));
+        }
+
+        // === Stale-read prevention: overwriting an existing file requires prior read ===
         if exists && overwrite && !force {
-            let canonical_for_state = tokio::fs::canonicalize(path)
-                .await
-                .unwrap_or_else(|_| path.to_path_buf());
             use crate::builtin_tools::read_state::StaleReadError;
             let ctx_snap = crate::builtin_tools::exec_context::current_context();
             let store = ctx_snap.read_state_store();
-            match store.verify(&canonical_for_state, true).await {
+            match store.verify(&write_canonical, true).await {
                 Ok(()) => {}
                 Err(StaleReadError::NotRead) => {
                     crate::builtin_tools::metrics::record_stale_read_rejection(
@@ -494,16 +505,27 @@ impl BuiltinTool for EditFileTool {
             ));
         }
 
-        // === Stale-read prevention: require prior read, verify unchanged ===
-        let canonical_for_state = tokio::fs::canonicalize(path_str)
+        // === Critical-path check (was missing — security gap found in round-3 audit) ===
+        let force = args["force"].as_bool().unwrap_or(false);
+        let edit_canonical = tokio::fs::canonicalize(path_str)
             .await
             .unwrap_or_else(|_| std::path::PathBuf::from(path_str));
-        let force = args["force"].as_bool().unwrap_or(false);
+        let edit_danger = crate::builtin_tools::path_safety::check_path_danger(&edit_canonical);
+        if edit_danger.is_critical && !force {
+            return Err(anyhow::anyhow!(
+                "edit_file rejected: path '{}' is critical ({}). \
+                 Pass force=true to override.",
+                edit_canonical.display(),
+                edit_danger.reason,
+            ));
+        }
+
+        // === Stale-read prevention: require prior read, verify unchanged ===
         if !force {
             use crate::builtin_tools::read_state::StaleReadError;
             let ctx_snap = crate::builtin_tools::exec_context::current_context();
             let store = ctx_snap.read_state_store();
-            match store.verify(&canonical_for_state, true).await {
+            match store.verify(&edit_canonical, true).await {
                 Ok(()) => {}
                 Err(StaleReadError::NotRead) => {
                     crate::builtin_tools::metrics::record_stale_read_rejection(
@@ -571,7 +593,7 @@ impl BuiltinTool for EditFileTool {
         // edit_file calls without an intervening read_file don't trip staleness).
         let _ = crate::builtin_tools::exec_context::current_context()
             .read_state_store()
-            .record_read(canonical_for_state)
+            .record_read(edit_canonical)
             .await;
 
         Ok(format!(
