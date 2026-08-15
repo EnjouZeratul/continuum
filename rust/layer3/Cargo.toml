@@ -69,3 +69,7 @@ optional = true
 [[bench]]
 name = "bench_read_state"
 harness = false
+
+[[bench]]
+name = "bench_e2e"
+harness = false

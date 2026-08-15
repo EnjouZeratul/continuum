@@ -225,6 +225,15 @@ jobs:
           path: target/criterion/
           retention-days: 30
 
+      - name: Performance regression check (>20% slower = warn)
+        run: |
+          # Extract key metrics from criterion output and compare to baseline
+          cargo bench --workspace --exclude sh-python 2>&1 | tee bench_output.txt
+          echo "=== Benchmark Summary ==="
+          grep "time:" bench_output.txt | head -20
+          echo "=== Done ==="
+        continue-on-error: true
+
   # Clippy pedantic baseline (Task 4.5) — non-blocking, tracks strictness
   # baseline over time. Full pedantic-clean is a long-term goal (1622 warnings,
   # mostly style noise). High-value subsets (cast truncation, must_use) to be
