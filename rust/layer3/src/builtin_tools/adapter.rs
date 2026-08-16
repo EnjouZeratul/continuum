@@ -5,6 +5,7 @@
 use crate::builtin_tools::BuiltinTool;
 use async_trait::async_trait;
 use sh_layer2::{Layer2Result, Tool as Layer2Tool, ToolRegistryTrait, ToolResult};
+use std::sync::Arc;
 
 /// 适配器：将 Layer3 BuiltinTool 适配为 Layer2 Tool
 pub struct ToolAdapter {
@@ -73,7 +74,21 @@ impl Layer2Tool for ToolAdapter {
 }
 
 /// 注册所有内置工具到 Layer 2 ToolRegistry
+///
+/// 记忆工具共享同一个（临时、非持久）UnifiedMemorySystem —— 单测与
+/// 不落盘场景。生产装配请用 [`register_builtin_tools_with_memory`]
+/// 注入带 ProjectMemory 的持久系统。
 pub fn register_builtin_tools(registry: &sh_layer2::ToolRegistry) -> anyhow::Result<()> {
+    let memory = Arc::new(crate::memory_system::UnifiedMemorySystem::new("default"));
+    register_builtin_tools_with_memory(registry, memory)
+}
+
+/// 同 [`register_builtin_tools`]，但记忆工具使用调用方提供的统一记忆
+/// 系统（可含 ProjectMemory / LongTermMemory 持久后端）。
+pub fn register_builtin_tools_with_memory(
+    registry: &sh_layer2::ToolRegistry,
+    memory: Arc<crate::memory_system::UnifiedMemorySystem>,
+) -> anyhow::Result<()> {
     use super::code::*;
     use super::file_ops::*;
     use super::memory_tools::*;
@@ -100,9 +115,16 @@ pub fn register_builtin_tools(registry: &sh_layer2::ToolRegistry) -> anyhow::Res
     registry.register(Box::new(ToolAdapter::new(Box::new(GoToDefinitionTool))))?;
     registry.register(Box::new(ToolAdapter::new(Box::new(FindReferencesTool))))?;
 
-    // 记忆工具
-    registry.register(Box::new(ToolAdapter::new(Box::new(SaveMemoryTool::new()))))?;
-    registry.register(Box::new(ToolAdapter::new(Box::new(QueryMemoryTool::new()))))?;
+    // 记忆工具（共享同一系统 —— save 的条目 query 立即可见）
+    registry.register(Box::new(ToolAdapter::new(Box::new(
+        SaveMemoryTool::with_system(memory.clone()),
+    ))))?;
+    registry.register(Box::new(ToolAdapter::new(Box::new(
+        QueryMemoryTool::with_system(memory.clone()),
+    ))))?;
+    registry.register(Box::new(ToolAdapter::new(Box::new(
+        ClearMemoryTool::with_system(memory),
+    ))))?;
 
     // 工作流工具
     registry.register(Box::new(ToolAdapter::new(Box::new(

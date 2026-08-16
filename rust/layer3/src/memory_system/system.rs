@@ -2,7 +2,7 @@
 //!
 //! 整合四层记忆的统一接口。
 
-use crate::memory_system::{session::SessionMemory, working::WorkingMemory, MemoryStore};
+use crate::memory_system::{session::SessionMemory, working::WorkingMemory, ImportanceScorer, MemoryStore};
 use crate::types::{Layer3Result, MemoryEntry, MemoryQuery, MemoryTier};
 use async_trait::async_trait;
 use sh_layer2::generate_short_id;
@@ -78,8 +78,14 @@ impl UnifiedMemorySystem {
             access_count: 0,
             importance: 0.5,
         };
+        self.store_entry(entry).await
+    }
 
-        match tier {
+    /// 存储完整条目（保留 metadata/importance，按 `entry.tier` 路由）。
+    ///
+    /// Project/LongTerm 后端未配置时降级到 session（与 store_at 一致）。
+    pub async fn store_entry(&self, entry: MemoryEntry) -> Layer3Result<String> {
+        match entry.tier {
             MemoryTier::Working => self.working.store(entry).await,
             MemoryTier::Session => self.session.store(entry).await,
             MemoryTier::Project => {
@@ -97,6 +103,32 @@ impl UnifiedMemorySystem {
                 }
             }
         }
+    }
+
+    /// 会话结束晋升：把 session 层中评分 ≥ `threshold` 的条目复制到
+    /// project 层（跨会话可见、持久化）。
+    ///
+    /// - 复制而非移动：session 层随会话销毁，project 副本独立存活
+    /// - 晋升副本的 `tier` 改写为 `Project`，id 不变（幂等：重复晋升
+    ///   同一条目会得到同名文件，内容一致）
+    /// - 未配置 project 后端时返回 Ok(0)（无持久层可晋升）
+    ///
+    /// 返回晋升条数。
+    pub async fn promote_session_end(&self, threshold: f32) -> Layer3Result<usize> {
+        let Some(ref project) = self.project else {
+            return Ok(0);
+        };
+        let scorer = crate::memory_system::HeuristicImportanceScorer::new();
+        let candidates = self.session.list(None).await?;
+        let mut promoted = 0usize;
+        for mut entry in candidates {
+            if scorer.score(&entry) >= threshold {
+                entry.tier = MemoryTier::Project;
+                project.store(entry).await?;
+                promoted += 1;
+            }
+        }
+        Ok(promoted)
     }
 
     /// 跨层级查询

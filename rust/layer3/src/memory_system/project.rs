@@ -7,6 +7,7 @@ use crate::types::{Layer3Result, MemoryEntry, MemoryQuery, MemoryTier};
 use async_trait::async_trait;
 use parking_lot::RwLock;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 /// Project Memory 实现
@@ -24,6 +25,9 @@ pub struct ProjectMemory {
     /// 衰减策略
     #[allow(dead_code)]
     decay_policy: Box<dyn DecayPolicy>,
+    /// 磁盘是否已扫描进缓存（修复：重启后 query/list/count 只看
+    /// 进程内缓存，持久化的条目不可见 —— 跨会话记忆名存实亡）
+    loaded: AtomicBool,
 }
 
 impl ProjectMemory {
@@ -34,12 +38,52 @@ impl ProjectMemory {
             memory_path,
             cache: Arc::new(RwLock::new(Vec::new())),
             decay_policy: Box::new(TimeBasedDecay::default()),
+            loaded: AtomicBool::new(false),
         }
     }
 
     /// 确保内存目录存在
     async fn ensure_dir(&self) -> Layer3Result<()> {
         tokio::fs::create_dir_all(&self.memory_path).await?;
+        Ok(())
+    }
+
+    /// 惰性加载：首次查询前把磁盘上的既有条目并入缓存。
+    ///
+    /// 先在锁外解析（避免跨 await 持有 parking_lot 锁），再在写锁内
+    /// 幂等合并（按 id 去重）——并发调用安全，重复加载无副作用。
+    async fn ensure_loaded(&self) -> Layer3Result<()> {
+        if self.loaded.load(Ordering::Acquire) {
+            return Ok(());
+        }
+        let mut parsed: Vec<MemoryEntry> = Vec::new();
+        if self.memory_path.exists() {
+            let mut entries = tokio::fs::read_dir(&self.memory_path).await?;
+            while let Some(entry) = entries.next_entry().await? {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                    continue;
+                }
+                match tokio::fs::read_to_string(&path).await {
+                    Ok(text) => match serde_json::from_str::<MemoryEntry>(&text) {
+                        Ok(m) => parsed.push(m),
+                        Err(e) => tracing::warn!("skipping corrupt memory file {:?}: {}", path, e),
+                    },
+                    Err(e) => tracing::warn!("unreadable memory file {:?}: {}", path, e),
+                }
+            }
+        }
+        {
+            let mut cache = self.cache.write();
+            if !self.loaded.load(Ordering::Acquire) {
+                for entry in parsed {
+                    if !cache.iter().any(|c| c.id == entry.id) {
+                        cache.push(entry);
+                    }
+                }
+                self.loaded.store(true, Ordering::Release);
+            }
+        }
         Ok(())
     }
 }
@@ -93,6 +137,7 @@ impl MemoryStore for ProjectMemory {
     }
 
     async fn query(&self, query: &MemoryQuery) -> Layer3Result<Vec<MemoryEntry>> {
+        self.ensure_loaded().await?;
         let cache = self.cache.read();
         let results: Vec<MemoryEntry> = cache
             .iter()
@@ -111,6 +156,7 @@ impl MemoryStore for ProjectMemory {
     }
 
     async fn list(&self, limit: Option<usize>) -> Layer3Result<Vec<MemoryEntry>> {
+        self.ensure_loaded().await?;
         let cache = self.cache.read();
         Ok(cache
             .iter()
@@ -135,6 +181,7 @@ impl MemoryStore for ProjectMemory {
     }
 
     async fn count(&self) -> Layer3Result<usize> {
+        self.ensure_loaded().await?;
         Ok(self.cache.read().len())
     }
 }

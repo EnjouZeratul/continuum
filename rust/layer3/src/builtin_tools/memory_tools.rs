@@ -1,11 +1,16 @@
 //! # Memory Tools
 //!
 //! 记忆操作工具集，使用分层记忆系统。
+//!
+//! v1.1.0：三个工具共享**同一个** `Arc<UnifiedMemorySystem>` —— 修复了
+//! 之前每个工具持有私有 `WorkingMemory` 导致 save 存的记忆 query 看不见
+//! 的"裂脑"问题。query 走 `query_all` 跨全部层级检索；持久化由装配处
+//! 通过 `with_system` 注入带 ProjectMemory 的系统实现。
 
 use crate::builtin_tools::safe_truncate::safe_truncate_chars;
 use crate::builtin_tools::secret_scrub::SecretScrubber;
 use crate::builtin_tools::BuiltinTool;
-use crate::memory_system::{MemoryStore, WorkingMemory};
+use crate::memory_system::UnifiedMemorySystem;
 use crate::types::{Layer3Result, MemoryEntry, MemoryQuery, MemoryTier, ToolCategory};
 use async_trait::async_trait;
 use chrono::Utc;
@@ -14,22 +19,24 @@ use std::sync::Arc;
 
 /// Save Memory Tool
 pub struct SaveMemoryTool {
-    store: Arc<WorkingMemory>,
+    system: Arc<UnifiedMemorySystem>,
     scrubber: Arc<SecretScrubber>,
 }
 
 impl SaveMemoryTool {
+    /// 临时（非持久）系统 —— 单元测试用。生产装配请用 [`Self::with_system`]
+    /// 注入共享系统，否则每个工具各自持有独立内存。
     pub fn new() -> Self {
         Self {
-            store: Arc::new(WorkingMemory::default()),
+            system: Arc::new(UnifiedMemorySystem::new("default")),
             scrubber: Arc::new(SecretScrubber::new()),
         }
     }
 
-    /// 使用指定的 store 创建
-    pub fn with_store(store: Arc<WorkingMemory>) -> Self {
+    /// 使用共享的统一记忆系统创建
+    pub fn with_system(system: Arc<UnifiedMemorySystem>) -> Self {
         Self {
-            store,
+            system,
             scrubber: Arc::new(SecretScrubber::new()),
         }
     }
@@ -63,6 +70,12 @@ impl BuiltinTool for SaveMemoryTool {
                     "type": "string",
                     "enum": ["working", "session", "project", "long_term"],
                     "description": "Memory tier to store in (default: working)"
+                },
+                "importance": {
+                    "type": "number",
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Importance score 0-1 (default: 0.5); high-importance session memories are promoted to project tier at session end"
                 },
                 "metadata": {
                     "type": "object",
@@ -102,13 +115,7 @@ impl BuiltinTool for SaveMemoryTool {
         }
 
         let tier_str = args["tier"].as_str().unwrap_or("working");
-        let tier = match tier_str {
-            "working" => MemoryTier::Working,
-            "session" => MemoryTier::Session,
-            "project" => MemoryTier::Project,
-            "long_term" => MemoryTier::LongTerm,
-            _ => MemoryTier::Working,
-        };
+        let tier = parse_tier(tier_str).unwrap_or(MemoryTier::Working);
 
         // SM2: Metadata size cap
         let metadata = if let Some(obj) = args["metadata"].as_object() {
@@ -124,6 +131,11 @@ impl BuiltinTool for SaveMemoryTool {
             serde_json::Map::new()
         };
 
+        let importance = args["importance"]
+            .as_f64()
+            .map(|v| v.clamp(0.0, 1.0) as f32)
+            .unwrap_or(0.5);
+
         // Create memory entry
         let entry = MemoryEntry {
             id: generate_short_id(),
@@ -131,13 +143,13 @@ impl BuiltinTool for SaveMemoryTool {
             tier,
             created_at: Utc::now(),
             last_accessed: Utc::now(),
-            importance: 0.5,
+            importance,
             metadata,
             access_count: 0,
         };
 
-        // Store in working memory
-        let id = self.store.store(entry).await?;
+        // Store through the unified system (routes by entry.tier)
+        let id = self.system.store_entry(entry).await?;
 
         Ok(format!("Memory saved to {} tier with ID: {}", tier_str, id))
     }
@@ -145,22 +157,23 @@ impl BuiltinTool for SaveMemoryTool {
 
 /// Query Memory Tool
 pub struct QueryMemoryTool {
-    store: Arc<WorkingMemory>,
+    system: Arc<UnifiedMemorySystem>,
     scrubber: Arc<SecretScrubber>,
 }
 
 impl QueryMemoryTool {
+    /// 临时（非持久）系统 —— 单元测试用。
     pub fn new() -> Self {
         Self {
-            store: Arc::new(WorkingMemory::default()),
+            system: Arc::new(UnifiedMemorySystem::new("default")),
             scrubber: Arc::new(SecretScrubber::new()),
         }
     }
 
-    /// 使用指定的 store 创建
-    pub fn with_store(store: Arc<WorkingMemory>) -> Self {
+    /// 使用共享的统一记忆系统创建
+    pub fn with_system(system: Arc<UnifiedMemorySystem>) -> Self {
         Self {
-            store,
+            system,
             scrubber: Arc::new(SecretScrubber::new()),
         }
     }
@@ -179,7 +192,7 @@ impl BuiltinTool for QueryMemoryTool {
     }
 
     fn description(&self) -> &str {
-        "Query the memory system for relevant memories."
+        "Query the memory system for relevant memories across all tiers."
     }
 
     fn parameters_schema(&self) -> serde_json::Value {
@@ -222,13 +235,7 @@ impl BuiltinTool for QueryMemoryTool {
         }
 
         let limit = args["limit"].as_u64().map(|l| l as usize);
-        let tier = args["tier"].as_str().and_then(|t| match t {
-            "working" => Some(MemoryTier::Working),
-            "session" => Some(MemoryTier::Session),
-            "project" => Some(MemoryTier::Project),
-            "long_term" => Some(MemoryTier::LongTerm),
-            _ => None,
-        });
+        let tier = args["tier"].as_str().and_then(parse_tier);
 
         let query = MemoryQuery {
             query: query_text.to_string(),
@@ -237,8 +244,8 @@ impl BuiltinTool for QueryMemoryTool {
             time_range: None,
         };
 
-        // Query working memory
-        let results = self.store.query(&query).await?;
+        // 跨层级查询：Working → Session → Project → LongTerm
+        let results = self.system.query_all(&query).await?;
 
         if results.is_empty() {
             Ok("(no memories found)".to_string())
@@ -263,19 +270,20 @@ impl BuiltinTool for QueryMemoryTool {
 
 /// Clear Memory Tool
 pub struct ClearMemoryTool {
-    store: Arc<WorkingMemory>,
+    system: Arc<UnifiedMemorySystem>,
 }
 
 impl ClearMemoryTool {
+    /// 临时（非持久）系统 —— 单元测试用。
     pub fn new() -> Self {
         Self {
-            store: Arc::new(WorkingMemory::default()),
+            system: Arc::new(UnifiedMemorySystem::new("default")),
         }
     }
 
-    /// 使用指定的 store 创建
-    pub fn with_store(store: Arc<WorkingMemory>) -> Self {
-        Self { store }
+    /// 使用共享的统一记忆系统创建
+    pub fn with_system(system: Arc<UnifiedMemorySystem>) -> Self {
+        Self { system }
     }
 }
 
@@ -329,16 +337,10 @@ impl BuiltinTool for ClearMemoryTool {
             ));
         }
 
-        let tier = match tier_str {
-            "working" => MemoryTier::Working,
-            "session" => MemoryTier::Session,
-            "project" => MemoryTier::Project,
-            "long_term" => MemoryTier::LongTerm,
-            _ => MemoryTier::Working,
-        };
+        let tier = parse_tier(tier_str).unwrap_or(MemoryTier::Working);
 
         // CM1 fix: actually clear only the specified tier
-        let count = self.store.clear_tier(tier).await?;
+        let count = self.system.clear_tier(tier).await?;
 
         // CM3: Audit log
         tracing::info!(
@@ -351,6 +353,16 @@ impl BuiltinTool for ClearMemoryTool {
         );
 
         Ok(format!("Cleared {} memories from {} tier", count, tier_str))
+    }
+}
+
+fn parse_tier(s: &str) -> Option<MemoryTier> {
+    match s {
+        "working" => Some(MemoryTier::Working),
+        "session" => Some(MemoryTier::Session),
+        "project" => Some(MemoryTier::Project),
+        "long_term" => Some(MemoryTier::LongTerm),
+        _ => None,
     }
 }
 
@@ -389,16 +401,136 @@ mod tests {
 
     #[tokio::test]
     async fn test_save_and_query_memory() {
-        let store = Arc::new(WorkingMemory::default());
+        let system = Arc::new(UnifiedMemorySystem::new("test"));
 
-        let save_tool = SaveMemoryTool::with_store(store.clone());
+        let save_tool = SaveMemoryTool::with_system(system.clone());
         save_tool
             .execute(json!({"content": "important fact: the sky is blue"}))
             .await
             .unwrap();
 
-        let query_tool = QueryMemoryTool::with_store(store);
+        let query_tool = QueryMemoryTool::with_system(system);
         let result = query_tool.execute(json!({"query": "sky"})).await.unwrap();
         assert!(result.contains("sky is blue"));
+    }
+
+    /// 跨层可见性：save 到 project 层（持久），query 从另一个工具实例
+    /// （同系统）能查到 —— 修复"裂脑"的核心回归测试。
+    #[tokio::test]
+    async fn test_shared_system_cross_tier_visibility() {
+        let dir = tempfile::tempdir().unwrap();
+        let project = Arc::new(crate::memory_system::ProjectMemory::new(
+            dir.path().to_path_buf(),
+        ));
+        let system = Arc::new(
+            UnifiedMemorySystem::new("t").with_project(project.clone()),
+        );
+
+        SaveMemoryTool::with_system(system.clone())
+            .execute(json!({"content": "db url is postgres://prod", "tier": "project"}))
+            .await
+            .unwrap();
+
+        let out = QueryMemoryTool::with_system(system)
+            .execute(json!({"query": "postgres"}))
+            .await
+            .unwrap();
+        assert!(out.contains("postgres://prod"), "out: {}", out);
+    }
+
+    /// 持久化回归：ProjectMemory 重启（新实例同目录）后 query 能查到
+    /// 之前进程写入的条目 —— 修复"query 只看进程内缓存"。
+    #[tokio::test]
+    async fn test_project_memory_survives_restart() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // "进程 1"：写入并落盘
+        {
+            let system = Arc::new(
+                UnifiedMemorySystem::new("s1").with_project(Arc::new(
+                    crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
+                )),
+            );
+            SaveMemoryTool::with_system(system)
+                .execute(json!({"content": "deploy key rotation day", "tier": "project"}))
+                .await
+                .unwrap();
+        }
+
+        // "进程 2"：全新实例，同目录 —— 必须能查到
+        {
+            let system = Arc::new(
+                UnifiedMemorySystem::new("s2").with_project(Arc::new(
+                    crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
+                )),
+            );
+            let out = QueryMemoryTool::with_system(system)
+                .execute(json!({"query": "rotation"}))
+                .await
+                .unwrap();
+            assert!(out.contains("deploy key rotation day"), "out: {}", out);
+        }
+    }
+
+    /// 会话结束晋升：高重要性 session 记忆进入 project 层，低重要性留下。
+    #[tokio::test]
+    async fn test_promote_session_end() {
+        let dir = tempfile::tempdir().unwrap();
+        let system = Arc::new(
+            UnifiedMemorySystem::new("s").with_project(Arc::new(
+                crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
+            )),
+        );
+
+        let save = SaveMemoryTool::with_system(system.clone());
+        save.execute(json!({"content": "critical insight worth keeping", "tier": "session", "importance": 0.95}))
+            .await
+            .unwrap();
+        save.execute(json!({"content": "trivial scratch note", "tier": "session", "importance": 0.1}))
+            .await
+            .unwrap();
+
+        let promoted = system.promote_session_end(0.6).await.unwrap();
+        assert_eq!(promoted, 1, "only the high-importance entry promotes");
+
+        // Promoted entry is now queryable in project tier (cross-session)
+        let query = MemoryQuery {
+            query: "critical insight".into(),
+            tier: Some(MemoryTier::Project),
+            limit: Some(10),
+            time_range: None,
+        };
+        let hits = system.query_all(&query).await.unwrap();
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].content.contains("critical insight"));
+
+        // Low-importance entry was NOT promoted
+        let miss = MemoryQuery {
+            query: "scratch note".into(),
+            tier: Some(MemoryTier::Project),
+            limit: Some(10),
+            time_range: None,
+        };
+        assert!(system.query_all(&miss).await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_promote_without_project_backend_is_noop() {
+        let system = Arc::new(UnifiedMemorySystem::new("s"));
+        system
+            .store_at(MemoryTier::Session, "some session fact")
+            .await
+            .unwrap();
+        assert_eq!(system.promote_session_end(0.0).await.unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_importance_clamped_to_valid_range() {
+        let tool = SaveMemoryTool::new();
+        let out = tool
+            .execute(json!({"content": "x", "importance": 42.0}))
+            .await
+            .unwrap();
+        assert!(out.contains("Memory saved"));
     }
 }

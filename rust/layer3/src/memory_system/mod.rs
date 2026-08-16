@@ -135,6 +135,45 @@ impl DecayPolicy for TimeBasedDecay {
     }
 }
 
+/// 启发式重要性评分器：`ImportanceScorer` 的具体实现。
+///
+/// 组合三个信号（各截断到 [0,1]）：
+/// - 基础分：条目自带的 `importance` 字段（保存时由工具设定）
+/// - 访问加成：`access_count` 越多越重要（对数缓增，封顶 +0.2）
+/// - 时效加成：最近 24h 内访问过的条目 +0.1
+///
+/// 用于会话结束时决定哪些 session 记忆晋升到 project 层。
+pub struct HeuristicImportanceScorer {
+    now: chrono::DateTime<chrono::Utc>,
+}
+
+impl HeuristicImportanceScorer {
+    pub fn new() -> Self {
+        Self {
+            now: chrono::Utc::now(),
+        }
+    }
+}
+
+impl Default for HeuristicImportanceScorer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ImportanceScorer for HeuristicImportanceScorer {
+    fn score(&self, entry: &MemoryEntry) -> f32 {
+        let base = entry.importance.clamp(0.0, 1.0);
+        let access_bonus = ((entry.access_count as f32).ln_1p() * 0.1).min(0.2);
+        let recent_bonus = if (self.now - entry.last_accessed).num_hours() < 24 {
+            0.1
+        } else {
+            0.0
+        };
+        (base + access_bonus + recent_bonus).clamp(0.0, 1.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
