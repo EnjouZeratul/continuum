@@ -73,3 +73,7 @@ harness = false
 [[bench]]
 name = "bench_e2e"
 harness = false
+
+[[bench]]
+name = "bench_memory"
+harness = false

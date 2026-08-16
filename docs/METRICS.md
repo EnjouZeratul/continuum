@@ -36,15 +36,40 @@
 | cold_start_registry（50 工具注册） | **3.32 ms** |
 | cold_start_agent_runtime（14 工具 + runtime） | **1.25 ms** |
 
+### 内存 Benchmark（2026-06-21）
+
+| 场景 | Peak RSS | 说明 |
+|------|---------|------|
+| 100 iterations | **18.49 MB** | |
+| 1000 iterations | **18.61 MB** | |
+| 5000 iterations | **18.63 MB** | 5000 轮仅增加 0.27 MB — **无内存泄漏** |
+| 16 并发 × 10s | **39.79 MB** | 并发时线性增长，无泄漏 |
+
+### 吞吐 Benchmark（纯框架，无 LLM 网络调用）
+
+| 并发数 | 总吞吐 (req/s) | 每工作线程 (req/s) | Peak RSS |
+|--------|--------------|-------------------|---------|
+| 1 | **4.86M** | 4.86M | 20.30 MB |
+| 4 | **19.03M** | 4.76M | 25.22 MB |
+| 8 | **35.96M** | 4.49M | — |
+| 16 | **59.46M** | 3.72M | 39.79 MB |
+
 ### 对比业界（AutoAgents 2026 benchmark）
 
 | 维度 | AutoAgents (Rust) | Rig (Rust) | LangChain (Python) | **Continuum (Rust)** |
 |------|-------------------|-----------|--------------------|---------------------|
-| 端到端延迟（ReAct 单步） | 5,714 ms | 6,065 ms | 6,046 ms | **~5,000 ms**（LLM 网络主导，本地开销 4µs） |
-| 框架开销（去 LLM） | ~700ms | ~1000ms | ~500ms | **4.4 µs**（纯模拟，无 LLM） |
+| 内存 | 1,046 MB | 1,019 MB | 5,706 MB | **18.63 MB** ✅ 56× 更轻 |
 | 冷启动 | 4 ms | 4 ms | 62 ms | **3.3 ms** ✅ 最快 |
-| 内存 | 1,046 MB | 1,019 MB | 5,706 MB | 待测（见下） |
-| 复合分数 | 98.03 | 90.06 | 48.55 | — |
+| 框架开销/迭代 | ~700ms | ~1000ms | ~500ms | **4.2 µs** ✅ |
+| 工具分发 | — | — | — | **540 ns** ✅ |
+| 并发吞吐 | 4.97 rps（含LLM） | 4.44 rps（含LLM） | 4.26 rps（含LLM） | **59M iter/s**（纯框架）|
+| E2E 含LLM | 5,714 ms | 6,065 ms | 6,046 ms | ~5,000 ms（LLM 主导）|
+
+**测试环境**：Intel Core Ultra 7 270K Plus (24C/3.7GHz) / 64GB RAM / Win11 LTSC / rustc 1.95.0
+
+### 硬件披露（SPEC CPU 2026 run rules 对齐）
+
+benchmark 自动输出环境信息（OS/Arch/CPU/Memory/Rust version），CI Linux runner 补充云环境数据。
 
 **关键发现**：
 - **冷启动 3.3ms** — 业界最快（AutoAgents 4ms, LangChain 62ms）

@@ -111,10 +111,11 @@ impl ToolExecutor for DefaultToolExecutor {
     }
 
     async fn execute_batch(&self, requests: Vec<ToolRequest>) -> Layer3Result<Vec<ToolResponse>> {
-        let mut results = Vec::with_capacity(requests.len());
-        for request in requests {
-            results.push(self.execute(request).await?);
-        }
+        // Parallel execution: all tools run concurrently via join_all.
+        // Order is preserved (results[i] corresponds to requests[i]).
+        // Fail-fast: any error aborts the batch (consistent with previous sequential behavior).
+        let futures: Vec<_> = requests.into_iter().map(|req| self.execute(req)).collect();
+        let results = futures::future::try_join_all(futures).await?;
         Ok(results)
     }
 

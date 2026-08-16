@@ -215,8 +215,34 @@ jobs:
             target
           key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Run benchmarks
-        run: cargo bench --workspace --exclude sh-python
+      - name: Run benchmarks (with baseline regression check)
+        run: |
+          cargo bench --workspace --exclude sh-python 2>&1 | tee bench_output.txt
+          echo "=== Benchmark Summary ==="
+          grep "time:" bench_output.txt | head -30
+          echo "=== Performance change vs baseline ==="
+          grep -E "Performance has regressed|change:.*\+" bench_output.txt || echo "No regressions detected"
+          echo "=== Done ==="
+
+      - name: Check for critical regressions (>50%)
+        run: |
+          # Block if any benchmark regressed >50% (critical threshold)
+          REGRESSIONS=$(grep -c "Performance has regressed: >50%" bench_output.txt || true)
+          if [ "$REGRESSIONS" -gt 0 ]; then
+            echo "::error::Critical performance regression detected ($REGRESSIONS benchmarks >50% slower)"
+            grep "Performance has regressed: >50%" bench_output.txt
+            exit 1
+          fi
+          echo "No critical regressions (>50%)"
+
+      - name: Print environment disclosure (SPEC-aligned)
+        run: |
+          echo "=== Environment ==="
+          echo "OS: ${{ runner.os }} (${{ runner.arch }})"
+          lscpu | grep -E "Model name|CPU\(s\)|MHz" || true
+          free -h || true
+          rustc --version
+          echo "==================="
 
       - name: Store benchmark results
         uses: actions/upload-artifact@v4
@@ -224,14 +250,6 @@ jobs:
           name: benchmark-results-${{ github.sha }}
           path: target/criterion/
           retention-days: 30
-
-      - name: Performance regression check (>20% slower = warn)
-        run: |
-          # Extract key metrics from criterion output and compare to baseline
-          cargo bench --workspace --exclude sh-python 2>&1 | tee bench_output.txt
-          echo "=== Benchmark Summary ==="
-          grep "time:" bench_output.txt | head -20
-          echo "=== Done ==="
         continue-on-error: true
 
   # Clippy pedantic baseline (Task 4.5) — non-blocking, tracks strictness
