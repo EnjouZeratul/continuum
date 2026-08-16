@@ -355,6 +355,39 @@ impl WasmLoader {
         let module = Module::from_file(&self.engine, path)
             .with_context(|| format!("Failed to compile WASM: {:?}", path))?;
 
+        self.insert_module(name, module, capabilities)
+    }
+
+    /// Load a WASM plugin from WAT (WebAssembly Text) source.
+    ///
+    /// Used by the self-evolution pipeline: the agent authors tool code as
+    /// WAT text, which wasmtime compiles directly — no external toolchain,
+    /// no process execution.
+    pub fn load_wat(&self, name: &str, wat: &str, capabilities: CapabilitySet) -> Layer4Result<String> {
+        let module = Module::new(&self.engine, wat)
+            .with_context(|| format!("Failed to compile WAT source for plugin '{}'", name))?;
+        self.insert_module(name.to_string(), module, capabilities)
+    }
+
+    /// Load a WASM plugin from a raw binary.
+    pub fn load_binary(
+        &self,
+        name: &str,
+        bytes: &[u8],
+        capabilities: CapabilitySet,
+    ) -> Layer4Result<String> {
+        let module = Module::from_binary(&self.engine, bytes)
+            .with_context(|| format!("Failed to parse WASM binary for plugin '{}'", name))?;
+        self.insert_module(name.to_string(), module, capabilities)
+    }
+
+    /// Shared tail of all load paths: sandbox, wrap, register in maps.
+    fn insert_module(
+        &self,
+        name: String,
+        module: Module,
+        capabilities: CapabilitySet,
+    ) -> Layer4Result<String> {
         // Create sandbox
         let sandbox = PluginSandbox::new(capabilities);
 
@@ -364,19 +397,15 @@ impl WasmLoader {
             self.extract_version(&module)
                 .unwrap_or_else(|| "0.1.0".to_string()),
             sandbox,
-            module,
+            module.clone(),
             self.engine.clone(),
             self.config.clone(),
         );
 
-        // Store module and plugin
-        let module = self.modules.read().get(&name).cloned();
-        if let Some(module) = module {
-            self.modules.write().insert(name.clone(), module);
-        }
+        self.modules.write().insert(name.clone(), module);
         self.plugins.write().insert(name.clone(), Arc::new(plugin));
 
-        tracing::info!("Loaded WASM plugin: {} from {:?}", name, path);
+        tracing::info!("Loaded WASM plugin: {}", name);
 
         Ok(name)
     }

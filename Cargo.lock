@@ -4401,6 +4401,7 @@ dependencies = [
  "abi_stable",
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "futures",
  "libloading 0.8.9",
@@ -4411,6 +4412,7 @@ dependencies = [
  "sh-layer1",
  "sh-layer2",
  "sh-layer3",
+ "sh-safety",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -4419,6 +4421,7 @@ dependencies = [
  "uuid",
  "wasmtime",
  "wasmtime-wasi",
+ "wat",
 ]
 
 [[package]]

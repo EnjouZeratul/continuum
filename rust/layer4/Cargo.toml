@@ -13,7 +13,9 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+sh-layer2.workspace = true
 sh-layer3.workspace = true
+sh-safety.workspace = true
 
 tokio.workspace = true
 async-trait.workspace = true
@@ -33,12 +35,17 @@ abi_stable.workspace = true
 # HTTP 客户端
 reqwest.workspace = true
 
+# Base64 decoding for wasm_base64 capability installs
+base64 = "0.22"
+
 # WebSocket 客户端
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 futures.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+# WAT → wasm binary encoding for base64 install tests (also in wasmtime's tree)
+wat = "1"
 # continuum CLI dev-dependency removed (circular dependency for publishing)
 # continuum = { version = "1.0.0", path = "../../cli" }
 sh-layer1.workspace = true

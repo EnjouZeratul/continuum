@@ -15,6 +15,7 @@
 #![allow(dead_code)]
 
 pub mod audit_logger;
+pub mod capability_tools;
 pub mod channel_gateway;
 pub mod compliance_checker;
 pub mod mcp_bridge;

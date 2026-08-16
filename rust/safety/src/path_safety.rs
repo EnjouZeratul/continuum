@@ -98,6 +98,46 @@ pub fn check_path_danger(path: &Path) -> PathDanger {
     PathDanger::safe()
 }
 
+/// Agent-internal directory names whose contents must not be modified by
+/// the agent itself (self-modification guardrail). These may appear at any
+/// depth — they are matched as component sequences, not string prefixes,
+/// so `.continuum/core` matches `D:/proj/.continuum/core/policy.toml`.
+const AGENT_CRITICAL_COMPONENTS: &[&[&str]] = &[
+    &[".continuum", "core"],
+    &[".continuum", "registry"],
+    &[".continuum", "policy"],
+];
+
+/// Check whether `path` targets the agent's own core configuration.
+///
+/// This is the path half of the self-modification guardrail: even if a
+/// policy allows some self-modification, writes into the directories that
+/// *define* the policy are refused. Unlike [`check_path_danger`], this
+/// matches relative component sequences anywhere in the path, because
+/// agent state directories are project-local.
+pub fn check_agent_self_modification(path: &Path) -> PathDanger {
+    let components: Vec<String> = path
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().to_string())
+        .collect();
+
+    for seq in AGENT_CRITICAL_COMPONENTS {
+        if components.windows(seq.len()).any(|window| {
+            window
+                .iter()
+                .zip(seq.iter())
+                .all(|(a, b)| a.eq_ignore_ascii_case(b))
+        }) {
+            return PathDanger {
+                is_critical: true,
+                reason: "agent core configuration",
+            };
+        }
+    }
+
+    PathDanger::safe()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,5 +216,55 @@ mod tests {
         assert!(!d.is_critical, "/var/tmp should NOT be critical");
         let d = check_path_danger(Path::new("/home/user/project"));
         assert!(!d.is_critical, "/home/user/project should NOT be critical");
+    }
+
+    // ---- agent self-modification path guardrail ----
+
+    #[test]
+    fn test_agent_core_paths_critical() {
+        for p in [
+            ".continuum/core/config",
+            ".continuum/registry/tools.json",
+            ".continuum/policy/self_mod.toml",
+            // Absolute, nested, both separators on Windows
+            "D:/proj/.continuum/core/x",
+            "/home/u/proj/.continuum/policy/y",
+        ] {
+            let d = check_agent_self_modification(Path::new(p));
+            assert!(d.is_critical, "{p} should be agent-critical");
+            assert_eq!(d.reason, "agent core configuration");
+        }
+    }
+
+    #[test]
+    fn test_agent_critical_is_case_insensitive() {
+        let d = check_agent_self_modification(Path::new(".CONTINUUM/Core/config"));
+        assert!(d.is_critical);
+    }
+
+    #[test]
+    fn test_agent_data_directories_are_not_critical() {
+        // Skills, plugins, memory are legitimate agent-writable state —
+        // only core/registry/policy are locked.
+        for p in [
+            ".continuum/skills/parse.json",
+            ".continuum/plugins/my_tool.wasm",
+            ".continuum/memory/session.json",
+            "src/main.rs",
+            ".continuum",
+        ] {
+            let d = check_agent_self_modification(Path::new(p));
+            assert!(!d.is_critical, "{p} should NOT be agent-critical");
+        }
+    }
+
+    #[test]
+    fn test_lookalike_component_sequence_not_critical() {
+        // `.continuum-core` is a different single component, not the
+        // `.continuum/core` sequence — must not be flagged.
+        let d = check_agent_self_modification(Path::new(".continuum-core/config"));
+        assert!(!d.is_critical);
+        let d = check_agent_self_modification(Path::new("x/.continuumcore/y"));
+        assert!(!d.is_critical);
     }
 }

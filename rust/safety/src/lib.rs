@@ -6,3 +6,4 @@
 pub mod path_safety;
 pub mod safe_truncate;
 pub mod secret_scrub;
+pub mod self_mod_policy;

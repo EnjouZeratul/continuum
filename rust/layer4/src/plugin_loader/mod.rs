@@ -24,6 +24,7 @@ pub mod abi;
 pub mod capabilities;
 pub mod dylib;
 pub mod sandbox;
+pub mod tool_adapter;
 pub mod wasm;
 
 use async_trait::async_trait;
@@ -146,7 +147,7 @@ impl PluginContext {
 /// 插件注册表
 pub struct PluginRegistry {
     plugins: RwLock<HashMap<String, PluginInfo>>,
-    instances: RwLock<HashMap<String, Box<dyn Plugin>>>,
+    instances: RwLock<HashMap<String, Arc<dyn Plugin>>>,
 }
 
 impl PluginRegistry {
@@ -158,7 +159,8 @@ impl PluginRegistry {
     }
 
     /// 注册插件
-    pub fn register(&self, plugin: Box<dyn Plugin>, path: &Path) -> Layer4Result<()> {
+    pub fn register(&self, plugin: impl Plugin + 'static, path: &Path) -> Layer4Result<()> {
+        let plugin: Arc<dyn Plugin> = Arc::new(plugin);
         let name = plugin.name().to_string();
         let meta = PluginMeta {
             name: name.clone(),
@@ -196,11 +198,9 @@ impl PluginRegistry {
         self.plugins.read().get(name).cloned()
     }
 
-    /// 获取插件实例
-    pub fn get(&self, _name: &str) -> Option<Arc<dyn Plugin>> {
-        // 由于 Box 不能直接共享，这里返回 Option
-        // 实际实现需要使用 Arc
-        None
+    /// 获取插件实例（fix: now returns Arc clone from instances map）
+    pub fn get(&self, name: &str) -> Option<Arc<dyn Plugin>> {
+        self.instances.read().get(name).cloned()
     }
 
     /// 列出所有插件
