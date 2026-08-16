@@ -78,7 +78,11 @@ impl LlmTaskDecomposer {
 
     /// 分解任务。`available_tools` 是当前注册表中的工具名（含动态安装
     /// 的工具）—— 规划器据此判断能力缺口。
-    pub async fn decompose(&self, task: &str, available_tools: &[String]) -> Layer2Result<PlanResult> {
+    pub async fn decompose(
+        &self,
+        task: &str,
+        available_tools: &[String],
+    ) -> Layer2Result<PlanResult> {
         let Some(client) = &self.client else {
             return Ok(self.fallback(task, "no LLM client configured"));
         };
@@ -89,10 +93,7 @@ impl LlmTaskDecomposer {
             content: user_message,
         }];
 
-        let response = match client
-            .send_with_retry(messages, &self.config, 2)
-            .await
-        {
+        let response = match client.send_with_retry(messages, &self.config, 2).await {
             Ok(r) => r,
             Err(e) => {
                 return Ok(self.fallback(task, &format!("LLM request failed: {}", e)));
@@ -108,9 +109,11 @@ impl LlmTaskDecomposer {
     /// 启发式回退（sync 路径，永不失败以外的分支）。
     fn fallback(&self, task: &str, reason: &str) -> PlanResult {
         tracing::warn!(target: "continuum.planner", reason = %reason, "falling back to heuristic decomposition");
-        let mut result = PlanResult::new(self.heuristic.decompose(task).expect(
-            "heuristic decomposition is infallible for valid UTF-8 tasks",
-        ));
+        let mut result = PlanResult::new(
+            self.heuristic
+                .decompose(task)
+                .expect("heuristic decomposition is infallible for valid UTF-8 tasks"),
+        );
         result.source = PlanSource::Heuristic;
         result
             .suggestions
@@ -182,14 +185,10 @@ struct LlmSub {
 /// 解析 LLM 输出为执行计划。
 ///
 /// 容错规则见模块文档；硬失败仅两种：提取不到 JSON / DAG 有环。
-pub fn parse_llm_plan(
-    raw: &str,
-    task: &str,
-    max_subtasks: usize,
-) -> Layer2Result<ExecutionPlan> {
+pub fn parse_llm_plan(raw: &str, task: &str, max_subtasks: usize) -> Layer2Result<ExecutionPlan> {
     let json_str = extract_json(raw)?;
-    let llm: LlmPlan = serde_json::from_str(json_str)
-        .map_err(|e| anyhow::anyhow!("invalid plan JSON: {}", e))?;
+    let llm: LlmPlan =
+        serde_json::from_str(json_str).map_err(|e| anyhow::anyhow!("invalid plan JSON: {}", e))?;
 
     if llm.subtasks.is_empty() {
         return Err(anyhow::anyhow!("plan contains no subtasks"));
@@ -212,10 +211,7 @@ pub fn parse_llm_plan(
             .name
             .clone()
             .unwrap_or_else(|| format!("Step {}", i + 1));
-        let description = sub
-            .description
-            .clone()
-            .unwrap_or_else(|| name.clone());
+        let description = sub.description.clone().unwrap_or_else(|| name.clone());
 
         let mut st = SubTask::new(id.clone(), name, description);
         st.priority = sub.priority;
@@ -341,7 +337,11 @@ mod tests {
         ]}"#;
         let plan = parse(raw).unwrap();
         let b = &plan.subtasks[1];
-        assert_eq!(b.dependencies, vec!["a".to_string()], "ghost + self deps dropped");
+        assert_eq!(
+            b.dependencies,
+            vec!["a".to_string()],
+            "ghost + self deps dropped"
+        );
     }
 
     #[test]
@@ -389,8 +389,10 @@ mod tests {
             plan.subtasks[0].tool_args.as_ref().unwrap()["format"],
             serde_json::json!("wat")
         );
-        assert!(plan.execution_order.iter().position(|s| s == "s1")
-            < plan.execution_order.iter().position(|s| s == "s2"));
+        assert!(
+            plan.execution_order.iter().position(|s| s == "s1")
+                < plan.execution_order.iter().position(|s| s == "s2")
+        );
     }
 
     #[test]
@@ -405,7 +407,10 @@ mod tests {
     #[tokio::test]
     async fn without_llm_uses_heuristic_and_reports_source() {
         let d = LlmTaskDecomposer::without_llm();
-        let result = d.decompose("Create a file and write content", &[]).await.unwrap();
+        let result = d
+            .decompose("Create a file and write content", &[])
+            .await
+            .unwrap();
         assert_eq!(result.source, PlanSource::Heuristic);
         assert!(!result.plan.subtasks.is_empty());
         assert!(result

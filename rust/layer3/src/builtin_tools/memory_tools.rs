@@ -422,9 +422,7 @@ mod tests {
         let project = Arc::new(crate::memory_system::ProjectMemory::new(
             dir.path().to_path_buf(),
         ));
-        let system = Arc::new(
-            UnifiedMemorySystem::new("t").with_project(project.clone()),
-        );
+        let system = Arc::new(UnifiedMemorySystem::new("t").with_project(project.clone()));
 
         SaveMemoryTool::with_system(system.clone())
             .execute(json!({"content": "db url is postgres://prod", "tier": "project"}))
@@ -446,11 +444,9 @@ mod tests {
 
         // "进程 1"：写入并落盘
         {
-            let system = Arc::new(
-                UnifiedMemorySystem::new("s1").with_project(Arc::new(
-                    crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
-                )),
-            );
+            let system = Arc::new(UnifiedMemorySystem::new("s1").with_project(Arc::new(
+                crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
+            )));
             SaveMemoryTool::with_system(system)
                 .execute(json!({"content": "deploy key rotation day", "tier": "project"}))
                 .await
@@ -459,11 +455,9 @@ mod tests {
 
         // "进程 2"：全新实例，同目录 —— 必须能查到
         {
-            let system = Arc::new(
-                UnifiedMemorySystem::new("s2").with_project(Arc::new(
-                    crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
-                )),
-            );
+            let system = Arc::new(UnifiedMemorySystem::new("s2").with_project(Arc::new(
+                crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
+            )));
             let out = QueryMemoryTool::with_system(system)
                 .execute(json!({"query": "rotation"}))
                 .await
@@ -476,19 +470,19 @@ mod tests {
     #[tokio::test]
     async fn test_promote_session_end() {
         let dir = tempfile::tempdir().unwrap();
-        let system = Arc::new(
-            UnifiedMemorySystem::new("s").with_project(Arc::new(
-                crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
-            )),
-        );
+        let system = Arc::new(UnifiedMemorySystem::new("s").with_project(Arc::new(
+            crate::memory_system::ProjectMemory::new(dir.path().to_path_buf()),
+        )));
 
         let save = SaveMemoryTool::with_system(system.clone());
         save.execute(json!({"content": "critical insight worth keeping", "tier": "session", "importance": 0.95}))
             .await
             .unwrap();
-        save.execute(json!({"content": "trivial scratch note", "tier": "session", "importance": 0.1}))
-            .await
-            .unwrap();
+        save.execute(
+            json!({"content": "trivial scratch note", "tier": "session", "importance": 0.1}),
+        )
+        .await
+        .unwrap();
 
         let promoted = system.promote_session_end(0.6).await.unwrap();
         assert_eq!(promoted, 1, "only the high-importance entry promotes");

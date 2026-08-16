@@ -180,7 +180,10 @@ impl BuiltinTool for RunSkillTool {
         let Some(name) = args.get("name").and_then(|v| v.as_str()) else {
             return Err(anyhow::anyhow!("'name' is a required string"));
         };
-        let params = args.get("params").cloned().unwrap_or_else(|| serde_json::json!({}));
+        let params = args
+            .get("params")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
 
         let requests = self.store.render_steps(name, &params)?;
         let total = requests.len();
@@ -393,7 +396,9 @@ pub fn register_skill_tools(
 ) -> anyhow::Result<()> {
     ToolRegistryTrait::register(
         &**registry,
-        Box::new(ToolAdapter::new(Box::new(SaveSkillTool::new(store.clone())))),
+        Box::new(ToolAdapter::new(Box::new(SaveSkillTool::new(
+            store.clone(),
+        )))),
     )?;
     ToolRegistryTrait::register(
         &**registry,
@@ -404,7 +409,9 @@ pub fn register_skill_tools(
     )?;
     ToolRegistryTrait::register(
         &**registry,
-        Box::new(ToolAdapter::new(Box::new(ListSkillsTool::new(store.clone())))),
+        Box::new(ToolAdapter::new(Box::new(ListSkillsTool::new(
+            store.clone(),
+        )))),
     )?;
     ToolRegistryTrait::register(
         &**registry,
@@ -464,11 +471,14 @@ mod tests {
     async fn save_and_run_skill_end_to_end() {
         let (store, _d) = store_in_temp();
         let registry = Arc::new(ToolRegistry::new());
-        ToolRegistryTrait::register(&*registry, Box::new(MockTool {
-            name: "greet".into(),
-            fail: false,
-            calls: Default::default(),
-        }))
+        ToolRegistryTrait::register(
+            &*registry,
+            Box::new(MockTool {
+                name: "greet".into(),
+                fail: false,
+                calls: Default::default(),
+            }),
+        )
         .unwrap();
 
         // save
@@ -512,23 +522,32 @@ mod tests {
         let (store, _d) = store_in_temp();
         let registry = Arc::new(ToolRegistry::new());
         // First step OK, second step fails.
-        ToolRegistryTrait::register(&*registry, Box::new(MockTool {
-            name: "ok_step".into(),
-            fail: false,
-            calls: Default::default(),
-        }))
+        ToolRegistryTrait::register(
+            &*registry,
+            Box::new(MockTool {
+                name: "ok_step".into(),
+                fail: false,
+                calls: Default::default(),
+            }),
+        )
         .unwrap();
-        ToolRegistryTrait::register(&*registry, Box::new(MockTool {
-            name: "bad_step".into(),
-            fail: true,
-            calls: Default::default(),
-        }))
+        ToolRegistryTrait::register(
+            &*registry,
+            Box::new(MockTool {
+                name: "bad_step".into(),
+                fail: true,
+                calls: Default::default(),
+            }),
+        )
         .unwrap();
-        ToolRegistryTrait::register(&*registry, Box::new(MockTool {
-            name: "never_reached".into(),
-            fail: false,
-            calls: Default::default(),
-        }))
+        ToolRegistryTrait::register(
+            &*registry,
+            Box::new(MockTool {
+                name: "never_reached".into(),
+                fail: false,
+                calls: Default::default(),
+            }),
+        )
         .unwrap();
 
         let save = SaveSkillTool::new(store.clone());
@@ -573,7 +592,10 @@ mod tests {
         assert!(out.contains("csv_flow"));
         let out = list.execute(json!({"query": "csv"})).await.unwrap();
         assert!(out.contains("csv_flow"));
-        let out = list.execute(json!({"query": "no_match_xyz"})).await.unwrap();
+        let out = list
+            .execute(json!({"query": "no_match_xyz"}))
+            .await
+            .unwrap();
         assert!(out.contains("\"count\": 0"));
     }
 

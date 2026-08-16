@@ -72,8 +72,7 @@ impl<P: Plugin + 'static> Layer2Tool for PluginToolAdapter<P> {
             .map_err(|e| sh_layer2::Layer2Error::AgentError(format!("Plugin error: {}", e)))?;
 
         // Serialize output
-        let content = serde_json::to_string(&output)
-            .unwrap_or_else(|_| output.to_string());
+        let content = serde_json::to_string(&output).unwrap_or_else(|_| output.to_string());
 
         Ok(ToolResult {
             tool_call_id: String::new(),

@@ -169,13 +169,13 @@ impl CapabilityManager {
         } else {
             SelfModAction::InstallTool { name }
         };
-        let decision = self
-            .policy
-            .read()
-            .decide(&action, self.installed_count());
+        let decision = self.policy.read().decide(&action, self.installed_count());
         match decision {
             SelfModDecision::Deny(reason) => {
-                return Err(anyhow::anyhow!("denied by self-modification policy: {}", reason))
+                return Err(anyhow::anyhow!(
+                    "denied by self-modification policy: {}",
+                    reason
+                ))
             }
             SelfModDecision::RequiresApproval(reason) => {
                 if !approved {
@@ -252,12 +252,15 @@ impl CapabilityManager {
 
     /// Uninstall a dynamic tool. Builtins and protected names are refused.
     pub fn uninstall(&self, name: &str) -> Layer4Result<bool> {
-        let decision = self
-            .policy
-            .read()
-            .decide(&SelfModAction::UninstallTool { name }, self.installed_count());
+        let decision = self.policy.read().decide(
+            &SelfModAction::UninstallTool { name },
+            self.installed_count(),
+        );
         if let SelfModDecision::Deny(reason) = decision {
-            return Err(anyhow::anyhow!("denied by self-modification policy: {}", reason));
+            return Err(anyhow::anyhow!(
+                "denied by self-modification policy: {}",
+                reason
+            ));
         }
         if !self.installed.read().contains_key(name) {
             return Ok(false); // not a dynamic tool — nothing to remove
@@ -376,9 +379,7 @@ impl Layer2Tool for InstallCapabilityTool {
                 return fail(format!("invalid install_capability args: {}", e));
             }
         };
-        let get_str = |key: &str| -> Option<&str> {
-            args.get(key).and_then(|v| v.as_str())
-        };
+        let get_str = |key: &str| -> Option<&str> { args.get(key).and_then(|v| v.as_str()) };
 
         let (Some(name), Some(description), Some(code), Some(format_str)) = (
             get_str("name"),
@@ -409,7 +410,15 @@ impl Layer2Tool for InstallCapabilityTool {
 
         match self
             .manager
-            .install(name, description, code, format, schema, test_input, approved)
+            .install(
+                name,
+                description,
+                code,
+                format,
+                schema,
+                test_input,
+                approved,
+            )
             .await
         {
             Ok(report) => Ok(ToolResult {
@@ -555,7 +564,9 @@ mod tests {
         )
     }
 
-    fn manager_with_policy(policy: SelfModificationPolicy) -> (Arc<CapabilityManager>, Arc<ToolRegistry>) {
+    fn manager_with_policy(
+        policy: SelfModificationPolicy,
+    ) -> (Arc<CapabilityManager>, Arc<ToolRegistry>) {
         let registry = Arc::new(ToolRegistry::new());
         let manager = Arc::new(CapabilityManager::with_policy(registry.clone(), policy).unwrap());
         manager.register_tools().unwrap();
@@ -567,7 +578,11 @@ mod tests {
         (m, r)
     }
 
-    async fn install_echo(m: &CapabilityManager, name: &str, approved: bool) -> Layer4Result<serde_json::Value> {
+    async fn install_echo(
+        m: &CapabilityManager,
+        name: &str,
+        approved: bool,
+    ) -> Layer4Result<serde_json::Value> {
         m.install(
             name,
             "echo test tool",
@@ -602,7 +617,11 @@ mod tests {
             .await
             .unwrap();
         assert!(!out.is_error);
-        assert!(out.content.contains("\"a\":1"), "echo output: {}", out.content);
+        assert!(
+            out.content.contains("\"a\":1"),
+            "echo output: {}",
+            out.content
+        );
 
         // Uninstall removes it from both registry and manager.
         assert!(m.uninstall("echo_tool").unwrap());
@@ -625,8 +644,14 @@ mod tests {
         )
         .await
         .unwrap();
-        let out = ToolRegistryTrait::execute(&*registry, "greeter", "{}").await.unwrap();
-        assert!(out.content.contains("hello from wasm"), "got: {}", out.content);
+        let out = ToolRegistryTrait::execute(&*registry, "greeter", "{}")
+            .await
+            .unwrap();
+        assert!(
+            out.content.contains("hello from wasm"),
+            "got: {}",
+            out.content
+        );
     }
 
     #[tokio::test]
@@ -665,7 +690,11 @@ mod tests {
             )
             .await
             .unwrap_err();
-        assert!(err.to_string().contains("smoke test failed"), "err: {}", err);
+        assert!(
+            err.to_string().contains("smoke test failed"),
+            "err: {}",
+            err
+        );
         assert_eq!(m.installed_count(), 0);
         assert!(!registry.exists("no_entry"));
     }
@@ -696,17 +725,30 @@ mod tests {
         struct FakeBuiltin;
         #[async_trait]
         impl Layer2Tool for FakeBuiltin {
-            fn name(&self) -> &str { "calc" }
-            fn description(&self) -> &str { "builtin calc" }
-            fn parameters(&self) -> serde_json::Value { serde_json::json!({}) }
+            fn name(&self) -> &str {
+                "calc"
+            }
+            fn description(&self) -> &str {
+                "builtin calc"
+            }
+            fn parameters(&self) -> serde_json::Value {
+                serde_json::json!({})
+            }
             async fn execute(&self, _a: &str) -> Layer2Result<ToolResult> {
-                Ok(ToolResult { tool_call_id: String::new(), name: "calc".into(), content: "ok".into(), is_error: false })
+                Ok(ToolResult {
+                    tool_call_id: String::new(),
+                    name: "calc".into(),
+                    content: "ok".into(),
+                    is_error: false,
+                })
             }
         }
         ToolRegistryTrait::register(&*registry, Box::new(FakeBuiltin)).unwrap();
 
         let err = install_echo(&m, "calc", true).await.unwrap_err();
-        assert!(err.to_string().contains("shadowing builtins is not permitted"));
+        assert!(err
+            .to_string()
+            .contains("shadowing builtins is not permitted"));
     }
 
     #[tokio::test]
@@ -725,7 +767,9 @@ mod tests {
     async fn locked_policy_denies_even_with_approval() {
         let (m, _) = manager_with_policy(SelfModificationPolicy::locked());
         let err = install_echo(&m, "any_tool", true).await.unwrap_err();
-        assert!(err.to_string().contains("denied by self-modification policy"));
+        assert!(err
+            .to_string()
+            .contains("denied by self-modification policy"));
     }
 
     #[tokio::test]
@@ -765,15 +809,23 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(m.installed_count(), 1);
-        let out = ToolRegistryTrait::execute(&*registry, "mine", "{}").await.unwrap();
-        assert!(out.content.contains("\"v\":2"), "replaced tool output: {}", out.content);
+        let out = ToolRegistryTrait::execute(&*registry, "mine", "{}")
+            .await
+            .unwrap();
+        assert!(
+            out.content.contains("\"v\":2"),
+            "replaced tool output: {}",
+            out.content
+        );
     }
 
     #[tokio::test]
     async fn uninstall_builtin_refused() {
         let (m, _) = manager();
         let err = m.uninstall("bash").unwrap_err();
-        assert!(err.to_string().contains("denied by self-modification policy"));
+        assert!(err
+            .to_string()
+            .contains("denied by self-modification policy"));
     }
 
     #[tokio::test]
@@ -785,7 +837,11 @@ mod tests {
     #[tokio::test]
     async fn tools_exposed_through_registry_as_layer2_tools() {
         let (_, registry) = manager();
-        for name in ["install_capability", "uninstall_capability", "list_dynamic_tools"] {
+        for name in [
+            "install_capability",
+            "uninstall_capability",
+            "list_dynamic_tools",
+        ] {
             assert!(registry.exists(name), "{} should be registered", name);
         }
         // list_dynamic_tools works end-to-end through the registry.
@@ -793,7 +849,11 @@ mod tests {
             .await
             .unwrap();
         assert!(!out.is_error);
-        assert!(out.content.contains("\"count\": 0"), "content: {}", out.content);
+        assert!(
+            out.content.contains("\"count\": 0"),
+            "content: {}",
+            out.content
+        );
 
         // install_capability tool rejects missing fields with is_error output.
         let out = ToolRegistryTrait::execute(&*registry, "install_capability", "{}")
@@ -831,7 +891,11 @@ mod tests {
             .await
             .unwrap();
         assert!(!out.is_error);
-        assert!(out.content.contains("\"x\":1"), "echo output: {}", out.content);
+        assert!(
+            out.content.contains("\"x\":1"),
+            "echo output: {}",
+            out.content
+        );
     }
 
     #[tokio::test]

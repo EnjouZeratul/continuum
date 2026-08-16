@@ -2,7 +2,9 @@
 //!
 //! 整合四层记忆的统一接口。
 
-use crate::memory_system::{session::SessionMemory, working::WorkingMemory, ImportanceScorer, MemoryStore};
+use crate::memory_system::{
+    session::SessionMemory, working::WorkingMemory, ImportanceScorer, MemoryStore,
+};
 use crate::types::{Layer3Result, MemoryEntry, MemoryQuery, MemoryTier};
 use async_trait::async_trait;
 use sh_layer2::generate_short_id;

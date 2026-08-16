@@ -357,7 +357,13 @@ mod tests {
     #[test]
     fn valid_names_pass() {
         for name in [
-            "calc", "fetch_url", "parse-csv", "my.tool", "_private", "tool2", "A1_b-C.d",
+            "calc",
+            "fetch_url",
+            "parse-csv",
+            "my.tool",
+            "_private",
+            "tool2",
+            "A1_b-C.d",
         ] {
             assert_eq!(validate_tool_name(name), Ok(()), "should accept {name}");
         }

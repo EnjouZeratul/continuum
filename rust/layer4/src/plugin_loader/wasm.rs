@@ -363,7 +363,12 @@ impl WasmLoader {
     /// Used by the self-evolution pipeline: the agent authors tool code as
     /// WAT text, which wasmtime compiles directly — no external toolchain,
     /// no process execution.
-    pub fn load_wat(&self, name: &str, wat: &str, capabilities: CapabilitySet) -> Layer4Result<String> {
+    pub fn load_wat(
+        &self,
+        name: &str,
+        wat: &str,
+        capabilities: CapabilitySet,
+    ) -> Layer4Result<String> {
         let module = Module::new(&self.engine, wat)
             .with_context(|| format!("Failed to compile WAT source for plugin '{}'", name))?;
         self.insert_module(name.to_string(), module, capabilities)

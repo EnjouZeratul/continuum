@@ -98,7 +98,8 @@ impl SkillStore {
             .map_err(|e| anyhow::anyhow!("create skill dir {:?}: {}", root, e))?;
 
         let mut skills = HashMap::new();
-        let entries = std::fs::read_dir(&root).map_err(|e| anyhow::anyhow!("read skill dir: {}", e))?;
+        let entries =
+            std::fs::read_dir(&root).map_err(|e| anyhow::anyhow!("read skill dir: {}", e))?;
         for entry in entries {
             let Ok(entry) = entry else { continue };
             let path = entry.path();
@@ -107,8 +108,9 @@ impl SkillStore {
             }
             match std::fs::read_to_string(&path)
                 .map_err(|e| anyhow::anyhow!(e))
-                .and_then(|s| serde_json::from_str::<SkillDefinition>(&s).map_err(|e| anyhow::anyhow!(e)))
-            {
+                .and_then(|s| {
+                    serde_json::from_str::<SkillDefinition>(&s).map_err(|e| anyhow::anyhow!(e))
+                }) {
                 Ok(def) => {
                     skills.insert(def.name.clone(), def);
                 }
@@ -136,7 +138,10 @@ impl SkillStore {
     pub fn save_new(&self, new: NewSkill) -> Layer3Result<String> {
         validate_tool_name(&new.name).map_err(|r| anyhow::anyhow!(r))?;
         if new.description.len() > MAX_TEXT_BYTES {
-            return Err(anyhow::anyhow!("description exceeds {} bytes", MAX_TEXT_BYTES));
+            return Err(anyhow::anyhow!(
+                "description exceeds {} bytes",
+                MAX_TEXT_BYTES
+            ));
         }
         if new.steps.is_empty() {
             return Err(anyhow::anyhow!("skill must have at least one step"));
@@ -149,9 +154,14 @@ impl SkillStore {
                 return Err(anyhow::anyhow!("step {} has empty tool name", i));
             }
             if !step.arguments.is_object() {
-                return Err(anyhow::anyhow!("step {} arguments must be a JSON object", i));
+                return Err(anyhow::anyhow!(
+                    "step {} arguments must be a JSON object",
+                    i
+                ));
             }
-            let size = serde_json::to_vec(&step.arguments).map(|v| v.len()).unwrap_or(usize::MAX);
+            let size = serde_json::to_vec(&step.arguments)
+                .map(|v| v.len())
+                .unwrap_or(usize::MAX);
             if size > MAX_ARGUMENT_BYTES {
                 return Err(anyhow::anyhow!(
                     "step {} arguments exceed {} bytes",
@@ -181,9 +191,7 @@ impl SkillStore {
                 .filter(|t| !t.is_empty())
                 .collect(),
             steps: new.steps,
-            success_criteria: new
-                .success_criteria
-                .filter(|c| !c.trim().is_empty()),
+            success_criteria: new.success_criteria.filter(|c| !c.trim().is_empty()),
             created_at: now,
             updated_at: now,
             usage_count: 0,
@@ -210,7 +218,10 @@ impl SkillStore {
         };
         if let Some(d) = description {
             if d.len() > MAX_TEXT_BYTES {
-                return Err(anyhow::anyhow!("description exceeds {} bytes", MAX_TEXT_BYTES));
+                return Err(anyhow::anyhow!(
+                    "description exceeds {} bytes",
+                    MAX_TEXT_BYTES
+                ));
             }
             def.description = d;
         }
@@ -285,8 +296,7 @@ impl SkillStore {
         }
         let path = self.skill_path(name);
         if path.exists() {
-            std::fs::remove_file(&path)
-                .map_err(|e| anyhow::anyhow!("remove skill file: {}", e))?;
+            std::fs::remove_file(&path).map_err(|e| anyhow::anyhow!("remove skill file: {}", e))?;
         }
         Ok(true)
     }
@@ -322,9 +332,8 @@ impl SkillStore {
             .iter()
             .enumerate()
             .map(|(i, step)| {
-                let rendered = substitute(&step.arguments, params).map_err(|e| {
-                    anyhow::anyhow!("step {} template error: {}", i, e)
-                })?;
+                let rendered = substitute(&step.arguments, params)
+                    .map_err(|e| anyhow::anyhow!("step {} template error: {}", i, e))?;
                 Ok(ToolRequest {
                     call_id: format!("skill_{}_step_{}", def.id, i),
                     name: step.tool.clone(),
@@ -344,8 +353,7 @@ impl SkillStore {
         let tmp_path = self.root.join(format!("{}.json.tmp", def.name));
         let body = serde_json::to_string_pretty(def)
             .map_err(|e| anyhow::anyhow!("serialize skill: {}", e))?;
-        std::fs::write(&tmp_path, body)
-            .map_err(|e| anyhow::anyhow!("write skill tmp: {}", e))?;
+        std::fs::write(&tmp_path, body).map_err(|e| anyhow::anyhow!("write skill tmp: {}", e))?;
         if final_path.exists() {
             let _ = std::fs::remove_file(&final_path);
         }
@@ -365,7 +373,10 @@ fn success_rate(usage: u32, success: u32) -> f64 {
 
 /// 递归模板替换。整串 `"{{key}}"` → 原始 JSON 值（任意类型）；
 /// 其他字符串 → 插值（仅字符串参数）。未知占位符报错。
-fn substitute(value: &serde_json::Value, params: &serde_json::Map<String, serde_json::Value>) -> anyhow::Result<serde_json::Value> {
+fn substitute(
+    value: &serde_json::Value,
+    params: &serde_json::Map<String, serde_json::Value>,
+) -> anyhow::Result<serde_json::Value> {
     match value {
         serde_json::Value::String(s) => {
             if let Some(key) = exact_placeholder(s) {
@@ -397,7 +408,10 @@ fn exact_placeholder(s: &str) -> Option<&str> {
 }
 
 /// 字符串插值：替换所有 `{{key}}`（key 必须存在且为字符串）。
-fn interpolate(s: &str, params: &serde_json::Map<String, serde_json::Value>) -> anyhow::Result<serde_json::Value> {
+fn interpolate(
+    s: &str,
+    params: &serde_json::Map<String, serde_json::Value>,
+) -> anyhow::Result<serde_json::Value> {
     let mut out = String::with_capacity(s.len());
     let mut rest = s;
     while let Some(start) = rest.find("{{") {
@@ -478,7 +492,10 @@ mod tests {
                 name: "good".into(),
                 description: String::new(),
                 trigger_patterns: vec![],
-                steps: vec![SkillStep { tool: "t".into(), arguments: serde_json::json!({}) }],
+                steps: vec![SkillStep {
+                    tool: "t".into(),
+                    arguments: serde_json::json!({}),
+                }],
                 success_criteria: None,
                 created_at: Utc::now(),
                 updated_at: Utc::now(),
@@ -518,7 +535,10 @@ mod tests {
 
         let mut sk = sample_skill("too_many");
         sk.steps = (0..=MAX_STEPS)
-            .map(|_| SkillStep { tool: "t".into(), arguments: serde_json::json!({}) })
+            .map(|_| SkillStep {
+                tool: "t".into(),
+                arguments: serde_json::json!({}),
+            })
             .collect();
         assert!(s.save_new(sk).is_err());
     }
@@ -604,7 +624,9 @@ mod tests {
     fn render_unknown_parameter_errors() {
         let (s, _d) = store();
         s.save_new(sample_skill("unknown")).unwrap();
-        let err = s.render_steps("unknown", &serde_json::json!({"other": 1})).unwrap_err();
+        let err = s
+            .render_steps("unknown", &serde_json::json!({"other": 1}))
+            .unwrap_err();
         assert!(err.to_string().contains("unknown parameter"));
     }
 
@@ -668,7 +690,10 @@ mod tests {
             "improve_me",
             Some("better description".into()),
             Some(vec!["new trigger".into()]),
-            Some(vec![SkillStep { tool: "other_tool".into(), arguments: serde_json::json!({}) }]),
+            Some(vec![SkillStep {
+                tool: "other_tool".into(),
+                arguments: serde_json::json!({}),
+            }]),
             Some("new criteria".into()),
         )
         .unwrap();
@@ -684,6 +709,8 @@ mod tests {
     #[test]
     fn update_unknown_skill_errors() {
         let (s, _d) = store();
-        assert!(s.update("ghost", Some("d".into()), None, None, None).is_err());
+        assert!(s
+            .update("ghost", Some("d".into()), None, None, None)
+            .is_err());
     }
 }
