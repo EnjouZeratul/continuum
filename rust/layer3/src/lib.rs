@@ -28,6 +28,7 @@ pub mod query_engine;
 pub mod retriever;
 pub mod retriever_engine;
 pub mod sandbox_runtime;
+pub mod skill_store;
 pub mod skills;
 pub mod text_splitters;
 pub mod tool_executor;

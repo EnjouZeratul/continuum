@@ -17,6 +17,7 @@ pub mod network_tools;
 pub mod read_state;
 pub mod search;
 pub mod shell;
+pub mod skill_tools;
 pub mod system_tools;
 pub mod text_tools;
 pub mod web_search;
