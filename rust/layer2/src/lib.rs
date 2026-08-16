@@ -28,6 +28,7 @@ pub mod execution_monitor;
 pub mod hook_system;
 pub mod permission;
 pub mod planner;
+pub mod planner_llm;
 pub mod prompts;
 pub mod session_manager;
 pub mod tasks;

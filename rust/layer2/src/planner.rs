@@ -510,11 +510,18 @@ pub struct PlanResult {
     pub quality_score: u32,
     /// 分解建议
     pub suggestions: Vec<String>,
+    /// 计划来源（启发式 / LLM）
+    pub source: crate::planner_llm::PlanSource,
 }
 
 impl PlanResult {
-    /// 创建新的规划结果
+    /// 创建新的规划结果（来源默认标记为启发式）
     pub fn new(plan: ExecutionPlan) -> Self {
+        Self::with_source(plan, crate::planner_llm::PlanSource::Heuristic)
+    }
+
+    /// 创建指定来源的规划结果
+    pub fn with_source(plan: ExecutionPlan, source: crate::planner_llm::PlanSource) -> Self {
         let quality_score = Self::calculate_quality(&plan);
         let suggestions = Self::generate_suggestions(&plan);
 
@@ -522,6 +529,7 @@ impl PlanResult {
             plan,
             quality_score,
             suggestions,
+            source,
         }
     }
 
