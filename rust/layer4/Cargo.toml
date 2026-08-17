@@ -29,7 +29,7 @@ uuid.workspace = true
 parking_lot.workspace = true
 libloading.workspace = true
 wasmtime.workspace = true
-wasmtime-wasi = { version = "25", features = ["preview1"] }
+wasmtime-wasi = { version = "47", features = ["p1"] }
 abi_stable.workspace = true
 
 # HTTP 客户端

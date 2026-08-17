@@ -204,7 +204,7 @@ impl AuditLogger {
                         *v = Value::String("***REDACTED***".to_string());
                     }
                 }
-                for (_, v) in map.iter_mut() {
+                for v in map.values_mut() {
                     *v = self.sanitize_value(v.clone());
                 }
                 Value::Object(map)

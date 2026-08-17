@@ -49,7 +49,7 @@ hostname = "0.4"
 dirs = "5.0"
 
 # PDF processing
-lopdf = "0.34"
+lopdf = "0.42"
 
 [dev-dependencies]
 tempfile.workspace = true

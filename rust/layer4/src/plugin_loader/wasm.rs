@@ -59,6 +59,10 @@ pub struct PluginState {
     pub start_time: Option<Instant>,
     /// CPU time limit
     pub cpu_limit_ms: u64,
+    /// Engine-enforced linear memory cap (bytes)
+    pub max_memory_bytes: u64,
+    /// Engine-enforced table element cap
+    pub max_table_elements: u32,
     /// Memory tracker
     pub memory_used: u64,
     /// WASI context (for sandboxed filesystem access)
@@ -66,12 +70,20 @@ pub struct PluginState {
 }
 
 impl PluginState {
-    fn new(sandbox: PluginSandbox, data_dir: PathBuf, cpu_limit_ms: u64) -> Self {
+    fn new(
+        sandbox: PluginSandbox,
+        data_dir: PathBuf,
+        cpu_limit_ms: u64,
+        max_memory_bytes: u64,
+        max_table_elements: u32,
+    ) -> Self {
         Self {
             sandbox,
             data_dir,
             start_time: None,
             cpu_limit_ms,
+            max_memory_bytes,
+            max_table_elements,
             memory_used: 0,
             wasi_ctx: None,
         }
@@ -82,7 +94,7 @@ impl PluginState {
         self
     }
 
-    fn check_cpu_limit(&self) -> Result<()> {
+    fn check_cpu_limit(&self) -> anyhow::Result<()> {
         if self.cpu_limit_ms == 0 {
             return Ok(());
         }
@@ -97,6 +109,46 @@ impl PluginState {
             }
         }
         Ok(())
+    }
+}
+
+/// Engine-enforced resource limits (wasmtime 47: replaces the removed
+/// `Config::static_memory_maximum_size`). Growth beyond the caps is denied
+/// (`Ok(false)` → guest `memory.grow` returns -1 / API call errors) instead
+/// of trapping, keeping denials spec-compliant.
+impl wasmtime::ResourceLimiter for PluginState {
+    fn memory_growing(
+        &mut self,
+        _current: usize,
+        desired: usize,
+        _maximum: Option<usize>,
+    ) -> wasmtime::Result<bool> {
+        if self.max_memory_bytes > 0 && desired > self.max_memory_bytes as usize {
+            tracing::warn!(
+                "plugin memory growth denied: {} bytes > {} byte cap",
+                desired,
+                self.max_memory_bytes
+            );
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    fn table_growing(
+        &mut self,
+        _current: usize,
+        desired: usize,
+        _maximum: Option<usize>,
+    ) -> wasmtime::Result<bool> {
+        if desired > self.max_table_elements as usize {
+            tracing::warn!(
+                "plugin table growth denied: {} elements > {} cap",
+                desired,
+                self.max_table_elements
+            );
+            return Ok(false);
+        }
+        Ok(true)
     }
 }
 
@@ -148,19 +200,27 @@ impl WasmPlugin {
 
     /// Create a new store for execution
     pub fn create_store(&self, data_dir: PathBuf) -> Store<PluginState> {
-        let cpu_limit = self.config.max_cpu_time_ms;
-        let state = PluginState::new(self.sandbox.clone(), data_dir, cpu_limit);
-        Store::new(&self.engine, state)
+        let state = PluginState::new(
+            self.sandbox.clone(),
+            data_dir,
+            self.config.max_cpu_time_ms,
+            self.config.max_memory_bytes,
+            self.config.max_table_elements,
+        );
+        let mut store = Store::new(&self.engine, state);
+        // Engine-enforced memory/table caps (see ResourceLimiter impl)
+        store.limiter(|state| state);
+        store
     }
 
     /// Instantiate the plugin in a store
-    pub fn instantiate(&self, store: &mut Store<PluginState>) -> Result<Instance> {
+    pub fn instantiate(&self, store: &mut Store<PluginState>) -> anyhow::Result<Instance> {
         // Start CPU timer
         store.data_mut().start_time = Some(Instant::now());
 
         // Create instance
         Instance::new(store, &self.module, &[])
-            .with_context(|| format!("Failed to instantiate WASM plugin: {}", self.name))
+            .map_err(|e| anyhow!("Failed to instantiate WASM plugin '{}': {}", self.name, e))
     }
 
     /// Execute a function by name with JSON input/output
@@ -170,14 +230,14 @@ impl WasmPlugin {
         instance: &Instance,
         func_name: &str,
         input: &serde_json::Value,
-    ) -> Result<serde_json::Value> {
+    ) -> anyhow::Result<serde_json::Value> {
         // Check CPU limit before execution
         store.data().check_cpu_limit()?;
 
         // Get the function
         let func = instance
             .get_typed_func::<(i32, i32), (i32, i32)>(&mut *store, func_name)
-            .with_context(|| format!("Function '{}' not found in plugin", func_name))?;
+            .map_err(|e| anyhow!("Function '{}' not usable in plugin: {}", func_name, e))?;
 
         // Allocate input in WASM memory
         let input_bytes = serde_json::to_vec(input)?;
@@ -196,7 +256,9 @@ impl WasmPlugin {
             .copy_from_slice(&input_bytes);
 
         // Call the function
-        let (output_ptr, output_len) = func.call(&mut *store, (input_ptr, input_len))?;
+        let (output_ptr, output_len) = func
+            .call(&mut *store, (input_ptr, input_len))
+            .map_err(|e| anyhow!("Plugin function '{}' failed: {}", func_name, e))?;
 
         // Read output from memory
         let data = memory.data(&store);
@@ -216,7 +278,7 @@ impl WasmPlugin {
         store: &mut Store<PluginState>,
         memory: Memory,
         size: i32,
-    ) -> Result<i32> {
+    ) -> anyhow::Result<i32> {
         let data = memory.data_mut(&mut *store);
         let current_size = data.len() as i32;
 
@@ -233,7 +295,7 @@ impl WasmPlugin {
             let grow_by = needed_pages - current_pages as i32;
             memory
                 .grow(&mut *store, grow_by as u64)
-                .with_context(|| "Failed to grow WASM memory")?;
+                .map_err(|e| anyhow!("Failed to grow WASM memory: {}", e))?;
         }
 
         // Track memory usage
@@ -315,14 +377,12 @@ impl WasmLoader {
         engine_config.wasm_backtrace_details(WasmBacktraceDetails::Enable);
         engine_config.cranelift_opt_level(OptLevel::Speed);
 
-        // Configure memory limits
-        if config.max_memory_bytes > 0 {
-            let max_pages = (config.max_memory_bytes / 65536) + 1;
-            engine_config.wasm_memory64(true);
-            engine_config.static_memory_maximum_size(max_pages * 65536);
-        }
+        // Memory/table caps are enforced per-store via the ResourceLimiter
+        // (see PluginState); wasmtime 47 removed the engine-level
+        // `static_memory_maximum_size` knob.
 
-        let engine = Engine::new(&engine_config).context("Failed to create Wasmtime engine")?;
+        let engine = Engine::new(&engine_config)
+            .map_err(|e| anyhow!("Failed to create Wasmtime engine: {}", e))?;
 
         Ok(Self {
             engine,
@@ -353,7 +413,7 @@ impl WasmLoader {
 
         // Compile module (validates WASM)
         let module = Module::from_file(&self.engine, path)
-            .with_context(|| format!("Failed to compile WASM: {:?}", path))?;
+            .map_err(|e| anyhow!("Failed to compile WASM {:?}: {}", path, e))?;
 
         self.insert_module(name, module, capabilities)
     }
@@ -370,7 +430,7 @@ impl WasmLoader {
         capabilities: CapabilitySet,
     ) -> Layer4Result<String> {
         let module = Module::new(&self.engine, wat)
-            .with_context(|| format!("Failed to compile WAT source for plugin '{}'", name))?;
+            .map_err(|e| anyhow!("Failed to compile WAT source for plugin '{}': {}", name, e))?;
         self.insert_module(name.to_string(), module, capabilities)
     }
 
@@ -382,7 +442,7 @@ impl WasmLoader {
         capabilities: CapabilitySet,
     ) -> Layer4Result<String> {
         let module = Module::from_binary(&self.engine, bytes)
-            .with_context(|| format!("Failed to parse WASM binary for plugin '{}'", name))?;
+            .map_err(|e| anyhow!("Failed to parse WASM binary for plugin '{}': {}", name, e))?;
         self.insert_module(name.to_string(), module, capabilities)
     }
 
@@ -624,6 +684,43 @@ mod tests {
         assert!(loader.is_ok());
         let loader = loader.unwrap();
         assert!(loader.list().is_empty());
+    }
+
+    /// wasmtime 47 migration: memory caps moved from engine config to the
+    /// per-store ResourceLimiter. This pins the engine-level enforcement —
+    /// growth beyond `max_memory_bytes` must be refused by the engine,
+    /// not just tracked.
+    #[test]
+    fn test_memory_cap_enforced_by_engine() {
+        let config = WasmConfig {
+            max_memory_bytes: 65536, // 1 page cap
+            ..WasmConfig::default()
+        };
+        let loader = WasmLoader::with_config(config).unwrap();
+        let module = Module::new(loader.engine(), "(module)").unwrap();
+        let plugin = WasmPlugin::new(
+            "cap_test".to_string(),
+            "0.1.0".to_string(),
+            PluginSandbox::sandboxed(),
+            module,
+            loader.engine().clone(),
+            WasmConfig {
+                max_memory_bytes: 65536,
+                ..WasmConfig::default()
+            },
+        );
+
+        let mut store = plugin.create_store(std::env::temp_dir());
+        let memory = Memory::new(&mut store, MemoryType::new(1, None)).unwrap();
+        assert_eq!(memory.size(&store), 1, "initial 1 page within cap");
+
+        // Grow to 3 pages (196KB) — beyond the 1-page cap: engine must refuse.
+        let denied = memory.grow(&mut store, 2);
+        assert!(denied.is_err(), "growth beyond cap must be refused");
+        assert_eq!(memory.size(&store), 1, "memory unchanged after denial");
+
+        // Within-cap growth still allowed.
+        assert!(memory.grow(&mut store, 0).is_ok());
     }
 
     #[test]

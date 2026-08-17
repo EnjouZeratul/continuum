@@ -272,7 +272,7 @@ impl LanguageServerManager {
     /// 停止所有服务器
     pub async fn stop_all(&self) -> LspResult<()> {
         let mut servers = self.servers.lock().await;
-        for (_, mut server) in servers.drain() {
+        for mut server in servers.drain().map(|(_, server)| server) {
             let _ = server.stop();
         }
         Ok(())

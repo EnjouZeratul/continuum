@@ -12,6 +12,17 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // ===== 1. Mock 测试（CI 可运行）=====
 
+/// 让 reqwest 绕过代理访问 loopback mock server。
+///
+/// 开发机常开系统代理（Clash 等），部分配置不把 127.0.0.1 加入直连
+/// 列表，导致发往 mock server 的请求被代理吞掉、返回空响应
+/// （"EOF while parsing a value"）。NO_PROXY 只豁免 loopback，
+/// 不影响真实 API 调用走代理。
+fn bypass_proxy_for_loopback() {
+    std::env::set_var("NO_PROXY", "127.0.0.1,localhost");
+    std::env::set_var("no_proxy", "127.0.0.1,localhost");
+}
+
 /// 模拟 Anthropic API 响应
 fn mock_anthropic_response() -> serde_json::Value {
     serde_json::json!({
@@ -84,6 +95,7 @@ async fn test_anthropic_compatible_endpoint_url_construction() {
 
 #[tokio::test]
 async fn test_mock_anthropic_api_request() {
+    bypass_proxy_for_loopback();
     // 启动 mock 服务器
     let mock_server = MockServer::start().await;
 
@@ -124,6 +136,7 @@ async fn test_mock_anthropic_api_request() {
 
 #[tokio::test]
 async fn test_mock_anthropic_compatible_endpoint() {
+    bypass_proxy_for_loopback();
     // 启动 mock 服务器
     let mock_server = MockServer::start().await;
 
@@ -163,6 +176,7 @@ async fn test_mock_anthropic_compatible_endpoint() {
 
 #[tokio::test]
 async fn test_mock_openai_compatible_endpoint() {
+    bypass_proxy_for_loopback();
     // 启动 mock 服务器
     let mock_server = MockServer::start().await;
 

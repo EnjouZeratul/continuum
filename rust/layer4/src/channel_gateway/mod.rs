@@ -293,7 +293,7 @@ impl ChannelGateway {
 
         // 轮询所有渠道
         let channels = self.channels.read();
-        for (_, channel) in channels.iter() {
+        for channel in channels.values() {
             if let Some(msg) = channel.try_receive().await? {
                 // 更新路由信息
                 self.router
@@ -319,7 +319,7 @@ impl ChannelGateway {
 
         // 轮询所有渠道
         let channels = self.channels.read();
-        for (_, channel) in channels.iter() {
+        for channel in channels.values() {
             while let Some(msg) = channel.try_receive().await? {
                 messages.push(msg);
             }
